@@ -45,12 +45,27 @@ function client(): Resend | null {
 const DEFAULT_FROM = process.env.EMAIL_FROM ?? 'K2Biznes <oferty@k2biznes.pl>';
 const DEFAULT_REPLY_TO = process.env.EMAIL_REPLY_TO ?? 'kontakt@k2biznes.pl';
 
+/**
+ * Code review PR #3: redact email dla dev_log/CI logs (lokalna część + 2 znaki
+ * domeny dla debugu, reszta zamaskowana). Pełny adres trafia do offer_events
+ * (audit), ale nie do stdout który może być persistowany w CI build logs.
+ */
+function redactEmail(email: string): string {
+  const at = email.indexOf('@');
+  if (at < 0) return '***';
+  const local = email.slice(0, at);
+  const domain = email.slice(at + 1);
+  const localMasked = local.length <= 2 ? '*'.repeat(local.length) : `${local[0]}***${local[local.length - 1]}`;
+  const domainHead = domain.slice(0, 2);
+  return `${localMasked}@${domainHead}***`;
+}
+
 export async function sendEmail(msg: EmailMessage): Promise<SendResult> {
   const c = client();
   if (!c) {
-    // Dev/test bez Resend — log do stdout.
+    // Dev/test bez Resend — log do stdout (z PII redaction dla CI logs).
     console.log(
-      `[email:dev_log] to=${msg.to} subject="${msg.subject}" html_bytes=${msg.html.length}`,
+      `[email:dev_log] to=${redactEmail(msg.to)} subject="${msg.subject}" html_bytes=${msg.html.length}`,
     );
     return { ok: true, id: `dev_log_${Date.now()}`, mode: 'dev_log' };
   }

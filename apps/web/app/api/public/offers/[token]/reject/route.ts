@@ -32,9 +32,11 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
       .from('offers')
       .update({
         status: 'rejected',
-        accepted_by_name: body.clientName,
-        accepted_by_email: body.clientEmail ?? null,
-        client_comment: body.reason ?? null,
+        // Code review PR #2: dedykowane kolumny `rejected_by_*` zamiast
+        // re-używania `accepted_by_*` (false positive w analytics).
+        rejected_by_name: body.clientName,
+        rejected_by_email: body.clientEmail ?? null,
+        reject_reason: body.reason ?? null,
         rejected_at: now,
       })
       .eq('id', offer.id)

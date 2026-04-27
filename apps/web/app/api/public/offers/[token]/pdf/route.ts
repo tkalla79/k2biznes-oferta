@@ -85,7 +85,13 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
         'Content-Type': 'application/pdf',
         'Content-Length': String(buf.byteLength),
         'Content-Disposition': `inline; filename="${offer.offer_number.replace(/[/\\?#]/g, '_')}.pdf"`,
-        'Cache-Control': 'private, max-age=300',
+        // Code review PR #4: `no-store` zamiast `private, max-age=300`. Stary header
+        // pozwalał przeglądarce serwować nieaktualny PDF do 5 min po edycji oferty
+        // (cache invalidation w bucket'cie był OK, ale browser cache przebijał).
+        // Dla dokumentów handlowych z wymiarem prawnym (cennik, warunki) stale
+        // content jest niedopuszczalny. Bucket cache po stronie serwera załatwia
+        // performance — browser cache nie jest tu potrzebny.
+        'Cache-Control': 'no-store, max-age=0',
         'X-Pdf-Cache': cacheHit ? 'hit' : 'miss',
       },
     });

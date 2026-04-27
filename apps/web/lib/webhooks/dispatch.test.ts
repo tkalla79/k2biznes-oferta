@@ -17,11 +17,13 @@ describe('webhook backoff', () => {
     expect(_MAX_ATTEMPTS).toBe(5);
   });
 
-  it('sekwencja: attempt 1..5 → odpowiednie delay', () => {
-    expect(_backoffSecondsForAttempt(1)).toBe(120); // po 1 fail → 2min do 2. próby
-    expect(_backoffSecondsForAttempt(2)).toBe(600); // po 2 fail → 10min
-    expect(_backoffSecondsForAttempt(3)).toBe(3600); // po 3 fail → 1h
-    expect(_backoffSecondsForAttempt(4)).toBe(21_600); // po 4 fail → 6h (5. próba)
+  it('sekwencja: po N-tej awarii → delay BACKOFF_SEC[N-1]', () => {
+    // PR #5 review fix: pierwsza awaria (attempts=1) używa BACKOFF[0]=30s.
+    expect(_backoffSecondsForAttempt(1)).toBe(30); // po 1 fail → 30s (do 2. próby)
+    expect(_backoffSecondsForAttempt(2)).toBe(120); // po 2 fail → 2min (do 3.)
+    expect(_backoffSecondsForAttempt(3)).toBe(600); // po 3 fail → 10min (do 4.)
+    expect(_backoffSecondsForAttempt(4)).toBe(3600); // po 4 fail → 1h (do 5.)
+    expect(_backoffSecondsForAttempt(5)).toBe(21_600); // hipotetycznie 6 (clamp do 6h)
   });
 
   it('clamp dla attempts > tablicy (chroni przed undefined)', () => {
@@ -29,7 +31,9 @@ describe('webhook backoff', () => {
     expect(_backoffSecondsForAttempt(99)).toBe(21_600);
   });
 
-  it('attempt 0 → pierwsze opóźnienie 30s (initial enqueue: now)', () => {
+  it('attempts=0 (przed pierwszą próbą) — clamp do BACKOFF[0]=30s', () => {
+    // Edge case — initial enqueue ustawia next_attempt_at=now() bez backoff'u
+    // przez bazę, więc ten kod nie jest wołany; ale dla bezpieczeństwa.
     expect(_backoffSecondsForAttempt(0)).toBe(30);
   });
 });

@@ -43,8 +43,13 @@ function adminOfferUrl(id: string) {
 /**
  * Best-effort log do `offer_events` — używane do tracking wysyłek emailowych.
  * Ignorujemy błąd zapisu (audit nie powinien blokować notify).
+ *
+ * Code review PR #3: rozróżnia sukces/porażkę przez payload.outcome — failure
+ * nie jest cicho zapisany jako "sent" event tylko z `result.ok=false` w payload.
+ * Konsumenci eventów (admin dashboard PR #8) mogą filtrować po `outcome=failed`
+ * żeby pokazać konsultantowi info "email się nie wysłał, spróbuj /send ponownie".
  */
-async function logEmailEvent(offerId: string, payload: Record<string, unknown>) {
+async function logEmailEvent(offerId: string, payload: Record<string, unknown> & { outcome: 'sent' | 'failed' }) {
   const sb = createAdminClient();
   const { error } = await sb.from('offer_events').insert({
     offer_id: offerId,
@@ -68,6 +73,26 @@ export async function notifyClientOfferSent(args: {
   const { offer, recipientEmail, customMessage } = args;
   const sb = createAdminClient();
 
+  // Code review PR #3: guard na pricing_snapshot. Format jest typu jsonb i mimo
+  // że schema ma NOT NULL, tu defensywnie sprawdzamy strukturę przed castem.
+  const snapshotRaw = offer.pricing_snapshot;
+  if (
+    !snapshotRaw ||
+    typeof snapshotRaw !== 'object' ||
+    Array.isArray(snapshotRaw) ||
+    !Array.isArray((snapshotRaw as { variants?: unknown }).variants)
+  ) {
+    console.error('[notifications] invalid pricing_snapshot for offer', offer.id);
+    await logEmailEvent(offer.id, {
+      outcome: 'failed',
+      template: 'OfferSentToClient',
+      to: recipientEmail,
+      reason: 'invalid_pricing_snapshot',
+    });
+    return;
+  }
+  const snapshot = snapshotRaw as unknown as PricingResult;
+
   // Konsultant — z `assigned_consultant_id` lub `created_by`.
   const consultantId = offer.assigned_consultant_id ?? offer.created_by;
   const { data: consultant } = await sb
@@ -76,7 +101,11 @@ export async function notifyClientOfferSent(args: {
     .eq('id', consultantId)
     .maybeSingle();
 
-  const snapshot = offer.pricing_snapshot as unknown as PricingResult;
+  if (!consultant) {
+    // Code review PR #3: spójne z notifyConsultant* — warn gdy brak profilu.
+    console.warn('[notifications] no consultant profile for offer', offer.id, 'consultantId:', consultantId);
+  }
+
   const variant = snapshot.variants.find((v) => v.id === offer.selected_variant);
 
   const props: OfferSentToClientProps = {
@@ -105,6 +134,7 @@ export async function notifyClientOfferSent(args: {
   });
 
   await logEmailEvent(offer.id, {
+    outcome: result.ok ? 'sent' : 'failed',
     template: 'OfferSentToClient',
     to: recipientEmail,
     result,
@@ -137,7 +167,8 @@ export async function notifyConsultantOfferAccepted(offer: OfferRow): Promise<vo
     acceptedVariant: offer.accepted_variant ?? offer.selected_variant,
     acceptedFee: fmtPLN(Number(offer.accepted_fee ?? 0)),
     clientName: offer.accepted_by_name ?? '—',
-    clientEmail: offer.accepted_by_email ?? '—',
+    // PR #3 review: nullable email — template guarduje renderowanie linii email.
+    clientEmail: offer.accepted_by_email,
     comment: offer.client_comment,
     acceptedAt: offer.accepted_at ? fmtDate(offer.accepted_at) : '—',
     adminUrl: adminOfferUrl(offer.id),
@@ -156,6 +187,7 @@ export async function notifyConsultantOfferAccepted(offer: OfferRow): Promise<vo
   });
 
   await logEmailEvent(offer.id, {
+    outcome: result.ok ? 'sent' : 'failed',
     template: 'OfferAcceptedConsultant',
     to: consultant.email,
     result,
@@ -185,9 +217,10 @@ export async function notifyConsultantOfferRejected(offer: OfferRow): Promise<vo
     offerNumber: offer.offer_number,
     clientCompanyName: offer.client_name,
     programLabel: offer.program_label,
-    clientName: offer.accepted_by_name ?? '—',
-    clientEmail: offer.accepted_by_email,
-    reason: offer.client_comment,
+    // Code review PR #2: dedykowane kolumny rejected_by_* (były accepted_by_* — false positive).
+    clientName: offer.rejected_by_name ?? '—',
+    clientEmail: offer.rejected_by_email,
+    reason: offer.reject_reason,
     rejectedAt: offer.rejected_at ? fmtDate(offer.rejected_at) : '—',
     adminUrl: adminOfferUrl(offer.id),
   };
@@ -205,6 +238,7 @@ export async function notifyConsultantOfferRejected(offer: OfferRow): Promise<vo
   });
 
   await logEmailEvent(offer.id, {
+    outcome: result.ok ? 'sent' : 'failed',
     template: 'OfferRejectedConsultant',
     to: consultant.email,
     result,

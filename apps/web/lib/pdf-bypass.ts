@@ -9,11 +9,17 @@
 
 const SECRET_ENV = 'PDF_BYPASS_SECRET';
 const MAX_AGE_SEC = 60;
+// Code review PR #4: spec mówi 32 bajty hex (= 64 chars). Wcześniej walidacja
+// 16 chars była zbyt liberalna. 32 chars daje min 128 bitów entropy (jeśli
+// hex), 64 chars to 256 bitów.
+const MIN_SECRET_LENGTH = 32;
 
 function getSecret(): string {
   const s = process.env[SECRET_ENV];
-  if (!s || s.length < 16) {
-    throw new Error(`${SECRET_ENV} must be set (>=16 chars)`);
+  if (!s || s.length < MIN_SECRET_LENGTH) {
+    throw new Error(
+      `${SECRET_ENV} must be set (>=${MIN_SECRET_LENGTH} chars; spec: 32 bytes hex = 64 chars).`,
+    );
   }
   return s;
 }
@@ -71,7 +77,13 @@ export async function verifyPdfBypass(
 ): Promise<boolean> {
   const tsNum = parseInt(ts, 10);
   if (!Number.isFinite(tsNum)) return false;
-  if (Math.abs(Date.now() / 1000 - tsNum) > MAX_AGE_SEC) return false;
+  // Code review PR #4: jednostronny check (przeszłość) zamiast Math.abs.
+  // Wcześniej `Math.abs(now - ts) > 60` akceptował też przyszłe timestamps,
+  // efektywne okno ~120s zamiast 60s przy lekkim drift'cie zegara klienta.
+  // Dopuszczamy mały skew zegara serwera (2s) na wypadek desync'u Lambda.
+  const nowSec = Date.now() / 1000;
+  const ageSec = nowSec - tsNum;
+  if (ageSec < -2 || ageSec > MAX_AGE_SEC) return false;
 
   const expected = await hmacSha256(getSecret(), `${token}:${tsNum}`);
   let provided: Uint8Array;

@@ -14,6 +14,7 @@
  */
 import { createAdminClient } from '@/lib/supabase/admin';
 import { fetchOverview } from './overview';
+import { MonthlyPipelineArraySchema } from './schemas';
 import type { ForecastMonth, ForecastResult, MonthlyPipeline, OverviewStats } from './types';
 
 const FORECAST_HORIZON = 12;
@@ -27,14 +28,25 @@ export async function fetchForecast(monthsBack = 12): Promise<ForecastResult> {
   ]);
   if (historyRes.error) throw new Error(`stats_pipeline_by_month failed: ${historyRes.error.message}`);
 
-  const history = (historyRes.data ?? []) as unknown as MonthlyPipeline[];
+  const history = MonthlyPipelineArraySchema.parse(historyRes.data ?? []);
   return computeForecast(history, overview);
 }
 
+/** ISO YYYY-MM bieżącego miesiąca (lokalny czas). */
+function currentMonthKey(now = new Date()): string {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
 export function computeForecast(history: MonthlyPipeline[], overview: OverviewStats): ForecastResult {
-  const monthsUsed = history.length;
-  const sumAccepted = history.reduce((a, h) => a + h.accepted, 0);
-  const sumRevenue = history.reduce((a, h) => a + h.revenue, 0);
+  // Code review PR #6: wyklucz partial current month z baseline. SQL function
+  // zwraca też miesiąc bieżący ale z niepełną liczbą dni — średnia byłaby
+  // systematycznie zaniżona o czynnik (days_elapsed / days_in_month).
+  const currentKey = currentMonthKey();
+  const finishedHistory = history.filter((h) => h.month_start !== currentKey);
+
+  const monthsUsed = finishedHistory.length;
+  const sumAccepted = finishedHistory.reduce((a, h) => a + h.accepted, 0);
+  const sumRevenue = finishedHistory.reduce((a, h) => a + h.revenue, 0);
   const avgAccepted = monthsUsed > 0 ? sumAccepted / monthsUsed : 0;
   const avgRevenue = monthsUsed > 0 ? sumRevenue / monthsUsed : 0;
 

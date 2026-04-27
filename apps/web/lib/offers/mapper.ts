@@ -50,6 +50,9 @@ export type OfferDto = {
   clientComment: string | null;
   acceptedAt: string | null;
   rejectedAt: string | null;
+  rejectedByName: string | null;
+  rejectedByEmail: string | null;
+  rejectReason: string | null;
 
   gdprClauseVersion: string | null;
   gdprAcceptedAt: string | null;
@@ -106,6 +109,9 @@ export function toOfferDto(row: OfferRow, appUrl: string): OfferDto {
     clientComment: row.client_comment,
     acceptedAt: row.accepted_at,
     rejectedAt: row.rejected_at,
+    rejectedByName: row.rejected_by_name,
+    rejectedByEmail: row.rejected_by_email,
+    rejectReason: row.reject_reason,
 
     gdprClauseVersion: row.gdpr_clause_version,
     gdprAcceptedAt: row.gdpr_accepted_at,
@@ -184,7 +190,7 @@ export function toCaseStudyDto(row: CaseStudyRow): PublicCaseStudyDto {
  * - `clientToken`/`clientUrl` (tylko po stronie konsultanta)
  * - `clientNip` (PII firmy klienta)
  * - `createdBy`/`assignedConsultantId`/`contactPersonId` (id-ki wewnętrzne)
- * - `acceptedByEmail`/`acceptedByName`/`clientComment` (PII zaakceptowanego klienta —
+ * - `acceptedBy*`/`rejectedBy*`/`clientComment`/`rejectReason` (PII klientów —
  *   nie pokazujemy potencjalnemu kolejnemu odwiedzającemu)
  *
  * Embed:
@@ -203,6 +209,9 @@ export type PublicOfferDto = Omit<
   | 'acceptedByEmail'
   | 'acceptedByName'
   | 'clientComment'
+  | 'rejectedByName'
+  | 'rejectedByEmail'
+  | 'rejectReason'
 > & {
   contactPerson: PublicContactPersonDto | null;
   caseStudy: PublicCaseStudyDto | null;
@@ -225,6 +234,9 @@ export function toPublicOfferDto(
     acceptedByEmail: _acceptedByEmail,
     acceptedByName: _acceptedByName,
     clientComment: _clientComment,
+    rejectedByName: _rejectedByName,
+    rejectedByEmail: _rejectedByEmail,
+    rejectReason: _rejectReason,
     ...rest
   } = full;
   return {
