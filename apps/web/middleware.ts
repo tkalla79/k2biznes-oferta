@@ -15,14 +15,19 @@ export const config = {
   ],
 };
 
-const ADMIN_PREFIXES = ['/admin', '/(app)/admin'];
-const APP_PROTECTED = ['/offers', '/(app)']; // wymaga zalogowania
+const ADMIN_PREFIXES = ['/admin'];
+// Group `(app)` w Next.js App Router NIE pojawia się w URL (resolve do `/admin`,
+// `/offers` itd.). Match'ujemy więc po faktycznych URL paths.
+const APP_PROTECTED = ['/admin', '/offers']; // wymaga zalogowania
 const ALWAYS_PUBLIC = [
   '/o/',
   '/api/public/',
   '/api/health',
   '/api/internal/',
   '/auth/',
+  '/api/auth/signin',                // sekcja 7.2 — logowanie
+  '/api/auth/magic-link',            // sekcja 7.2 — magic link
+  '/api/auth/signout',               // sekcja 7.2 — wylogowanie (wymaga sesji ale samo nie kicka)
   '/api/auth/request-data-deletion', // RODO sekcja 11.4 — bez logowania
   '/privacy-policy',
 ];
