@@ -20,6 +20,7 @@ export type AuditAction =
   | 'offer.accept'
   | 'offer.reject'
   | 'profile.role.update'
+  | 'gdpr.request.created'
   | 'gdpr.request.approved'
   | 'gdpr.request.rejected'
   | 'gdpr.request.executed';

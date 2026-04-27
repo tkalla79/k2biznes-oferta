@@ -5,9 +5,8 @@
  * Wysyłka emaila potwierdzającego (best-effort). Super admin zatwierdza
  * w `/admin/gdpr` (PR #9 admin UI).
  *
- * Rate-limit przez middleware (`/api/public/*` 100/min/IP) — TODO: dorzuć
- * `/api/auth/request-data-deletion` do bardziej restrykcyjnego bucket'u
- * (np. 5/dzień/IP) w follow-up.
+ * Rate-limit: dedykowany bucket `restrictive` (5/24h/IP) — sekcja 5.1.1.
+ * Egzekwowane przez middleware przed dotarciem do tego handlera.
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { handleError, ApiError } from '@/lib/api/error';
@@ -48,7 +47,7 @@ export async function POST(req: NextRequest) {
     );
 
     await logAudit({
-      action: 'gdpr.request.approved', // initial state — przemianujemy gdy super_admin podejmie decyzję
+      action: 'gdpr.request.created',
       resourceType: 'data_deletion_request',
       resourceId: inserted.id,
       actorId: null,

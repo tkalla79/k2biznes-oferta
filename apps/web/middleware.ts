@@ -62,6 +62,11 @@ export async function middleware(req: NextRequest) {
     if (pathname === '/api/auth/signin') {
       const r = await checkRateLimit('signin', `ip:${ip}`);
       if (!r.success) return rateLimited(r);
+    } else if (pathname === '/api/auth/request-data-deletion') {
+      // Sekcja 11.4 — public endpoint piszący do DB + wysyłka emaila. 5/24h/IP
+      // chroni przed spamem (vs auth bucket 1000/min byłby zbyt liberalny).
+      const r = await checkRateLimit('restrictive', `ip:${ip}`);
+      if (!r.success) return rateLimited(r);
     } else if (pathname.startsWith('/api/public/')) {
       const r = await checkRateLimit('public', `ip:${ip}`);
       if (!r.success) return rateLimited(r);
