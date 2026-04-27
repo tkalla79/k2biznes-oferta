@@ -2,7 +2,7 @@
 
 SaaS do ofert handlowych dla klientów dotacyjnych (FENG / FEPW / KPO / FELU).
 
-> **Stan:** PR #1 (setup + DB + auth) + PR #2 (pricing engine + 26 testów) + PR #3 (API CRUD `/api/offers` + 24 testy walidacji). Public endpoint `/o/[token]`, email + Edge Functions w kolejnych iteracjach.
+> **Stan:** PR #1 (setup + DB + auth) + PR #2 (pricing engine) + PR #3 (API CRUD `/api/offers`) + PR #4 (public `/o/[token]` + accept/reject) + PR #5 (email Resend + 3 templates) + PR #6 (PDF generation z cache).
 
 ## Lokalizacja
 
@@ -76,6 +76,7 @@ OFERTA_APP/
 - **Node.js 20+** (testowane na 24)
 - **Docker Desktop** (wymagany przez `supabase start` — uruchamia lokalny Postgres)
 - **Supabase CLI** — `npm i -D supabase` (instalowane przez `npm install`) lub `brew install supabase/tap/supabase`
+- **Chrome** (opcjonalny — tylko dla PDF generation lokalnie). Ustaw `LOCAL_CHROME_PATH` w `.env.local`. Bez tego GET `/api/public/offers/:token/pdf` zwraca `503` zamiast crash'u.
 
 ### Setup
 

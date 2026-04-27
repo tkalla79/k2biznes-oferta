@@ -14,6 +14,7 @@ import { logAudit } from '@/lib/audit';
 import { calcPricing } from '@/lib/pricing';
 import { loadPricing } from '@/lib/pricing/load';
 import { toOfferDto } from '@/lib/offers/mapper';
+import { deletePdfsForOffer } from '@/lib/pdf/storage';
 import type { Json } from '@k2/database/types';
 
 export const dynamic = 'force-dynamic';
@@ -65,6 +66,11 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
       .select()
       .single();
     if (e1 || !updated) throw new ApiError('INTERNAL_ERROR', `recalc failed: ${e1?.message}`, 500);
+
+    // Invalidate PDF cache (sekcja 9.1 / 11.8) — recalc zmienia hash.
+    void deletePdfsForOffer(updated.offer_number).catch((e) =>
+      console.error('[recalc] pdf invalidation failed:', e.message),
+    );
 
     await Promise.allSettled([
       sb.from('offer_events').insert({

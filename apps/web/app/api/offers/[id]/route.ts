@@ -10,6 +10,7 @@ import { calcPricing } from '@/lib/pricing';
 import { loadPricing } from '@/lib/pricing/load';
 import { UpdateOfferInput, shouldRecalcSnapshot } from '@/lib/validation/offers';
 import { toOfferDto, type OfferRow } from '@/lib/offers/mapper';
+import { deletePdfsForOffer } from '@/lib/pdf/storage';
 import type { Database, Json } from '@k2/database/types';
 
 type OffersUpdate = Database['public']['Tables']['offers']['Update'];
@@ -151,6 +152,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     if (error || !updated) {
       throw new ApiError('INTERNAL_ERROR', `update failed: ${error?.message}`, 500);
+    }
+
+    // Invalidate PDF cache jeśli snapshot/content się zmienił (sekcja 9.1 / 11.8).
+    if (shouldRecalcSnapshot(patch) || patch.content !== undefined) {
+      void deletePdfsForOffer(updated.offer_number).catch((e) =>
+        console.error('[patch] pdf invalidation failed:', e.message),
+      );
     }
 
     await Promise.allSettled([
