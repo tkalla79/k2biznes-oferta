@@ -16,7 +16,9 @@ export const config = {
 
 const ADMIN_PREFIXES = ['/admin', '/(app)/admin'];
 const APP_PROTECTED = ['/offers', '/(app)']; // wymaga zalogowania
-const ALWAYS_PUBLIC = ['/o/', '/api/public/', '/api/health', '/auth/']; // bez sesji
+const ALWAYS_PUBLIC = ['/o/', '/api/public/', '/api/health', '/api/internal/', '/auth/']; // bez sesji
+// `/api/internal/*` ma własną auth (CRON_SECRET) — middleware przepuszcza,
+// handler waliduje header przed wykonaniem.
 
 export async function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;

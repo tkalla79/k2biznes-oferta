@@ -15,6 +15,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { SendOfferInput } from '@/lib/validation/send';
 import { notifyClientOfferSent } from '@/lib/email/notifications';
+import { enqueueOfferWebhook } from '@/lib/webhooks/enqueue';
 import { toOfferDto } from '@/lib/offers/mapper';
 
 export const dynamic = 'force-dynamic';
@@ -81,6 +82,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       console.error('[offers.send] email failed:', (e as Error).message);
       // Nie throw — status = sent już zapisany. Konsultant może retry przez UI.
     }
+
+    // CRM webhook 'offer.sent' — best-effort (sekcja 10)
+    enqueueOfferWebhook({ event: 'offer.sent', offer: updated }).catch((e) =>
+      console.error('[send] enqueue webhook failed:', e.message),
+    );
 
     // Event 'sent' + audit
     await Promise.allSettled([

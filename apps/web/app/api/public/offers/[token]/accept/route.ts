@@ -21,6 +21,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { hashIp, getClientIp } from '@/lib/ip-hash';
 import { logAudit } from '@/lib/audit';
 import { notifyConsultantOfferAccepted } from '@/lib/email/notifications';
+import { enqueueOfferWebhook } from '@/lib/webhooks/enqueue';
 import type { Json } from '@k2/database/types';
 import type { PricingResult, PricingVariant } from '@/lib/pricing';
 
@@ -137,7 +138,10 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
       console.error('[accept] notify consultant failed:', e.message),
     );
 
-    // TODO PR #7: enqueue CRM webhook 'offer.accepted'
+    // CRM webhook 'offer.accepted' — best-effort enqueue (sekcja 10)
+    enqueueOfferWebhook({ event: 'offer.accepted', offer: updated }).catch((e) =>
+      console.error('[accept] enqueue webhook failed:', e.message),
+    );
 
     return NextResponse.json({
       data: {
