@@ -6,6 +6,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { verifyPdfBypass } from '@/lib/pdf-bypass';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { getClientIp } from '@/lib/client-ip';
 
 export const config = {
   // Pomija statyczne assety i `_next/*` — middleware leci tylko na trasach aplikacji.
@@ -30,10 +31,8 @@ const ALWAYS_PUBLIC = [
 
 export async function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
-  const ip =
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('x-real-ip') ??
-    '127.0.0.1';
+  // Spoof-resistant IP extraction (code review PR #2 — preferuj x-real-ip).
+  const ip = getClientIp(req.headers);
 
   // ---------------------------------------------------------------------------
   // 1. PDF bypass (sekcja 9.1.1): omija rate-limit i auth dla `/o/<token>?print=true`
@@ -66,6 +65,11 @@ export async function middleware(req: NextRequest) {
       // Sekcja 11.4 — public endpoint piszący do DB + wysyłka emaila. 5/24h/IP
       // chroni przed spamem (vs auth bucket 1000/min byłby zbyt liberalny).
       const r = await checkRateLimit('restrictive', `ip:${ip}`);
+      if (!r.success) return rateLimited(r);
+    } else if (pathname.startsWith('/api/public/offers/') && pathname.endsWith('/pdf')) {
+      // PR #4 review: PDF render to ~17s CPU. 5/min/IP zamiast 100/min chroni
+      // przed wyczerpaniem Lambda concurrency.
+      const r = await checkRateLimit('expensive', `ip:${ip}`);
       if (!r.success) return rateLimited(r);
     } else if (pathname.startsWith('/api/public/')) {
       const r = await checkRateLimit('public', `ip:${ip}`);

@@ -1,9 +1,17 @@
 /**
  * Wpis do kolejki `webhook_jobs` (BACKEND_SPEC.md v1.1.1, sekcja 10).
  *
- * Konfiguracja: tabela `pricing_config` zawiera `crm_enabled_targets` (text[]) +
- * `crm_hubspot_token` / `crm_pipedrive_token`. Per event sprawdzamy które
- * targety są włączone i tworzymy job per target.
+ * Konfiguracja:
+ * - Włączenie/wyłączenie target'u: `pricing_config.crm_enabled_targets[]` (DB,
+ *   żeby super_admin mógł ratować się przed wadliwym integratorem bez deploya).
+ * - URL targetu: env (`HUBSPOT_WEBHOOK_URL`, `PIPEDRIVE_WEBHOOK_URL`,
+ *   `CUSTOM_WEBHOOK_URL`).
+ * - Auth bearer token: env (`HUBSPOT_ACCESS_TOKEN`, `PIPEDRIVE_API_TOKEN`,
+ *   `CUSTOM_WEBHOOK_TOKEN`).
+ *
+ * UWAGA (PR #5 code review): kolumny `pricing_config.crm_*_token` istnieją w
+ * schemie ale NIE są używane — chcemy uniknąć trzymania sekretów w DB. Wszystkie
+ * sekrety idą przez env (rotowalne bez SQL UPDATE'a).
  */
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { OfferRow } from '@/lib/offers/mapper';
@@ -27,14 +35,13 @@ async function loadCrmConfig(): Promise<CrmConfig> {
   const sb = createAdminClient();
   const { data, error } = await sb
     .from('pricing_config')
-    .select('crm_enabled_targets, crm_hubspot_token, crm_pipedrive_token')
+    .select('crm_enabled_targets')
     .eq('id', 'global')
     .maybeSingle();
 
   if (error) throw new Error(`pricing_config load failed: ${error.message}`);
 
-  // URLs target'ów — w spec'u sekcja 10 zostawiamy `crm_*_token` jako auth bearer,
-  // a URL bierzemy z env (zmiana ścieżki w CRM nie wymaga touch'a DB).
+  // URL + bearer token targetów — env-only (sekrety rotowalne bez SQL UPDATE'a).
   const value: CrmConfig = {
     enabled: ((data?.crm_enabled_targets ?? []) as WebhookTarget[]).filter((t): t is WebhookTarget =>
       ['hubspot', 'pipedrive', 'custom'].includes(t),

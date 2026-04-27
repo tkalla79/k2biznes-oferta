@@ -13,14 +13,23 @@ import type { Database, Json } from '@k2/database/types';
 type WebhookJob = Database['public']['Tables']['webhook_jobs']['Row'];
 
 /**
- * Backoff (sekcja 10.4): step n (0-indexed) → seconds delay.
- * Maksymalnie 5 prób, więc index 0..4.
+ * Backoff (sekcja 10.4): delay przed N-tą próbą (po N-1 nieudanych).
+ *
+ * Code review PR #5 fix: poprzednio `nextAttemptAtAfterFailure(attempts)` po
+ * pierwszej awarii dostawał `attempts=1` i sięgał `BACKOFF_SEC[1]=120s`,
+ * przeskakując 30s. Teraz `attempts=N` (po N-tej awarii, kolejna to N+1)
+ * indeksuje `BACKOFF_SEC[attempts-1]` żeby dostać 30s przed 2. próbą.
+ *
+ *   attempts=1 (po 1 fail) → BACKOFF[0] = 30s (delay przed 2. próbą)
+ *   attempts=2             → BACKOFF[1] = 120s (przed 3.)
+ *   attempts=3             → BACKOFF[2] = 600s (przed 4.)
+ *   attempts=4             → BACKOFF[3] = 3600s (przed 5.)
  */
 const BACKOFF_SEC = [30, 120, 600, 3600, 21_600] as const; // 30s, 2min, 10min, 1h, 6h
-const MAX_ATTEMPTS = 5;
+const MAX_ATTEMPTS_DEFAULT = 5;
 
 function nextAttemptAtAfterFailure(attempts: number): string {
-  const idx = Math.min(attempts, BACKOFF_SEC.length - 1);
+  const idx = Math.min(Math.max(0, attempts - 1), BACKOFF_SEC.length - 1);
   const delaySec = BACKOFF_SEC[idx];
   return new Date(Date.now() + delaySec * 1000).toISOString();
 }
@@ -39,10 +48,13 @@ export type DispatchResult =
 export async function dispatchJob(jobId: string): Promise<DispatchResult> {
   const sb = createAdminClient();
 
-  // Claim — atomic update pending|failed → processing
+  // Claim — atomic update pending|failed → processing + claimed_at = now
+  // (claimed_at używane przez `sweepStuckClaims` do recovery padłych workerów —
+  // PR #5 code review: brak claimed_at oznacza że job zostawiony przez crash'a
+  // workerów był stuck na `processing` bez ścieżki recovery)
   const { data: claimed, error: claimErr } = await sb
     .from('webhook_jobs')
-    .update({ status: 'processing' })
+    .update({ status: 'processing', claimed_at: new Date().toISOString() })
     .eq('id', jobId)
     .in('status', ['pending', 'failed'])
     .lte('next_attempt_at', new Date().toISOString())
@@ -115,7 +127,10 @@ async function sendAndRecord(job: WebhookJob): Promise<DispatchResult> {
   }
 
   // Failure path — zwiększ attempts, ustaw next_attempt_at lub mark dead.
-  const isDead = attempts >= MAX_ATTEMPTS;
+  // Code review PR #5: czytaj `max_attempts` z job'a (kolumna w schemie webhook_jobs)
+  // żeby per-event override był respektowany. Default = 5 (zgodne ze spec sekcja 10.4).
+  const maxAttempts = job.max_attempts ?? MAX_ATTEMPTS_DEFAULT;
+  const isDead = attempts >= maxAttempts;
   const willRetryAt = isDead ? null : nextAttemptAtAfterFailure(attempts);
 
   await sb
@@ -138,15 +153,49 @@ async function sendAndRecord(job: WebhookJob): Promise<DispatchResult> {
   return { status: 'failed', httpStatus, willRetryAt, error: errorMsg ?? 'unknown' };
 }
 
+/** Stuck-job recovery threshold — claim'er padł i nigdy nie sfinalizował joba. */
+const PROCESSING_TIMEOUT_MS = 10 * 60 * 1000; // 10 min
+
+/**
+ * Code review PR #5: workery które padły mid-flight zostawiają job'y na
+ * `status='processing'` bez ścieżki recovery. Każdy tick cron'a najpierw
+ * przesweepuje takie sieroty z powrotem na `pending`, potem dispatch'uje batch.
+ */
+async function sweepStuckClaims(): Promise<number> {
+  const sb = createAdminClient();
+  const cutoff = new Date(Date.now() - PROCESSING_TIMEOUT_MS).toISOString();
+  const { data, error } = await sb
+    .from('webhook_jobs')
+    .update({
+      status: 'pending',
+      claimed_at: null,
+      last_error: 'recovered from stuck processing (worker timeout)',
+    })
+    .eq('status', 'processing')
+    .lte('claimed_at', cutoff)
+    .select('id');
+  if (error) {
+    console.error('[webhooks.sweep] failed:', error.message);
+    return 0;
+  }
+  const n = data?.length ?? 0;
+  if (n > 0) console.warn(`[webhooks.sweep] recovered ${n} stuck job(s)`);
+  return n;
+}
+
 /**
  * Pobiera batch (max `limit`) job'ów gotowych do dispatchu i wysyła równolegle.
  * Wołane z cron endpoint'u (/api/internal/process-webhook-jobs).
+ *
+ * Najpierw sweep stuck claims (PR #5 review), potem normalny pickup.
  */
 export async function processBatch(limit = 25): Promise<{
   picked: number;
+  recovered: number;
   results: { id: string; result: DispatchResult }[];
 }> {
   const sb = createAdminClient();
+  const recovered = await sweepStuckClaims();
 
   const { data, error } = await sb
     .from('webhook_jobs')
@@ -157,24 +206,26 @@ export async function processBatch(limit = 25): Promise<{
     .limit(limit);
 
   if (error) throw new Error(`processBatch list failed: ${error.message}`);
-  if (!data || data.length === 0) return { picked: 0, results: [] };
+  if (!data || data.length === 0) return { picked: 0, recovered, results: [] };
 
   const results = await Promise.all(
     data.map(async (j) => ({ id: j.id, result: await dispatchJob(j.id) })),
   );
 
-  return { picked: data.length, results };
+  return { picked: data.length, recovered, results };
 }
 
 /**
  * Helper exportowany dla tests — sprawdza krzywą backoff.
+ * Semantyka spójna z `nextAttemptAtAfterFailure`: arg `attempts` to liczba
+ * dotychczasowych awarii; zwraca delay przed kolejną próbą.
  */
 export function _backoffSecondsForAttempt(attempts: number): number {
-  const idx = Math.min(attempts, BACKOFF_SEC.length - 1);
+  const idx = Math.min(Math.max(0, attempts - 1), BACKOFF_SEC.length - 1);
   return BACKOFF_SEC[idx];
 }
 
-export const _MAX_ATTEMPTS = MAX_ATTEMPTS;
+export const _MAX_ATTEMPTS = MAX_ATTEMPTS_DEFAULT;
 export const _BACKOFF_SEC = BACKOFF_SEC;
 
 export type { Json };

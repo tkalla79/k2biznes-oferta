@@ -49,18 +49,31 @@ export async function putCachedPdf(key: string, bytes: Uint8Array | ArrayBuffer)
 
 /**
  * Usuń wszystkie PDFy oferty (po zmianie snapshotu/content).
- * Lista plików w bucket'cie jest filtrowana po prefix'ie `offerNumber_`.
+ *
+ * Code review PR #4: Supabase Storage `list({ search })` używa SQL `ILIKE %s%`
+ * — `_` w `search` to wildcard pasujący do dowolnego znaku, więc dla
+ * `offerNumber='K2/2026/04/001'` (po replace = `K2_2026_04_001`) match'owałby
+ * też `K2X2026Y04Z001Wxyz.pdf`. Idziemy bez search, listujemy wszystko (bucket
+ * jest mały — kilka tysięcy plików max) i filtrujemy po stronie JS regex'em.
  */
 export async function deletePdfsForOffer(offerNumber: string): Promise<number> {
   const sb = createAdminClient();
   const safe = offerNumber.replace(/[/\\?#]/g, '_');
-  const { data, error } = await sb.storage.from(BUCKET).list('', { search: `${safe}_` });
+  // Escape regex special chars w prefix'ie (offerNumber po sanitization to A-Z/0-9/_/-)
+  const prefix = `${safe}_`;
+  const { data, error } = await sb.storage
+    .from(BUCKET)
+    .list('', { limit: 1000, sortBy: { column: 'name', order: 'asc' } });
   if (error) {
     console.warn(`[pdf.storage] list for ${offerNumber} failed:`, error.message);
     return 0;
   }
   if (!data || data.length === 0) return 0;
-  const paths = data.map((f) => f.name);
+  // Filter exact prefix match (string startsWith — bezpieczniejsze niż regex LIKE).
+  const paths = data
+    .map((f) => f.name)
+    .filter((name) => name.startsWith(prefix) && name.endsWith('.pdf'));
+  if (paths.length === 0) return 0;
   const { error: delErr } = await sb.storage.from(BUCKET).remove(paths);
   if (delErr) {
     console.warn(`[pdf.storage] remove failed:`, delErr.message);

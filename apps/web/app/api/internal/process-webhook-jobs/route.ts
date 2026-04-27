@@ -2,14 +2,15 @@
  * POST /api/internal/process-webhook-jobs (BACKEND_SPEC.md v1.1.1, sekcja 10.4).
  *
  * Cron consumer — wywoływany co minutę przez:
- *   - Vercel Pro cron (`vercel.json` w root deployu)  LUB
- *   - Supabase pg_cron + Edge Function  LUB
+ *   - Vercel Pro cron (`vercel.json` w root deployu) — wysyła GET
+ *   - Supabase pg_cron + Edge Function — wysyła POST
  *   - Zewnętrzny scheduler (Upstash QStash / GitHub Actions cron co 5min)
  *
- * Auth: header `X-Cron-Secret` musi się zgadzać z `CRON_SECRET` env. Wybranie
- * tego dotyczy każdego z trzech środowisk — Vercel automatycznie wstrzykuje
- * `Authorization: Bearer <CRON_SECRET>` przy `vercel cron`, my akceptujemy oba.
+ * Auth: `Authorization: Bearer <CRON_SECRET>` (Vercel) lub `X-Cron-Secret`
+ * (custom). Porównanie `timingSafeEqual` żeby uniknąć timing-side-channel
+ * leakage'u sekretu (PR #5 code review).
  */
+import { timingSafeEqual } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
 import { processBatch } from '@/lib/webhooks/dispatch';
 
@@ -17,21 +18,31 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+function safeEqualStr(a: string, b: string): boolean {
+  // timingSafeEqual wymaga buffer'ów o tej samej długości — wczesny return przy
+  // mismatch'u długości też jest timing-safe (długość secret'u nie jest tajna).
+  if (a.length !== b.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  } catch {
+    return false;
+  }
+}
+
 function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
 
-  // 1) Vercel cron Authorization header
   const auth = req.headers.get('authorization');
-  if (auth === `Bearer ${secret}`) return true;
+  if (auth && safeEqualStr(auth, `Bearer ${secret}`)) return true;
 
-  // 2) Custom header X-Cron-Secret (zewnętrzny scheduler)
-  if (req.headers.get('x-cron-secret') === secret) return true;
+  const custom = req.headers.get('x-cron-secret');
+  if (custom && safeEqualStr(custom, secret)) return true;
 
   return false;
 }
 
-export async function POST(req: NextRequest) {
+async function runBatch(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json(
       { error: { code: 'UNAUTHORIZED', message: 'Missing/invalid cron secret.', details: {} } },
@@ -42,11 +53,12 @@ export async function POST(req: NextRequest) {
   try {
     const limit = Math.max(1, Math.min(100, Number(req.nextUrl.searchParams.get('limit') ?? 25)));
     const start = Date.now();
-    const { picked, results } = await processBatch(limit);
+    const { picked, recovered, results } = await processBatch(limit);
     const durationMs = Date.now() - start;
 
     const summary = {
       picked,
+      recovered,
       sent: results.filter((r) => r.result.status === 'sent').length,
       failed: results.filter((r) => r.result.status === 'failed').length,
       dead: results.filter((r) => r.result.status === 'dead').length,
@@ -68,5 +80,18 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Vercel cron wysyła GET przy default config — pozwalamy też GET (idempotent).
-export const GET = POST;
+export async function POST(req: NextRequest) {
+  return runBatch(req);
+}
+
+/**
+ * GET handler dla Vercel cron (który wysyła GET).
+ *
+ * UWAGA: ten handler MUTUJE (claim + dispatch + DB writes + outbound HTTP).
+ * Code review PR #5 zwrócił uwagę że łamie to semantykę GET idempotency.
+ * Trzymamy GET wyłącznie dla kompatybilności z Vercel cron, ale auth jest
+ * twardo wymagany (CRON_SECRET) — uptime monitor / CDN bez secretu dostaje 401.
+ */
+export async function GET(req: NextRequest) {
+  return runBatch(req);
+}

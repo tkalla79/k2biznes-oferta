@@ -384,7 +384,10 @@ export type Database = {
           program_label: string
           project_count: number
           project_value: number
+          reject_reason: string | null
           rejected_at: string | null
+          rejected_by_email: string | null
+          rejected_by_name: string | null
           returning_client: boolean
           selected_variant: Database["public"]["Enums"]["pricing_variant"]
           sent_at: string | null
@@ -430,7 +433,10 @@ export type Database = {
           program_label: string
           project_count?: number
           project_value: number
+          reject_reason?: string | null
           rejected_at?: string | null
+          rejected_by_email?: string | null
+          rejected_by_name?: string | null
           returning_client?: boolean
           selected_variant?: Database["public"]["Enums"]["pricing_variant"]
           sent_at?: string | null
@@ -476,7 +482,10 @@ export type Database = {
           program_label?: string
           project_count?: number
           project_value?: number
+          reject_reason?: string | null
           rejected_at?: string | null
+          rejected_by_email?: string | null
+          rejected_by_name?: string | null
           returning_client?: boolean
           selected_variant?: Database["public"]["Enums"]["pricing_variant"]
           sent_at?: string | null
@@ -691,6 +700,7 @@ export type Database = {
       webhook_jobs: {
         Row: {
           attempts: number
+          claimed_at: string | null
           completed_at: string | null
           created_at: string
           event: string
@@ -707,6 +717,7 @@ export type Database = {
         }
         Insert: {
           attempts?: number
+          claimed_at?: string | null
           completed_at?: string | null
           created_at?: string
           event: string
@@ -723,6 +734,7 @@ export type Database = {
         }
         Update: {
           attempts?: number
+          claimed_at?: string | null
           completed_at?: string | null
           created_at?: string
           event?: string
@@ -744,6 +756,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      bump_offer_view_count: {
+        Args: { p_offer_id: string }
+        Returns: undefined
+      }
       is_admin: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       next_offer_number: { Args: never; Returns: string }

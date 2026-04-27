@@ -54,18 +54,33 @@ export function simulatePricing(
   const variants: SimulatorVariantResult[] = calc.variants.map((v) => {
     const ev = expectedValue({ variant: v, probability, monthsExec });
 
-    // Break-even: EV = base_fee (gwarantowany przychód). Z definicji EV w spec'u 6:
-    //   EV = base + sfAmount * P + monthly * monthsExec * P
-    //   base = base + (sfAmount + monthly * monthsExec) * P_be
-    //   0 = (sfAmount + monthly * monthsExec) * P_be
-    // Powyższe daje break-even = 0 zawsze (base zawsze odzyskane).
+    // Break-even: P, przy którym oczekiwany przychód `EV` osiąga **pełny
+    // teoretyczny przychód maksymalny** wariantu (gdy P=1):
+    //   max_revenue = base + sfAmount + monthly*monthsExec
+    //   EV(P_be)    = base + (sfAmount + monthly*monthsExec) * P_be
+    //   max_revenue = base + (sfAmount + monthly*monthsExec) * P_be
+    //   P_be        = (sfAmount + monthly*monthsExec) / (sfAmount + monthly*monthsExec) = 1
+    // Powyższe trywialne — break-even = 1 zawsze. Nieużyteczne.
     //
-    // Bardziej użyteczna interpretacja: P, przy którym CAŁKOWITY oczekiwany
-    // przychód `EV` osiąga totalny koszt wariantu (`v.total = base + sfAmount`).
-    //   v.total = base + (sfAmount + monthly*monthsExec) * P_be
-    //   P_be = (v.total - base) / (sfAmount + monthly*monthsExec)
-    //        = sfAmount / (sfAmount + monthly*monthsExec)
-    // To "P przy którym oczekiwany przychód = nominalna cena wariantu I".
+    // Faktyczna interpretacja jakiej chcemy (PR #6 review fix): P przy którym
+    // oczekiwany TOTAL revenue (włącznie z miesięcznymi) osiąga nominalną
+    // cenę wariantu z perspektywy klienta. Nominalna cena = base + sfAmount
+    // + monthly*monthsExec (pełna kwota gdyby projekt został zrealizowany).
+    //
+    // EV = base + (sfAmount + monthly*monthsExec) * P_be
+    // base + sfAmount + monthly*monthsExec = base + (sfAmount + monthly*monthsExec) * P_be
+    // P_be = 1
+    //
+    // Wracamy do oryginalnej intencji "P przy którym EV osiąga próg `total`
+    // gdzie `total = base + sfAmount` (bez monthly)":
+    //   total = base + (sfAmount + monthly*monthsExec) * P_be
+    //   P_be  = (total - base) / (sfAmount + monthly*monthsExec)
+    //         = sfAmount / (sfAmount + monthly*monthsExec)
+    // Ta interpretacja prawidłowo uwzględnia monthly w mianowniku — variant III
+    // (12 rat) ma niższy P_be niż wariant I dla tego samego sfAmount.
+    //
+    // UWAGA: ta wartość jest informacyjna (nie krytyczna decyzyjnie); konsultant
+    // używa jej jako heurystyki "czy P > P_be opłaca się".
     const denom = v.sfAmount + (v.monthly ?? 0) * monthsExec;
     const breakEvenProbability = denom > 0 ? Math.min(1, v.sfAmount / denom) : 0;
 

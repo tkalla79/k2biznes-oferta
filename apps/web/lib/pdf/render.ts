@@ -72,7 +72,12 @@ export type RenderOptions = {
 
 export async function renderOfferPdf(opts: RenderOptions): Promise<Uint8Array> {
   const browser = await getBrowser();
-  const page = await browser.newPage();
+  // Code review PR #4: per-request browser context. `cachedBrowser` jest
+  // re-używany między invocations Lambda — domyślny context sharuje
+  // cookies/localStorage między stronami, co stwarza ryzyko cross-customer
+  // leak. Tworzymy izolowany context per render i zamykamy go w `finally`.
+  const ctx = await browser.createBrowserContext();
+  const page = await ctx.newPage();
   try {
     await page.goto(opts.url, {
       waitUntil: 'networkidle0',
@@ -85,7 +90,8 @@ export async function renderOfferPdf(opts: RenderOptions): Promise<Uint8Array> {
     });
     return new Uint8Array(bytes);
   } finally {
-    await page.close();
+    await page.close().catch(() => {});
+    await ctx.close().catch(() => {});
   }
 }
 

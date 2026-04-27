@@ -82,4 +82,23 @@ describe('computeForecast', () => {
     const r = computeForecast([], overview);
     expect(r.forecast[0].pipeline_pending_revenue).toBe(0);
   });
+
+  it('exclude current partial month z baseline (PR #6 review fix)', () => {
+    // Bieżący miesiąc ma niepełną liczbę dni — wcześniej był wliczany do
+    // baseline'u i zaniżał średnią. Teraz filtrujemy go out.
+    const now = new Date();
+    const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevKey = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
+
+    const history: MonthlyPipeline[] = [
+      { month_start: prevKey, accepted: 10, revenue: 1_000_000 },
+      { month_start: currentKey, accepted: 1, revenue: 100_000 }, // partial — should be excluded
+    ];
+    const r = computeForecast(history, overviewBase);
+    // baseline = avg z prevKey only (current excluded)
+    expect(r.baseline.months_used).toBe(1);
+    expect(r.baseline.avg_monthly_revenue).toBe(1_000_000);
+    expect(r.baseline.avg_monthly_accepted).toBe(10);
+  });
 });

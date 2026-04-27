@@ -20,7 +20,8 @@ export type OfferAcceptedConsultantProps = {
   acceptedVariant: string;
   acceptedFee: string;
   clientName: string;
-  clientEmail: string;
+  /** PR #3 review: nullable — guard renderowania linii email gdy klient nie podał. */
+  clientEmail: string | null;
   comment: string | null;
   acceptedAt: string;
   adminUrl: string;
@@ -48,7 +49,10 @@ export default function OfferAcceptedConsultant(p: OfferAcceptedConsultantProps)
             <Row label="Program" value={p.programLabel} />
             <Row label="Wybrany wariant" value={p.acceptedVariant} />
             <Row label="Success fee" value={p.acceptedFee} bold />
-            <Row label="Akceptujący" value={`${p.clientName} <${p.clientEmail}>`} />
+            <Row
+              label="Akceptujący"
+              value={p.clientEmail ? `${p.clientName} <${p.clientEmail}>` : p.clientName}
+            />
             <Row label="Data akceptacji" value={p.acceptedAt} />
           </Section>
 
