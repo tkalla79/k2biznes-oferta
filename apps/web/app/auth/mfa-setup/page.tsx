@@ -8,6 +8,7 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { safeNext } from '@/lib/auth/safe-next';
 import MfaSetupForm from './MfaSetupForm';
 
 export const dynamic = 'force-dynamic';
@@ -51,7 +52,7 @@ export default async function MfaSetupPage({
               ? { id: verifiedTotp.id, friendlyName: verifiedTotp.friendly_name ?? 'TOTP' }
               : null
           }
-          next={searchParams.next}
+          next={safeNext(searchParams.next)}
         />
 
         <p style={footer}>

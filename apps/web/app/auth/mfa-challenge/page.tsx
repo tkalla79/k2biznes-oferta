@@ -10,6 +10,7 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { safeNext } from '@/lib/auth/safe-next';
 import MfaChallengeForm from './MfaChallengeForm';
 
 export const dynamic = 'force-dynamic';
@@ -35,7 +36,8 @@ export default async function MfaChallengePage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const next = searchParams.next ?? '/admin';
+  // Sanityzacja chroni przed open-redirect: `?next=https://evil.com`.
+  const next = safeNext(searchParams.next);
   if (!user) redirect(`/auth/signin?next=${encodeURIComponent(next)}`);
 
   // Sprawdź AAL — jeśli już aal2, nie ma sensu pytać o kod.

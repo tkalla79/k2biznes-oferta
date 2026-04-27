@@ -74,6 +74,12 @@ export async function middleware(req: NextRequest) {
     if (pathname === '/api/auth/signin') {
       const r = await checkRateLimit('signin', `ip:${ip}`);
       if (!r.success) return rateLimited(r);
+    } else if (pathname === '/api/auth/mfa/verify') {
+      // PR #13 review: TOTP keyspace 10^6, generic auth bucket (1000/min) =
+      // brute-force w ~17h. Sharujemy bucket `signin` (10/min/IP) — mało retries
+      // dla typosa, ale wystarczająco żeby zatrzymać brute force.
+      const r = await checkRateLimit('signin', `ip:${ip}`);
+      if (!r.success) return rateLimited(r);
     } else if (pathname === '/api/auth/request-data-deletion') {
       // Sekcja 11.4 — public endpoint piszący do DB + wysyłka emaila. 5/24h/IP
       // chroni przed spamem (vs auth bucket 1000/min byłby zbyt liberalny).
@@ -155,12 +161,17 @@ export async function middleware(req: NextRequest) {
   }
 
   // AAL gating dla adminów. Zasada (sekcja 7.6):
-  //   - admin/super_admin musi mieć aal2 dla `/admin` i `/api/admin/*`
+  //   - admin/super_admin musi mieć aal2 wyłącznie dla `/admin` i `/api/admin/*`
+  //   - non-admin paths (np. /offers, /api/offers/*) zostają z aal1 — admin może
+  //     korzystać z funkcji konsultanta bez wymuszania MFA przy każdej akcji
   //   - jeśli ma factor ale aal1 → redirect do /auth/mfa-challenge (UI) lub 403 (API)
   //   - jeśli nie ma factor'a → redirect do /auth/mfa-setup (UI) lub 403 (API)
   // MFA endpointy same w sobie muszą być dostępne z aal1, inaczej infinite loop.
   const mfaPathAllowed = MFA_AAL1_ALLOWED.some((p) => pathname.startsWith(p));
-  const requiresAal2 = (role === 'admin' || role === 'super_admin') && !mfaPathAllowed;
+  const requiresAal2 =
+    (isAdminPath || isAdminApi) &&
+    (role === 'admin' || role === 'super_admin') &&
+    !mfaPathAllowed;
 
   if (requiresAal2) {
     const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
