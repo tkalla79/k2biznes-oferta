@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+.npm/
+.pnpm-store/
+
+# next
+.next/
+out/
+build/
+dist/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts.bak
+
+# supabase
+.supabase/
+supabase/.temp/
+supabase/.branches/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# editors
+.vscode/
+.idea/
+
+# test artifacts
+coverage/
+*.log

@@ -1,0 +1,68 @@
+# Supabase config — K2Biznes Oferta
+# Pełna referencja: https://supabase.com/docs/guides/local-development/cli/config
+
+project_id = "k2biznes-oferta"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1:54321"
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[storage.buckets.offer-pdfs]
+public = false
+file_size_limit = "10MiB"
+allowed_mime_types = ["application/pdf"]
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/**"]
+jwt_expiry = 43200       # 12h — sekcja 7.6 dla admina; consultant override przez Auth → Sessions
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = false    # tylko przez invite (sekcja 7.3)
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = false
+enable_confirmations = true
+double_confirm_changes = true
+secure_password_change = true
+
+[auth.mfa]
+max_enrolled_factors = 10
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[edge_runtime]
+enabled = true
+policy = "per_worker"
+
+[analytics]
+enabled = false
+
+[experimental]
+# pg_cron dla webhook_jobs (sekcja 10.4) — alternatywa dla Vercel Pro cron
+# Włączamy w produkcji przez `supabase pause/resume` z włączonym pg_cron.
