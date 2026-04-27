@@ -16,7 +16,15 @@ export const config = {
 
 const ADMIN_PREFIXES = ['/admin', '/(app)/admin'];
 const APP_PROTECTED = ['/offers', '/(app)']; // wymaga zalogowania
-const ALWAYS_PUBLIC = ['/o/', '/api/public/', '/api/health', '/api/internal/', '/auth/']; // bez sesji
+const ALWAYS_PUBLIC = [
+  '/o/',
+  '/api/public/',
+  '/api/health',
+  '/api/internal/',
+  '/auth/',
+  '/api/auth/request-data-deletion', // RODO sekcja 11.4 — bez logowania
+  '/privacy-policy',
+];
 // `/api/internal/*` ma własną auth (CRON_SECRET) — middleware przepuszcza,
 // handler waliduje header przed wykonaniem.
 
