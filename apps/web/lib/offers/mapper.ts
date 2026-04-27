@@ -122,23 +122,116 @@ export function toOfferDto(row: OfferRow, appUrl: string): OfferDto {
 }
 
 /**
- * Pola, które klient PUBLIC (przez `/o/[token]`) NIE powinien widzieć.
- * Używane przez endpoint `/api/public/offers/:token` w PR #4.
+ * Embedded resources widoczne w publicznej ofercie.
  */
-export function toPublicOfferDto(row: OfferRow): Omit<OfferDto, 'createdBy' | 'assignedConsultantId' | 'contactPersonId' | 'clientToken' | 'clientUrl' | 'clientNip'> {
-  // Token i pole NIP nie powinny lecieć w widoku publicznym.
-  // Szczegóły contact_person/case_study zaciągniemy joinem w PR #4.
-  const dto = toOfferDto(row, '');
+export type PublicContactPersonDto = {
+  id: string;
+  name: string;
+  role: string;
+  email: string | null;
+  phone: string | null;
+  photoUrl: string | null;
+};
+
+export type PublicCaseStudyDto = {
+  id: string;
+  client: string;
+  tag: string | null;
+  title: string;
+  paragraph1: string | null;
+  paragraph2: string | null;
+  stats: unknown[];
+  industries: string[];
+  programTags: string[];
+  logoBig: string | null;
+  logoSm: string | null;
+};
+
+type ContactPersonRow = Database['public']['Tables']['contact_persons']['Row'];
+type CaseStudyRow = Database['public']['Tables']['case_studies']['Row'];
+
+export function toContactPersonDto(row: ContactPersonRow): PublicContactPersonDto {
+  return {
+    id: row.id,
+    name: row.name,
+    role: row.role,
+    email: row.email,
+    phone: row.phone,
+    photoUrl: row.photo_url,
+  };
+}
+
+export function toCaseStudyDto(row: CaseStudyRow): PublicCaseStudyDto {
+  return {
+    id: row.id,
+    client: row.client,
+    tag: row.tag,
+    title: row.title,
+    paragraph1: row.paragraph_1,
+    paragraph2: row.paragraph_2,
+    stats: Array.isArray(row.stats) ? row.stats : [],
+    industries: row.industries,
+    programTags: row.program_tags,
+    logoBig: row.logo_big,
+    logoSm: row.logo_sm,
+  };
+}
+
+/**
+ * Pola, które klient PUBLIC (przez `/o/[token]`) NIE powinien widzieć.
+ *
+ * Strip:
+ * - `clientToken`/`clientUrl` (tylko po stronie konsultanta)
+ * - `clientNip` (PII firmy klienta)
+ * - `createdBy`/`assignedConsultantId`/`contactPersonId` (id-ki wewnętrzne)
+ * - `acceptedByEmail`/`acceptedByName`/`clientComment` (PII zaakceptowanego klienta —
+ *   nie pokazujemy potencjalnemu kolejnemu odwiedzającemu)
+ *
+ * Embed:
+ * - `contactPerson` (rozwinięty z `contact_person_id`)
+ * - `caseStudy` (rozwinięty z `case_study_id`)
+ */
+export type PublicOfferDto = Omit<
+  OfferDto,
+  | 'createdBy'
+  | 'assignedConsultantId'
+  | 'contactPersonId'
+  | 'caseStudyId'
+  | 'clientToken'
+  | 'clientUrl'
+  | 'clientNip'
+  | 'acceptedByEmail'
+  | 'acceptedByName'
+  | 'clientComment'
+> & {
+  contactPerson: PublicContactPersonDto | null;
+  caseStudy: PublicCaseStudyDto | null;
+};
+
+export function toPublicOfferDto(
+  row: OfferRow,
+  contactPerson: ContactPersonRow | null,
+  caseStudy: CaseStudyRow | null,
+): PublicOfferDto {
+  const full = toOfferDto(row, '');
   const {
     createdBy: _createdBy,
     assignedConsultantId: _assignedConsultantId,
     contactPersonId: _contactPersonId,
+    caseStudyId: _caseStudyId,
     clientToken: _clientToken,
     clientUrl: _clientUrl,
     clientNip: _clientNip,
-    ...publicDto
-  } = dto;
-  return publicDto;
+    acceptedByEmail: _acceptedByEmail,
+    acceptedByName: _acceptedByName,
+    clientComment: _clientComment,
+    ...rest
+  } = full;
+  return {
+    ...rest,
+    contactPerson: contactPerson ? toContactPersonDto(contactPerson) : null,
+    caseStudy: caseStudy ? toCaseStudyDto(caseStudy) : null,
+  };
 }
 
 export type { OfferRow, OfferInsert };
