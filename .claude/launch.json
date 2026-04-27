@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "/Users/k2_tomek/Code/k2biznes-oferta/apps/web/node_modules/.bin/next",
+      "runtimeArgs": ["dev", "/Users/k2_tomek/Code/k2biznes-oferta/apps/web"],
+      "port": 3000
+    }
+  ]
+}

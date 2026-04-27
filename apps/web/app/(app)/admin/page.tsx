@@ -4,6 +4,7 @@
  * Server component — fetch przez service role z gating'iem na auth.is_admin()
  * (RLS blokuje gdy ktoś trafi z anon). UI minimal, bez chart libs.
  */
+import Link from 'next/link';
 import { fetchOverview, fetchConsultantBreakdown } from '@/lib/stats/overview';
 import { fetchForecast } from '@/lib/stats/forecast';
 import { requireAdmin } from '@/lib/auth/session';
@@ -30,6 +31,18 @@ export default async function AdminDashboard() {
       <p style={{ color: '#6b7a92', fontSize: 13, marginTop: 0 }}>
         Computed at {new Date(overview.computed_at).toLocaleString('pl-PL')}
       </p>
+
+      <nav style={{ display: 'flex', gap: 12, marginTop: 12, fontSize: 13 }}>
+        <Link href="/admin/offers" style={{ color: '#c92b3a', textDecoration: 'none', fontWeight: 600 }}>
+          → Oferty
+        </Link>
+        <Link href="/admin/users" style={{ color: '#6b7a92', textDecoration: 'none' }}>
+          Użytkownicy
+        </Link>
+        <Link href="/admin/gdpr" style={{ color: '#6b7a92', textDecoration: 'none' }}>
+          RODO
+        </Link>
+      </nav>
 
       {/* KPI cards */}
       <section style={grid4}>
