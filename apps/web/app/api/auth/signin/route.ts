@@ -45,7 +45,19 @@ export async function POST(req: NextRequest) {
       throw new ApiError('UNAUTHORIZED', 'Niepoprawny email lub hasło.', 401);
     }
 
-    return res;
+    // Sprawdź czy konto ma verified TOTP factor — jeśli tak, sesja jest aal1
+    // i wymaga drugiego kroku (sekcja 7.6). Klient użyje tego do redirectu.
+    const [{ data: aal }, { data: factors }] = await Promise.all([
+      supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+      supabase.auth.mfa.listFactors(),
+    ]);
+    const hasVerifiedTotp = (factors?.totp ?? []).some((f) => f.status === 'verified');
+    const mfaRequired = hasVerifiedTotp && aal?.currentLevel !== 'aal2';
+
+    return NextResponse.json(
+      { data: { ok: true, mfaRequired } },
+      { headers: res.headers },
+    );
   } catch (e) {
     return handleError(e);
   }

@@ -31,6 +31,14 @@ const ALWAYS_PUBLIC = [
   '/api/auth/request-data-deletion', // RODO sekcja 11.4 — bez logowania
   '/privacy-policy',
 ];
+// Endpoints MFA muszą być reachable z aal1 (sesja istnieje, ale nie ma jeszcze
+// drugiego kroku). Auth check leci normalnie, ale middleware nie wymusza aal2.
+const MFA_AAL1_ALLOWED = [
+  '/api/auth/mfa/',
+  '/api/auth/signout',
+  '/auth/mfa-challenge',
+  '/auth/mfa-setup',
+];
 // `/api/internal/*` ma własną auth (CRON_SECRET) — middleware przepuszcza,
 // handler waliduje header przed wykonaniem.
 
@@ -64,6 +72,12 @@ export async function middleware(req: NextRequest) {
   // ---------------------------------------------------------------------------
   if (!isInternalPdf) {
     if (pathname === '/api/auth/signin') {
+      const r = await checkRateLimit('signin', `ip:${ip}`);
+      if (!r.success) return rateLimited(r);
+    } else if (pathname === '/api/auth/mfa/verify') {
+      // PR #13 review: TOTP keyspace 10^6, generic auth bucket (1000/min) =
+      // brute-force w ~17h. Sharujemy bucket `signin` (10/min/IP) — mało retries
+      // dla typosa, ale wystarczająco żeby zatrzymać brute force.
       const r = await checkRateLimit('signin', `ip:${ip}`);
       if (!r.success) return rateLimited(r);
     } else if (pathname === '/api/auth/request-data-deletion') {
@@ -134,15 +148,52 @@ export async function middleware(req: NextRequest) {
   }
 
   // ---------------------------------------------------------------------------
-  // 5. Admin gating + MFA (sekcja 7.6) — TODO: AAL check po wdrożeniu MFA UI
+  // 5. Admin gating + MFA (sekcja 7.6)
   // ---------------------------------------------------------------------------
-  if (ADMIN_PREFIXES.some((p) => pathname.startsWith(p))) {
-    const role = (user.app_metadata as { role?: string } | undefined)?.role ?? null;
+  const role = (user.app_metadata as { role?: string } | undefined)?.role ?? null;
+  const isAdminPath = ADMIN_PREFIXES.some((p) => pathname.startsWith(p));
+  const isAdminApi = pathname.startsWith('/api/admin/');
+
+  if (isAdminPath || isAdminApi) {
     if (role !== 'admin' && role !== 'super_admin') {
       return jsonError('FORBIDDEN', 'Brak uprawnień admin.', 403);
     }
-    // const aal = (user.app_metadata as any)?.aal;
-    // if (aal !== 'aal2') return NextResponse.redirect(new URL('/auth/mfa-setup', req.url));
+  }
+
+  // AAL gating dla adminów. Zasada (sekcja 7.6):
+  //   - admin/super_admin musi mieć aal2 wyłącznie dla `/admin` i `/api/admin/*`
+  //   - non-admin paths (np. /offers, /api/offers/*) zostają z aal1 — admin może
+  //     korzystać z funkcji konsultanta bez wymuszania MFA przy każdej akcji
+  //   - jeśli ma factor ale aal1 → redirect do /auth/mfa-challenge (UI) lub 403 (API)
+  //   - jeśli nie ma factor'a → redirect do /auth/mfa-setup (UI) lub 403 (API)
+  // MFA endpointy same w sobie muszą być dostępne z aal1, inaczej infinite loop.
+  const mfaPathAllowed = MFA_AAL1_ALLOWED.some((p) => pathname.startsWith(p));
+  const requiresAal2 =
+    (isAdminPath || isAdminApi) &&
+    (role === 'admin' || role === 'super_admin') &&
+    !mfaPathAllowed;
+
+  if (requiresAal2) {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal?.currentLevel !== 'aal2') {
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const hasVerifiedTotp = (factors?.totp ?? []).some((f) => f.status === 'verified');
+      const target = hasVerifiedTotp ? '/auth/mfa-challenge' : '/auth/mfa-setup';
+
+      if (pathname.startsWith('/api/')) {
+        return jsonError(
+          'MFA_REQUIRED',
+          hasVerifiedTotp
+            ? 'Sesja wymaga weryfikacji MFA (aal2).'
+            : 'Konto admin wymaga włączenia MFA.',
+          403,
+        );
+      }
+      const url = req.nextUrl.clone();
+      url.pathname = target;
+      url.searchParams.set('next', pathname);
+      return NextResponse.redirect(url);
+    }
   }
 
   return res;

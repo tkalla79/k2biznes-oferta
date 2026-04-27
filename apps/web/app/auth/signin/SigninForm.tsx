@@ -35,8 +35,11 @@ export default function SigninForm({
         setError(json?.error?.message ?? 'Błąd logowania.');
         return;
       }
+      const dest = json?.data?.mfaRequired
+        ? `/auth/mfa-challenge?next=${encodeURIComponent(next ?? '/admin')}`
+        : (next ?? '/admin');
       startTransition(() => {
-        router.push(next ?? '/admin');
+        router.push(dest);
         router.refresh();
       });
     } else {
