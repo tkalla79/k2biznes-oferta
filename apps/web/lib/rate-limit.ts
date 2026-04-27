@@ -1,18 +1,21 @@
 /**
- * Rate limiting via Upstash Redis (BACKEND_SPEC.md v1.1, sekcja 5.1.1).
+ * Rate limiting via Upstash Redis (BACKEND_SPEC.md v1.1.1, sekcja 5.1.1).
  *
  * - `/api/public/*` — 100 req/min per IP
  * - `/api/*` (authenticated) — 1000 req/min per user
  * - `/api/auth/signin` — 10 req/min per IP (sekcja 7.6, bruteforce protection)
+ * - `/api/auth/request-data-deletion` — 5 req/24h per IP (sekcja 11.4, anti-spam)
  *
  * Jeśli RATE_LIMIT_REDIS_URL nie jest ustawione (lokalny dev), rate-limit jest no-op.
  */
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
-let cachedLimiters: { public: Ratelimit; auth: Ratelimit; signin: Ratelimit } | null = null;
+type Bucket = 'public' | 'auth' | 'signin' | 'restrictive';
 
-function getLimiters() {
+let cachedLimiters: Record<Bucket, Ratelimit> | null = null;
+
+function getLimiters(): Record<Bucket, Ratelimit> | null {
   if (cachedLimiters) return cachedLimiters;
 
   const url = process.env.RATE_LIMIT_REDIS_URL;
@@ -40,6 +43,15 @@ function getLimiters() {
       prefix: 'rl:signin',
       analytics: true,
     }),
+    // `restrictive`: dla endpointów public, które piszą do DB i wysyłają emaile
+    // — np. /api/auth/request-data-deletion (RODO). 5 prób na 24h chroni przed
+    // spam'em DB i wyczerpaniem limitu Resend.
+    restrictive: new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(5, '86400 s'),
+      prefix: 'rl:strict',
+      analytics: true,
+    }),
   };
   return cachedLimiters;
 }
@@ -51,7 +63,7 @@ export type LimitResult = {
 };
 
 export async function checkRateLimit(
-  bucket: 'public' | 'auth' | 'signin',
+  bucket: Bucket,
   key: string,
 ): Promise<LimitResult> {
   const limiters = getLimiters();

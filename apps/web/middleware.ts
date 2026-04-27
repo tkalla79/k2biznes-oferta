@@ -16,7 +16,15 @@ export const config = {
 
 const ADMIN_PREFIXES = ['/admin', '/(app)/admin'];
 const APP_PROTECTED = ['/offers', '/(app)']; // wymaga zalogowania
-const ALWAYS_PUBLIC = ['/o/', '/api/public/', '/api/health', '/api/internal/', '/auth/']; // bez sesji
+const ALWAYS_PUBLIC = [
+  '/o/',
+  '/api/public/',
+  '/api/health',
+  '/api/internal/',
+  '/auth/',
+  '/api/auth/request-data-deletion', // RODO sekcja 11.4 — bez logowania
+  '/privacy-policy',
+];
 // `/api/internal/*` ma własną auth (CRON_SECRET) — middleware przepuszcza,
 // handler waliduje header przed wykonaniem.
 
@@ -53,6 +61,11 @@ export async function middleware(req: NextRequest) {
   if (!isInternalPdf) {
     if (pathname === '/api/auth/signin') {
       const r = await checkRateLimit('signin', `ip:${ip}`);
+      if (!r.success) return rateLimited(r);
+    } else if (pathname === '/api/auth/request-data-deletion') {
+      // Sekcja 11.4 — public endpoint piszący do DB + wysyłka emaila. 5/24h/IP
+      // chroni przed spamem (vs auth bucket 1000/min byłby zbyt liberalny).
+      const r = await checkRateLimit('restrictive', `ip:${ip}`);
       if (!r.success) return rateLimited(r);
     } else if (pathname.startsWith('/api/public/')) {
       const r = await checkRateLimit('public', `ip:${ip}`);
