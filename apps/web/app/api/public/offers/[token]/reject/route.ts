@@ -12,6 +12,7 @@ import { RejectOfferInput } from '@/lib/validation/public-offers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { hashIp, getClientIp } from '@/lib/ip-hash';
 import { logAudit } from '@/lib/audit';
+import { notifyConsultantOfferRejected } from '@/lib/email/notifications';
 import type { Json } from '@k2/database/types';
 
 export const dynamic = 'force-dynamic';
@@ -68,7 +69,10 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
       }),
     ]);
 
-    // TODO PR #5: email do konsultanta o odrzuceniu
+    // Email do konsultanta — best-effort (sekcja 8.3)
+    notifyConsultantOfferRejected(updated).catch((e) =>
+      console.error('[reject] notify consultant failed:', e.message),
+    );
 
     return NextResponse.json({
       data: {

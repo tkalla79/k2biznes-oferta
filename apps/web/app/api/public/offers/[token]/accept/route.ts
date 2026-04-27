@@ -20,6 +20,7 @@ import { AcceptOfferInput } from '@/lib/validation/public-offers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { hashIp, getClientIp } from '@/lib/ip-hash';
 import { logAudit } from '@/lib/audit';
+import { notifyConsultantOfferAccepted } from '@/lib/email/notifications';
 import type { Json } from '@k2/database/types';
 import type { PricingResult, PricingVariant } from '@/lib/pricing';
 
@@ -131,7 +132,11 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
       }),
     ]);
 
-    // TODO PR #5: enqueue email do assigned_consultant + contact_person
+    // Email do konsultanta — best-effort, nie blokuje response (sekcja 8.2)
+    notifyConsultantOfferAccepted(updated).catch((e) =>
+      console.error('[accept] notify consultant failed:', e.message),
+    );
+
     // TODO PR #7: enqueue CRM webhook 'offer.accepted'
 
     return NextResponse.json({
