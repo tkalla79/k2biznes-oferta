@@ -747,6 +747,9 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       next_offer_number: { Args: never; Returns: string }
+      stats_by_consultant: { Args: never; Returns: Json }
+      stats_overview: { Args: never; Returns: Json }
+      stats_pipeline_by_month: { Args: { months_back?: number }; Returns: Json }
       user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
