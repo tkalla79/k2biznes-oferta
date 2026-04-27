@@ -8,6 +8,8 @@
 import { createHash } from 'node:crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 
+export { getClientIp } from '@/lib/client-ip';
+
 type Cache = { version: number; salt: string; expiresAt: number };
 let cached: Cache | null = null;
 const TTL_MS = 5 * 60 * 1000;
@@ -45,19 +47,6 @@ export async function hashIp(ip: string | null | undefined): Promise<{
   const { version, salt } = await loadCurrentSalt();
   const hash = createHash('sha256').update(`${ip}:${salt}`).digest('hex');
   return { hash, version };
-}
-
-/**
- * Wyciąga IP z Next.js request headers (Vercel / standardowy proxy).
- * Pierwszy IP z `x-forwarded-for` to client (reszta to proxy chain).
- */
-export function getClientIp(headers: Headers): string {
-  const xff = headers.get('x-forwarded-for');
-  if (xff) {
-    const first = xff.split(',')[0]?.trim();
-    if (first) return first;
-  }
-  return headers.get('x-real-ip') ?? '127.0.0.1';
 }
 
 /**

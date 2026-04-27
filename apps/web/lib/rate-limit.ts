@@ -5,13 +5,15 @@
  * - `/api/*` (authenticated) — 1000 req/min per user
  * - `/api/auth/signin` — 10 req/min per IP (sekcja 7.6, bruteforce protection)
  * - `/api/auth/request-data-deletion` — 5 req/24h per IP (sekcja 11.4, anti-spam)
+ * - `/api/public/offers/[token]/pdf` — 5 req/min per IP (PR #4 review:
+ *   PDF render = ~17s CPU, brak limitu = realny DoS przez wyczerpanie Lambda)
  *
  * Jeśli RATE_LIMIT_REDIS_URL nie jest ustawione (lokalny dev), rate-limit jest no-op.
  */
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
-type Bucket = 'public' | 'auth' | 'signin' | 'restrictive';
+type Bucket = 'public' | 'auth' | 'signin' | 'restrictive' | 'expensive';
 
 let cachedLimiters: Record<Bucket, Ratelimit> | null = null;
 
@@ -50,6 +52,15 @@ function getLimiters(): Record<Bucket, Ratelimit> | null {
       redis,
       limiter: Ratelimit.slidingWindow(5, '86400 s'),
       prefix: 'rl:strict',
+      analytics: true,
+    }),
+    // `expensive`: dla endpointów public uruchamiających ciężkie operacje
+    // (PDF render Puppeteer ~17s CPU). 5/min/IP zapobiega DoS przez wyczerpanie
+    // Lambda concurrency.
+    expensive: new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(5, '60 s'),
+      prefix: 'rl:exp',
       analytics: true,
     }),
   };

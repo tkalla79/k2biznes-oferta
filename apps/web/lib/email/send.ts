@@ -27,8 +27,17 @@ let cached: Resend | null = null;
 
 function client(): Resend | null {
   if (cached) return cached;
-  const key = process.env.RESEND_API_KEY;
-  if (!key) return null;
+  const key = process.env.RESEND_API_KEY?.trim();
+  if (!key) {
+    // Code review PR #3: pusty/whitespace `RESEND_API_KEY=""` wcześniej cicho
+    // przechodził w dev_log mode w produkcji. Teraz głośno krzyczymy.
+    if (process.env.NODE_ENV === 'production') {
+      console.error(
+        '[email] RESEND_API_KEY missing/empty in production — emails will be dropped (dev_log mode).',
+      );
+    }
+    return null;
+  }
   cached = new Resend(key);
   return cached;
 }

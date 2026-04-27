@@ -39,10 +39,13 @@ export type DispatchResult =
 export async function dispatchJob(jobId: string): Promise<DispatchResult> {
   const sb = createAdminClient();
 
-  // Claim — atomic update pending|failed → processing
+  // Claim — atomic update pending|failed → processing + claimed_at = now
+  // (claimed_at używane przez `sweepStuckClaims` do recovery padłych workerów —
+  // PR #5 code review: brak claimed_at oznacza że job zostawiony przez crash'a
+  // workerów był stuck na `processing` bez ścieżki recovery)
   const { data: claimed, error: claimErr } = await sb
     .from('webhook_jobs')
-    .update({ status: 'processing' })
+    .update({ status: 'processing', claimed_at: new Date().toISOString() })
     .eq('id', jobId)
     .in('status', ['pending', 'failed'])
     .lte('next_attempt_at', new Date().toISOString())
@@ -138,15 +141,49 @@ async function sendAndRecord(job: WebhookJob): Promise<DispatchResult> {
   return { status: 'failed', httpStatus, willRetryAt, error: errorMsg ?? 'unknown' };
 }
 
+/** Stuck-job recovery threshold — claim'er padł i nigdy nie sfinalizował joba. */
+const PROCESSING_TIMEOUT_MS = 10 * 60 * 1000; // 10 min
+
+/**
+ * Code review PR #5: workery które padły mid-flight zostawiają job'y na
+ * `status='processing'` bez ścieżki recovery. Każdy tick cron'a najpierw
+ * przesweepuje takie sieroty z powrotem na `pending`, potem dispatch'uje batch.
+ */
+async function sweepStuckClaims(): Promise<number> {
+  const sb = createAdminClient();
+  const cutoff = new Date(Date.now() - PROCESSING_TIMEOUT_MS).toISOString();
+  const { data, error } = await sb
+    .from('webhook_jobs')
+    .update({
+      status: 'pending',
+      claimed_at: null,
+      last_error: 'recovered from stuck processing (worker timeout)',
+    })
+    .eq('status', 'processing')
+    .lte('claimed_at', cutoff)
+    .select('id');
+  if (error) {
+    console.error('[webhooks.sweep] failed:', error.message);
+    return 0;
+  }
+  const n = data?.length ?? 0;
+  if (n > 0) console.warn(`[webhooks.sweep] recovered ${n} stuck job(s)`);
+  return n;
+}
+
 /**
  * Pobiera batch (max `limit`) job'ów gotowych do dispatchu i wysyła równolegle.
  * Wołane z cron endpoint'u (/api/internal/process-webhook-jobs).
+ *
+ * Najpierw sweep stuck claims (PR #5 review), potem normalny pickup.
  */
 export async function processBatch(limit = 25): Promise<{
   picked: number;
+  recovered: number;
   results: { id: string; result: DispatchResult }[];
 }> {
   const sb = createAdminClient();
+  const recovered = await sweepStuckClaims();
 
   const { data, error } = await sb
     .from('webhook_jobs')
@@ -157,13 +194,13 @@ export async function processBatch(limit = 25): Promise<{
     .limit(limit);
 
   if (error) throw new Error(`processBatch list failed: ${error.message}`);
-  if (!data || data.length === 0) return { picked: 0, results: [] };
+  if (!data || data.length === 0) return { picked: 0, recovered, results: [] };
 
   const results = await Promise.all(
     data.map(async (j) => ({ id: j.id, result: await dispatchJob(j.id) })),
   );
 
-  return { picked: data.length, results };
+  return { picked: data.length, recovered, results };
 }
 
 /**

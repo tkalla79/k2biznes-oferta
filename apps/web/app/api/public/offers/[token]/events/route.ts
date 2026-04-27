@@ -46,23 +46,17 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
       throw new ApiError('INTERNAL_ERROR', `event insert failed: ${eventErr.message}`, 500);
     }
 
-    // Side effects dla `viewed` — bump licznika + zmiana statusu
+    // Side effects dla `viewed` — atomic bump (sekcja 5.3, fix race z code review PR #2).
+    // SQL function `bump_offer_view_count` aktualizuje view_count, last_viewed_at,
+    // first_viewed_at i ewentualnie status w jednej transakcji.
     if (body.type === 'viewed') {
       const isFirst = !offer.first_viewed_at;
-      const newStatus = offer.status === 'sent' ? 'viewed' : offer.status;
-      const { error: upErr } = await sb
-        .from('offers')
-        .update({
-          status: newStatus,
-          first_viewed_at: offer.first_viewed_at ?? new Date().toISOString(),
-          last_viewed_at: new Date().toISOString(),
-          view_count: offer.view_count + 1,
-        })
-        .eq('id', offer.id);
-
-      if (upErr) {
+      const { error: rpcErr } = await sb.rpc('bump_offer_view_count', {
+        p_offer_id: offer.id,
+      });
+      if (rpcErr) {
         // Nie blokujemy klienta — event się zapisał. Logujemy błąd.
-        console.error('[events] view counter update failed:', upErr.message);
+        console.error('[events] view counter bump failed:', rpcErr.message);
       }
 
       return NextResponse.json({ data: { ok: true, firstView: isFirst } });
