@@ -14,10 +14,16 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export default async function NewOfferPage() {
-  await requireSession();
+  const session = await requireSession();
+  const isAdmin = session.role === 'admin' || session.role === 'super_admin';
 
   const sb = createAdminClient();
-  const [{ data: programs }, { data: caseStudies }, { data: contactPersons }] = await Promise.all([
+  const [
+    { data: programs },
+    { data: caseStudies },
+    { data: contactPersons },
+    profilesRes,
+  ] = await Promise.all([
     sb.from('programs').select('id, label, group_name').eq('is_active', true).order('display_order'),
     sb.from('case_studies').select('id, client, title').eq('is_active', true).order('display_order'),
     sb
@@ -25,6 +31,14 @@ export default async function NewOfferPage() {
       .select('id, name, role')
       .eq('is_active', true)
       .order('display_order'),
+    isAdmin
+      ? sb
+          .from('profiles')
+          .select('id, full_name, email, role')
+          .eq('is_active', true)
+          .is('deleted_at', null)
+          .order('full_name')
+      : Promise.resolve({ data: [] as { id: string; full_name: string | null; email: string; role: string }[] }),
   ]);
 
   return (
@@ -41,6 +55,8 @@ export default async function NewOfferPage() {
         programs={programs ?? []}
         caseStudies={caseStudies ?? []}
         contactPersons={contactPersons ?? []}
+        profiles={profilesRes.data ?? []}
+        canAssignConsultant={isAdmin}
       />
     </main>
   );

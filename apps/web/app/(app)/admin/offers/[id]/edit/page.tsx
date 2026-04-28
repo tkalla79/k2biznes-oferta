@@ -11,6 +11,7 @@ import { requireSession } from '@/lib/auth/session';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { toOfferDto } from '@/lib/offers/mapper';
 import OfferForm from '../../OfferForm';
+import OfferActions from '../../OfferActions';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -22,18 +23,31 @@ export default async function EditOfferPage({ params }: { params: { id: string }
 
   const session = await requireSession();
   const sb = createAdminClient();
+  const isAdmin = session.role === 'admin' || session.role === 'super_admin';
 
   const [
     { data: offer },
     { data: programs },
     { data: caseStudies },
     { data: contactPersons },
+    profilesRes,
   ] = await Promise.all([
     sb.from('offers').select('*').eq('id', params.id).is('deleted_at', null).maybeSingle(),
     sb.from('programs').select('id, label, group_name').eq('is_active', true).order('display_order'),
     sb.from('case_studies').select('id, client, title').eq('is_active', true).order('display_order'),
     sb.from('contact_persons').select('id, name, role').eq('is_active', true).order('display_order'),
+    // assignedConsultantId select tylko dla admina; consultant nie może zmienić
+    // właściciela. Pusta lista pomijana w UI.
+    isAdmin
+      ? sb
+          .from('profiles')
+          .select('id, full_name, email, role')
+          .eq('is_active', true)
+          .is('deleted_at', null)
+          .order('full_name')
+      : Promise.resolve({ data: [] as { id: string; full_name: string | null; email: string; role: string }[] }),
   ]);
+  const profiles = profilesRes.data ?? [];
 
   if (!offer) notFound();
 
@@ -74,12 +88,23 @@ export default async function EditOfferPage({ params }: { params: { id: string }
         </div>
       </header>
 
+      <OfferActions
+        offerId={offer.id}
+        offerNumber={offer.offer_number}
+        clientToken={offer.client_token}
+        clientName={offer.client_name}
+        status={offer.status}
+        canDelete={isAdmin}
+      />
+
       <OfferForm
         mode="edit"
         offer={dto}
         programs={programs ?? []}
         caseStudies={caseStudies ?? []}
         contactPersons={contactPersons ?? []}
+        profiles={profiles}
+        canAssignConsultant={isAdmin}
       />
     </main>
   );
