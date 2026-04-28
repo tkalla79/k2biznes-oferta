@@ -7,6 +7,7 @@ import type { OfferDto } from '@/lib/offers/mapper';
 type ProgramOpt = { id: string; label: string; group_name: string };
 type CaseStudyOpt = { id: string; client: string; title: string };
 type ContactPersonOpt = { id: string; name: string; role: string };
+type ProfileOpt = { id: string; full_name: string | null; email: string; role: string };
 type Variant = 'I' | 'II' | 'III' | 'IV';
 
 const ALL_VARIANTS: Variant[] = ['I', 'II', 'III', 'IV'];
@@ -40,6 +41,11 @@ type FormState = {
   // Załączniki
   caseStudyId: string;
   contactPersonId: string;
+  // Treść (rich text — start prosty: dwa textareas)
+  contentIntro: string;
+  contentFooter: string;
+  // Ownership (admin only)
+  assignedConsultantId: string;
 };
 
 type SimulatorResult = {
@@ -62,6 +68,7 @@ const fmtPLN = (n: number) =>
   n.toLocaleString('pl-PL', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' zł';
 
 function initialFromOffer(offer: OfferDto): FormState {
+  const c = offer.content as { intro?: unknown; footer?: unknown } | null;
   return {
     clientName: offer.clientName,
     clientNip: offer.clientNip ?? '',
@@ -79,6 +86,9 @@ function initialFromOffer(offer: OfferDto): FormState {
     selectedVariant: offer.selectedVariant as Variant,
     caseStudyId: offer.caseStudyId ?? '',
     contactPersonId: offer.contactPersonId ?? '',
+    contentIntro: typeof c?.intro === 'string' ? c.intro : '',
+    contentFooter: typeof c?.footer === 'string' ? c.footer : '',
+    assignedConsultantId: offer.assignedConsultantId ?? '',
   };
 }
 
@@ -100,6 +110,9 @@ function blankInitial(): FormState {
     selectedVariant: 'I',
     caseStudyId: '',
     contactPersonId: '',
+    contentIntro: '',
+    contentFooter: '',
+    assignedConsultantId: '',
   };
 }
 
@@ -110,6 +123,8 @@ type Props =
       programs: ProgramOpt[];
       caseStudies: CaseStudyOpt[];
       contactPersons: ContactPersonOpt[];
+      profiles: ProfileOpt[];
+      canAssignConsultant: boolean;
     }
   | {
       mode: 'edit';
@@ -117,9 +132,19 @@ type Props =
       programs: ProgramOpt[];
       caseStudies: CaseStudyOpt[];
       contactPersons: ContactPersonOpt[];
+      profiles: ProfileOpt[];
+      canAssignConsultant: boolean;
     };
 
-export default function OfferForm({ mode, offer, programs, caseStudies, contactPersons }: Props) {
+export default function OfferForm({
+  mode,
+  offer,
+  programs,
+  caseStudies,
+  contactPersons,
+  profiles,
+  canAssignConsultant,
+}: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
@@ -211,6 +236,10 @@ export default function OfferForm({ mode, offer, programs, caseStudies, contactP
     }
 
     setBusy(true);
+    const content: Record<string, string> = {};
+    if (form.contentIntro.trim()) content.intro = form.contentIntro.trim();
+    if (form.contentFooter.trim()) content.footer = form.contentFooter.trim();
+
     const body = {
       clientName: form.clientName.trim(),
       clientNip: form.clientNip.trim() || undefined,
@@ -228,6 +257,9 @@ export default function OfferForm({ mode, offer, programs, caseStudies, contactP
       offeredVariants: form.offeredVariants,
       caseStudyId: form.caseStudyId || undefined,
       contactPersonId: form.contactPersonId || undefined,
+      assignedConsultantId:
+        canAssignConsultant && form.assignedConsultantId ? form.assignedConsultantId : undefined,
+      content,
     };
 
     try {
@@ -510,7 +542,31 @@ export default function OfferForm({ mode, offer, programs, caseStudies, contactP
         )}
       </Section>
 
-      {/* SECTION 5: Załączniki */}
+      {/* SECTION 5: Treść (rich text — start z dwóch textareas) */}
+      <Section title="Treść w ofercie">
+        <Field label="Wstęp (intro) — pojawi się nad pricingiem">
+          <textarea
+            value={form.contentIntro}
+            onChange={(e) => update('contentIntro', e.target.value)}
+            style={textarea}
+            rows={4}
+            maxLength={4000}
+            placeholder="Np. Dziękujemy za rozmowę. Poniżej propozycja współpracy przy aplikacji o dofinansowanie…"
+          />
+        </Field>
+        <Field label="Podsumowanie (footer) — pojawi się pod pricingiem">
+          <textarea
+            value={form.contentFooter}
+            onChange={(e) => update('contentFooter', e.target.value)}
+            style={textarea}
+            rows={3}
+            maxLength={2000}
+            placeholder="Np. Pełen zakres usług, harmonogram pracy i warunki płatności znajdziesz w załączonym PDF."
+          />
+        </Field>
+      </Section>
+
+      {/* SECTION 6: Załączniki */}
       <Section title="Załączniki w ofercie">
         <Grid2>
           <Field label="Osoba kontaktowa">
@@ -543,6 +599,29 @@ export default function OfferForm({ mode, offer, programs, caseStudies, contactP
           </Field>
         </Grid2>
       </Section>
+
+      {/* SECTION 7: Ownership (admin only) */}
+      {canAssignConsultant && profiles.length > 0 && (
+        <Section title="Właściciel oferty (admin)">
+          <Field label="Przypisany konsultant">
+            <select
+              value={form.assignedConsultantId}
+              onChange={(e) => update('assignedConsultantId', e.target.value)}
+              style={input}
+            >
+              <option value="">— bez przypisania (zostaje przy autorze) —</option>
+              {profiles.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.full_name ?? p.email} ({p.role})
+                </option>
+              ))}
+            </select>
+          </Field>
+          <p style={hint}>
+            Reassign zmienia kto widzi i edytuje ofertę. Autor (created_by) nie zmienia się.
+          </p>
+        </Section>
+      )}
 
       {/* Actions */}
       <div style={actions}>
@@ -609,6 +688,18 @@ const input: React.CSSProperties = {
   background: '#fff',
   fontFamily: 'inherit',
   boxSizing: 'border-box',
+};
+const textarea: React.CSSProperties = {
+  ...input,
+  resize: 'vertical',
+  lineHeight: 1.5,
+  padding: 10,
+};
+const hint: React.CSSProperties = {
+  fontSize: 12,
+  color: '#6b7a92',
+  margin: '8px 0 0',
+  lineHeight: 1.4,
 };
 const checkboxRow: React.CSSProperties = {
   display: 'flex',
