@@ -20,10 +20,11 @@ wysyła linkiem, klient akceptuje online.
 
 ### URL aplikacji
 
-- **Staging**: `https://[do-uzupelnienia].vercel.app`
-  *(URL otrzymasz emailem gdy staging zostanie wdrożony)*
-- **Lokalnie u dewelopera (tunel cloudflared)**: link otrzymujesz emailem na
-  czas testów *(nie zostawiaj otwartego — laptop musi być włączony)*
+**Staging**: **https://k2biznes-oferta-web.vercel.app**
+
+Działa 24/7, bez konieczności trzymania niczego po stronie dewelopera.
+Hosting: Vercel (Hobby tier) · DB: Supabase Cloud (eu-central-1, free tier) ·
+Email: Resend (3000 maili / mc, free tier).
 
 ### Pierwsze logowanie
 
