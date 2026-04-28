@@ -1,43 +1,93 @@
 /**
  * Public offer view (BACKEND_SPEC.md v1.1.1, sekcja 7.4).
  *
- * Server component z brandingiem K2 (port `OFERTA_INTERAKTYWNA/index.html`).
- * 8 sekcji: cover, intro, scope, optional, pricing, process, why, contact +
- * floating nav-dots + CTA bar.
+ * Design: Claude Design "Oferta K2Biznes" (corporate variant).
+ * 11 sekcji: hero, intro, program, zakres, cennik, proces, after, onas
+ * (zawiera logos), case, faq, akcept. Topnav + footer.
  *
- * Dane z DB (`offers.pricing_snapshot`, embedded contact_person + case_study);
- * statyczna treść doradcza z OFERTA_INTERAKTYWNA (kroki, timeline, why-K2).
+ * Server-side rendering. Małe interaktywne komponenty client-side:
+ * CountUp, FaqAccordion, ScopeAccordion, ProcessTimeline, AcceptForm.
  */
 import { notFound } from 'next/navigation';
+import { cookies } from 'next/headers';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { fetchPublicOffer } from '@/lib/offers/public';
 import { toPublicOfferDto } from '@/lib/offers/mapper';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ApiError } from '@/lib/api/error';
 import RevealOnScroll from './RevealOnScroll';
-import NavDots from './NavDots';
-import CtaBar from './CtaBar';
 import ViewTracker from './ViewTracker';
+import CountUp from './CountUp';
+import FaqAccordion from './FaqAccordion';
+import ScopeAccordion from './ScopeAccordion';
+import ProcessTimeline from './ProcessTimeline';
+import AcceptForm from './AcceptForm';
+import {
+  NEEDS,
+  PROGRAM_BULLETS,
+  ALT_PROGRAMS,
+  SCOPE_PREP,
+  SCOPE_EXEC,
+  PROCESS,
+  FAQ_ITEMS,
+} from './staticContent';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-type Props = { params: { token: string }; searchParams: { print?: string } };
+type Props = {
+  params: { token: string };
+  searchParams: { print?: string; __preview?: string };
+};
 
 const fmt = (n: number) =>
-  n.toLocaleString('pl-PL', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' zł';
+  new Intl.NumberFormat('pl-PL', {
+    style: 'currency',
+    currency: 'PLN',
+    maximumFractionDigits: 0,
+  }).format(Math.round(n));
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('pl-PL');
 
+/**
+ * Auth gate dla preview draftu (sesja konsultanta lub admin).
+ */
+async function isAuthorizedPreview(offerCreatedBy: string | null): Promise<boolean> {
+  const cookieStore = cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get: (name: string) => cookieStore.get(name)?.value,
+        set: (_n: string, _v: string, _o: CookieOptions) => {},
+        remove: (_n: string, _o: CookieOptions) => {},
+      },
+    },
+  );
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+  const role = (user.app_metadata as { role?: string } | undefined)?.role;
+  return role === 'admin' || role === 'super_admin' || user.id === offerCreatedBy;
+}
+
 export default async function OfferPage({ params, searchParams }: Props) {
+  const wantsPreview = searchParams.__preview === '1';
   let offer;
   let isActive: boolean;
+  let isPreview = false;
   try {
-    const ctx = await fetchPublicOffer(params.token);
+    const ctx = await fetchPublicOffer(params.token, { allowDraft: wantsPreview });
     offer = ctx.offer;
     isActive = ctx.isActive;
-  } catch (e) {
-    if (e instanceof ApiError && (e.status === 404 || e.status === 410)) {
-      notFound();
+    if (offer.status === 'draft') {
+      const ok = await isAuthorizedPreview(offer.created_by);
+      if (!ok) notFound();
+      isPreview = true;
     }
+  } catch (e) {
+    if (e instanceof ApiError && (e.status === 404 || e.status === 410)) notFound();
     throw e;
   }
 
@@ -53,33 +103,29 @@ export default async function OfferPage({ params, searchParams }: Props) {
   ]);
 
   const dto = toPublicOfferDto(offer, contactRes.data ?? null, caseRes.data ?? null);
-  const gdpr = gdprRes.data ?? null;
   const isPrint = searchParams.print === 'true';
 
-  const variants = dto.pricingSnapshot.variants.filter((v) => dto.offeredVariants.includes(v.id));
-  const dateLabel = fmtDate(offer.sent_at ?? offer.created_at);
-  const offerDate = isActive ? dateLabel : fmtDate(offer.created_at);
+  // Variants — z pricing_snapshot, filtrowane przez offered_variants. Wybrany na końcu.
+  const variants = dto.pricingSnapshot.variants.filter((v) =>
+    dto.offeredVariants.includes(v.id),
+  );
+  const selectedVariant =
+    variants.find((v) => v.id === dto.selectedVariant) ?? variants[0] ?? null;
+  const funding = dto.pricingSnapshot.funding;
 
-  // Status banner (po accept/reject/expired)
+  // Treść z offer.content (intro/footer textareas z OfferForm) lub default.
+  const content = (dto.content ?? {}) as { intro?: string; footer?: string };
+
+  // Status / preview banners
+  const previewBanner = isPreview ? (
+    <div className="fixed-banner banner-preview">
+      Podgląd wersji roboczej — klient nie widzi tej oferty dopóki nie zostanie wysłana.
+    </div>
+  ) : null;
   const statusBanner =
     !isActive &&
     (dto.status === 'accepted' || dto.status === 'rejected' || dto.status === 'expired') ? (
-      <div
-        style={{
-          position: 'fixed',
-          top: 16,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 100,
-          padding: '10px 20px',
-          background: dto.status === 'accepted' ? '#dff3e8' : '#fbf0d8',
-          color: dto.status === 'accepted' ? '#1f7a4c' : '#8a5a00',
-          border: `1px solid ${dto.status === 'accepted' ? '#1f7a4c' : '#8a5a00'}`,
-          borderRadius: 6,
-          fontFamily: 'system-ui, sans-serif',
-          fontSize: 14,
-        }}
-      >
+      <div className={`fixed-banner banner-${dto.status}`}>
         {dto.status === 'accepted' && 'Oferta zaakceptowana — dziękujemy.'}
         {dto.status === 'rejected' && 'Oferta odrzucona.'}
         {dto.status === 'expired' && 'Oferta wygasła.'}
@@ -88,459 +134,579 @@ export default async function OfferPage({ params, searchParams }: Props) {
 
   return (
     <>
-      {!isPrint && <ViewTracker token={params.token} />}
+      {!isPrint && !isPreview && isActive && <ViewTracker token={params.token} />}
       {!isPrint && <RevealOnScroll />}
-      {!isPrint && <NavDots />}
+      {previewBanner}
       {statusBanner}
 
-      {/* ==================== 0. COVER ==================== */}
-      <section
-        id="s-cover"
-        className="section section--cover section--no-sidebar"
-        data-section="0"
-      >
-        <div className="cover__watermark" aria-hidden="true">K2</div>
-        <div className="section__inner">
-          <div className="cover__redline" />
-          <h1 className="cover__title">
-            Oferta cenowa<br />na wsparcie doradcze
-          </h1>
-          <p className="cover__subtitle">w zakresie przygotowania projektu</p>
-          <div className="cover__meta">
-            <div className="cover__field">
-              <div className="cover__field-label">Data oferty</div>
-              <div>{offerDate}</div>
-            </div>
-            <div className="cover__field">
-              <div className="cover__field-label">Oferta sporządzona dla</div>
-              <div>{dto.clientName}</div>
-            </div>
-            <div className="cover__field">
-              <div className="cover__field-label">Numer oferty</div>
-              <div>{dto.offerNumber}</div>
+      {/* ==================== TOP NAV ==================== */}
+      {!isPrint && (
+        <nav className="topnav">
+          <div className="topnav-inner">
+            <a href="#hero" className="brand">
+              <img src="/branding-v2/k2-logo.png" alt="K2" />
+              <span>K2<em>Biznes</em></span>
+            </a>
+            <ul>
+              <li><a href="#intro">Wprowadzenie</a></li>
+              <li><a href="#program">Program</a></li>
+              <li><a href="#zakres">Zakres</a></li>
+              <li><a href="#cennik">Wycena</a></li>
+              <li><a href="#proces">Proces</a></li>
+              <li><a href="#onas">O nas</a></li>
+              <li><a href="#case">Referencje</a></li>
+              <li><a href="#faq">FAQ</a></li>
+            </ul>
+            {isActive && (
+              <a href="#akcept" className="cta-mini">
+                Akceptuję ofertę →
+              </a>
+            )}
+          </div>
+        </nav>
+      )}
+
+      <main className="app">
+        {/* ==================== 01. HERO ==================== */}
+        <section id="hero" className="hero">
+          <div className="hero-bg">
+            <div className="hero-rings float-1" aria-hidden>
+              <img src="/branding-v2/ring-gap.png" alt="" />
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ==================== 1. INTRODUCTION ==================== */}
-      <section
-        id="s-intro"
-        className="section section--intro section--bg"
-        data-section="1"
-        style={{ '--section-bg': "url('/branding/section-bg-3.jpg')" } as React.CSSProperties}
-      >
-        <div className="sidebar"><span className="sidebar__text">k2biznes.pl</span></div>
-        <div className="section__inner">
-          <span className="section-num reveal">01 — Wprowadzenie</span>
-          <h2 className="section-title reveal">Wsparcie<br />Doradcze</h2>
-          <div className="intro__cols reveal">
-            <div className="intro__desc">
-              Dziękujemy za rozmowę i zainteresowanie współpracą z K2Biznes. Poniżej przedstawiamy
-              ofertę wsparcia doradczego w zakresie przygotowania projektu w ramach{' '}
-              <strong>{dto.programLabel}</strong>.
+          <div className="hero-content">
+            <div className="hero-eyebrow">
+              <span className="dot" /> {dto.offerNumber} ·{' '}
+              {fmtDate(offer.sent_at ?? offer.created_at)}
             </div>
-            <div className="intro__desc">
-              <strong>{dto.clientName}</strong>
-              {dto.clientIndustry && <> — działa w branży <em>{dto.clientIndustry}</em></>}
-              {dto.clientVoivodeship && <> ({dto.clientVoivodeship})</>}.
-              Wartość projektu: <strong>{fmt(dto.projectValue)}</strong>, planowana intensywność
-              dofinansowania: <strong>{(dto.fundingRate * 100).toFixed(0)}%</strong>{' '}
-              (~ <strong>{fmt(dto.pricingSnapshot.funding)}</strong>).
+            <h1 className="hero-title">
+              Wsparcie doradcze<br />
+              w zakresie przygotowania<br />
+              <em>projektu</em>
+            </h1>
+            <div className="hero-for">
+              Oferta przygotowana dla
+              <span className="hero-client">{dto.clientName}</span>
             </div>
-          </div>
-
-          <h3 className="subsection-title reveal">Kluczowe potrzeby</h3>
-          <ul className="needs-list stagger-children">
-            <li>Wsparcie przedsiębiorstwa na etapie opracowywania dokumentacji aplikacyjnej</li>
-            <li>Obsługa procesu składania i oceny wniosku</li>
-            <li>Kontakt z instytucją dokonującą oceny projektu</li>
-            <li>
-              Wsparcie na etapie przygotowywania załączników do umowy o dofinansowanie w przypadku
-              pozytywnego wyniku oceny
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      {/* ==================== 2. SERVICE SCOPE ==================== */}
-      <section
-        id="s-scope"
-        className="section section--scope section--bg"
-        data-section="2"
-        style={{ '--section-bg': "url('/branding/section-bg-4.jpg')" } as React.CSSProperties}
-      >
-        <div className="sidebar"><span className="sidebar__text">k2biznes.pl</span></div>
-        <div className="section__inner">
-          <span className="section-num reveal">02 — Zakres</span>
-          <h2 className="section-title reveal">Zakres usługi<br />doradczej</h2>
-          <p className="reveal" style={{ color: 'var(--k2-gray-text)', marginBottom: '1.5rem' }}>
-            Poniżej przedstawiamy szczegółowy zakres prac realizowanych na etapie przygotowania
-            kompletnej dokumentacji aplikacyjnej dla Projektu.
-          </p>
-          <div className="scope__list stagger-children">
-            {SCOPE_STEPS.map((step, i) => (
-              <div className="scope__item" key={i}>
-                <span className="scope__num">{String(i + 1).padStart(2, '0')}</span>
-                <p className="scope__text" dangerouslySetInnerHTML={{ __html: step }} />
+            <div className="hero-program">
+              <span>Program:</span>
+              <strong>{dto.programLabel}</strong>
+            </div>
+            <div className="hero-foot">
+              <div className="hero-foot-item">
+                <strong>475 mln zł</strong>
+                <span>pozyskanego dofinansowania</span>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ==================== 3. OPTIONAL SCOPE ==================== */}
-      <section
-        id="s-optional"
-        className="section section--optional section--bg"
-        data-section="3"
-        style={{ '--section-bg': "url('/branding/section-bg-5.jpg')" } as React.CSSProperties}
-      >
-        <div className="sidebar"><span className="sidebar__text">k2biznes.pl</span></div>
-        <div className="section__inner">
-          <span className="section-num reveal">03 — Zakres opcjonalny</span>
-          <h2 className="section-title reveal">
-            Obsługa i rozliczenie
-            <br />
-            <span style={{ color: 'var(--k2-gray-text)', fontSize: '0.5em', fontWeight: 500, letterSpacing: '0.04em' }}>
-              MA CHARAKTER OPCJONALNY
-            </span>
-          </h2>
-          <div className="optional-content" style={{ display: 'block' }}>
-            <div className="optional__intro reveal">
-              <p style={{ color: 'var(--k2-white-soft)' }}>
-                Po otrzymaniu przez projekt dofinansowania kolejnym etapem współpracy z K2Biznes
-                jest <strong>obsługa i rozliczenie dofinansowanego Projektu</strong>.
-              </p>
+              <div className="divider" />
+              <div className="hero-foot-item">
+                <strong>288</strong>
+                <span>zrealizowanych projektów</span>
+              </div>
+              <div className="divider" />
+              <div className="hero-foot-item">
+                <strong>od 2015</strong>
+                <span>doradztwo i projekty UE</span>
+              </div>
             </div>
-            <ul className="optional__list stagger-children">
-              {OPTIONAL_ITEMS.map((item, i) => (
-                <li key={i} dangerouslySetInnerHTML={{ __html: item }} />
+            {!isPrint && (
+              <a href="#intro" className="hero-scroll">
+                <span>Przewiń ofertę</span>
+                <svg width="14" height="22" viewBox="0 0 14 22" fill="none">
+                  <rect x="1" y="1" width="12" height="20" rx="6" stroke="currentColor" strokeWidth="1.5" />
+                  <circle cx="7" cy="7" r="1.5" fill="currentColor">
+                    <animate attributeName="cy" values="6;14;6" dur="1.8s" repeatCount="indefinite" />
+                  </circle>
+                </svg>
+              </a>
+            )}
+          </div>
+        </section>
+
+        {/* ==================== 02. INTRO ==================== */}
+        <section id="intro" className="section intro reveal">
+          <div className="section-head">
+            <div className="section-kicker">01 · Wprowadzenie</div>
+            <h2>
+              Wsparcie doradcze szyte na miarę <em>{dto.clientName}</em>
+            </h2>
+          </div>
+          <div className="intro-grid">
+            <div className="intro-copy">
+              <p className="lead">
+                {content.intro ??
+                  'Dziękujemy za rozmowę i zainteresowanie współpracą z K2Biznes. Poniżej przedstawiamy ofertę wsparcia doradczego w zakresie przygotowania projektu w ramach programu Fundusze Europejskie dla Nowoczesnej Gospodarki 2021–2027.'}
+              </p>
+              <p>
+                Na podstawie przeprowadzonych rozmów oraz przekazanych materiałów zidentyfikowaliśmy
+                kluczowe potrzeby Państwa przedsiębiorstwa.
+              </p>
+              <div className="client-chip">
+                <div className="chip-label">Klient</div>
+                <div className="chip-name">{dto.clientName}</div>
+                <div className="chip-meta">
+                  numer oferty: <strong>{dto.offerNumber}</strong>
+                </div>
+              </div>
+            </div>
+            <ul className="needs-list">
+              {NEEDS.map((n, i) => (
+                <li key={i} style={{ ['--i' as string]: i } as React.CSSProperties}>
+                  <div className="need-num">{String(i + 1).padStart(2, '0')}</div>
+                  <div className="need-body">
+                    <h4>{n.k}</h4>
+                    <p>{n.v}</p>
+                  </div>
+                </li>
               ))}
             </ul>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ==================== 4. PRICING MODEL ==================== */}
-      <section
-        id="s-pricing"
-        className="section section--pricing section--no-sidebar section--auto-height section--bg"
-        data-section="4"
-        style={{ '--section-bg': "url('/branding/section-bg-6.jpg')" } as React.CSSProperties}
-      >
-        <div className="section__inner">
-          <span className="section-num reveal">04 — Warunki</span>
-          <h2 className="section-title reveal">Model<br />wynagrodzenia</h2>
-
-          <div
-            className="reveal"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '2rem',
-              marginBottom: '2rem',
-              color: 'var(--k2-white-soft)',
-            }}
-          >
-            <p>
-              Współpracę proponujemy w modelu opartym na połączeniu <strong>opłaty wstępnej</strong>{' '}
-              oraz <strong>wynagrodzenia wynikowego (success fee)</strong>. Takie rozwiązanie
-              zapewnia elastyczne podejście do płatności i umożliwia rozłożenie kosztów w czasie.
-            </p>
-            <p>
-              Model gwarantuje transparentność i partnerskie podejście —{' '}
-              <strong>nasz sukces zależy od sukcesu projektu Klienta</strong>.
-            </p>
+        {/* ==================== 03. PROGRAM ==================== */}
+        <section id="program" className="section program reveal">
+          <div className="section-head">
+            <div className="section-kicker">02 · Proponowane rozwiązanie</div>
+            <h2>Rekomendujemy</h2>
+            <h2 style={{ marginTop: 16 }}>
+              <em>{dto.programLabel}</em>
+            </h2>
           </div>
-
-          <div className="pricing__assumptions reveal">
-            <h4>Założenia przyjęte do wyceny:</h4>
-            <ul>
-              <li>
-                Projekt o wartości <strong>{fmt(dto.projectValue)}</strong> netto
-                {dto.fundingRate > 0 && (
-                  <>, z planowanym dofinansowaniem <strong>{fmt(dto.pricingSnapshot.funding)}</strong>{' '}
-                  ({(dto.fundingRate * 100).toFixed(0)}%)</>
-                )}
-              </li>
-              <li>Segment cenowy: <strong>{dto.pricingSnapshot.segment.label}</strong></li>
-              <li>Oczekiwanie na kompleksowe wsparcie: od przygotowania dokumentacji po rozliczenia</li>
-            </ul>
-          </div>
-
-          <p className="pricing__hint reveal">Wybierz wariant wynagrodzenia poniżej:</p>
-
-          <div className="pricing__grid stagger-children">
-            {variants.map((v) => (
-              <article
-                key={v.id}
-                className={
-                  'pricing-card pricing-card--selectable' +
-                  (v.id === dto.selectedVariant ? ' is-selected' : '')
-                }
-                data-variant={v.id}
-              >
-                <div className="pricing-card__header">{v.name}</div>
-                <div className="pricing-card__body">
-                  <div className="pricing-card__fee-label">{v.tag}</div>
-
-                  <div className="pricing-card__fee-label" style={{ marginTop: '0.8rem' }}>
-                    Opłata wstępna
-                  </div>
-                  <div className="pricing-card__fee">{fmt(v.base)} netto</div>
-
-                  <div className="pricing-card__fee-label">
-                    Wynagrodzenie wynikowe ({(v.sfPct * 100).toFixed(2)}%)
-                  </div>
-                  <div className="pricing-card__fee">{fmt(v.sfAmount)}</div>
-
-                  {v.payment.length > 0 && (
-                    <>
-                      <div className="pricing-card__fee-label" style={{ marginTop: '0.5rem' }}>
-                        Płatność:
-                      </div>
-                      <ul className="pricing-card__details">
-                        {v.payment.map((p, i) => (
-                          <li key={i}>
-                            {p.pct}% {p.when}: <strong>{fmt(v.sfAmount * (p.pct / 100))}</strong>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-
-                  {v.monthly > 0 && (
-                    <div className="pricing-card__fee-label" style={{ marginTop: '0.5rem' }}>
-                      + obsługa: <strong>{fmt(v.monthly)}</strong>/mies.
-                    </div>
-                  )}
-
-                  <div className="pricing-card__total">
-                    <span className="pricing-card__total-label">Suma</span>
-                    <span className="pricing-card__total-value">{fmt(v.total)}</span>
-                  </div>
+          <div className="program-hero">
+            <div className="program-top">
+              <p className="program-reason">
+                Nabór jest najbardziej odpowiedni ze względu na charakter inwestycji, dopasowanie do
+                kryteriów formalnych i merytorycznych oraz strategiczne cele firmy.
+              </p>
+            </div>
+            <div className="program-separator" />
+            <div className="program-points">
+              {PROGRAM_BULLETS.map((b, i) => (
+                <div className="bullet" key={i}>
+                  <span className="marker">›</span>
+                  <span className="text">{b}</span>
                 </div>
+              ))}
+            </div>
+          </div>
+          <div className="alt-header">
+            <h3>Inne możliwości wsparcia</h3>
+            <p>Alternatywne programy, które możemy rozważyć równolegle lub jako backup.</p>
+          </div>
+          <div className="alt-grid">
+            {ALT_PROGRAMS.map((p, i) => (
+              <article key={i} className="alt-card">
+                <div className="alt-program">{p.program}</div>
+                <h4>{p.name}</h4>
+                <p className="alt-nabor">
+                  Nabór: <strong>{p.nabor}</strong>
+                </p>
+                <p className="alt-desc">{p.desc}</p>
+                <a href={p.url} target="_blank" rel="noopener noreferrer" className="alt-link">
+                  Dowiedz się więcej →
+                </a>
               </article>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ==================== 5. PROCESS TIMELINE ==================== */}
-      <section
-        id="s-process"
-        className="section section--process section--bg"
-        data-section="5"
-        style={{ '--section-bg': "url('/branding/section-bg-8.jpg')" } as React.CSSProperties}
-      >
-        <div className="sidebar"><span className="sidebar__text">k2biznes.pl</span></div>
-        <div className="section__inner">
-          <span className="section-num reveal">05 — Proces</span>
-          <h2 className="section-title reveal">
-            Schemat procesu<br />
-            <span style={{ color: 'var(--k2-red)', fontSize: '0.55em', fontWeight: 500 }}>
-              Od spotkania do umowy
-            </span>
-          </h2>
-          <p
-            className="reveal"
-            style={{ color: 'var(--k2-gray-text)', marginBottom: '2rem', maxWidth: 600 }}
-          >
-            Współpracę z każdym klientem prowadzimy w oparciu o przejrzysty i uporządkowany proces.
-          </p>
-          <div className="timeline stagger-children">
-            {TIMELINE.map((step, i) => (
-              <div className="timeline__item" key={i}>
-                <div className="timeline__dot" />
-                <div className="timeline__num">KROK {String(i + 1).padStart(2, '0')}</div>
-                <div className="timeline__title">{step.title}</div>
-                <div className="timeline__desc">{step.desc}</div>
-              </div>
-            ))}
+        {/* ==================== 04. ZAKRES ==================== */}
+        <section id="zakres" className="section zakres reveal">
+          <div className="section-head">
+            <div className="section-kicker">03 · Zakres usługi doradczej</div>
+            <h2>
+              Co dokładnie robimy <em>dla Państwa projektu</em>
+            </h2>
           </div>
-        </div>
-      </section>
+          <ScopeAccordion prep={SCOPE_PREP} exec={SCOPE_EXEC} />
+        </section>
 
-      {/* ==================== 6. WHY K2BIZNES ==================== */}
-      <section
-        id="s-why"
-        className="section section--why section--no-sidebar section--auto-height section--bg"
-        data-section="6"
-        style={{ '--section-bg': "url('/branding/section-bg-10.jpg')" } as React.CSSProperties}
-      >
-        <div className="section__inner" style={{ maxWidth: 'var(--content-max)', width: '100%' }}>
-          <span className="section-num reveal" style={{ textAlign: 'center', display: 'block' }}>
-            06 — O nas
-          </span>
-          <h2 className="section-title reveal" style={{ textAlign: 'center' }}>
-            Dlaczego<br />K2Biznes?
-          </h2>
-
-          <div className="why__quote reveal">
-            <blockquote>Pomagając tworzyć i rozwijając Twój biznes doskonalimy siebie</blockquote>
-          </div>
-
-          <div className="why__body reveal">
-            <p>
-              Misją K2Biznes jest wsparcie przedsiębiorstw w kluczowych dla nich projektach
-              badawczych, rozwojowych i innowacyjnych. Fundusze unijne są dla nas tylko jednym z
-              narzędzi, które pozwalają zainicjować lub przyspieszyć rozwój przedsiębiorstwa.
+        {/* ==================== 05. CENNIK ==================== */}
+        <section id="cennik" className="section cennik reveal">
+          <div className="section-head">
+            <div className="section-kicker">04 · Model wynagrodzenia</div>
+            <h2>
+              Partnerski model: <em>success fee</em>
+            </h2>
+            <p className="section-lead">
+              Współpracę proponujemy w modelu opartym na opłacie wstępnej oraz wynagrodzeniu
+              wynikowym. Nasz sukces zależy od sukcesu Państwa projektu.
             </p>
           </div>
 
-          <div className="why__stats reveal">
-            <div className="stat">
-              <div className="stat__number">400 mln+</div>
-              <div className="stat__label">PLN pozyskanego dofinansowania</div>
+          <div className="calc">
+            <div className="calc-head">
+              <div>
+                <div className="calc-kicker">Założenia oferty</div>
+                <h3>Wartości przyjęte w tej ofercie</h3>
+              </div>
+              <div className="calc-chip">
+                Wartość dofinansowania: <strong>{fmt(funding)}</strong>
+              </div>
             </div>
-            <div className="stat">
-              <div className="stat__number">265+</div>
-              <div className="stat__label">skutecznie zrealizowanych projektów</div>
+            <div className="calc-readonly">
+              <div className="cr-item">
+                <div className="cr-label">Wartość projektu (netto)</div>
+                <div className="cr-val">{fmt(dto.projectValue)}</div>
+              </div>
+              <div className="cr-item">
+                <div className="cr-label">Intensywność dofinansowania</div>
+                <div className="cr-val">{Math.round(dto.fundingRate * 100)}%</div>
+              </div>
+              <div className="cr-item">
+                <div className="cr-label">Szacowana wartość dofinansowania</div>
+                <div className="cr-val">{fmt(funding)}</div>
+              </div>
             </div>
           </div>
 
-          {dto.caseStudy && (
-            <div style={{ maxWidth: 'var(--content-max)', margin: '3rem auto 0', width: '100%' }}>
-              <h3 className="subsection-title reveal">
-                Nasz Klient <span style={{ color: 'var(--k2-red)' }}>{dto.caseStudy.client}</span>
-              </h3>
-              {dto.caseStudy.paragraph1 && (
-                <div className="case__body reveal">
-                  <p>{dto.caseStudy.paragraph1}</p>
-                </div>
-              )}
-              {dto.caseStudy.paragraph2 && (
-                <div className="case__highlight reveal-left">{dto.caseStudy.paragraph2}</div>
-              )}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ==================== 7. CONTACT ==================== */}
-      <section
-        id="s-contact"
-        className="section section--contact section--no-sidebar section--bg"
-        data-section="7"
-        style={{ '--section-bg': "url('/branding/section-bg-12.jpg')" } as React.CSSProperties}
-      >
-        <div className="section__inner">
-          <div className="contact__pillars reveal">
-            <span>projekty badawczo-rozwojowe</span>
-            <span>projekty inwestycyjne</span>
-            <span>ulga B+R oraz IP BOX</span>
+          <div className="variants">
+            {variants.map((v) => {
+              const selected = dto.selectedVariant === v.id;
+              return (
+                <article key={v.id} className={`variant ${selected ? 'selected' : ''}`}>
+                  <header>
+                    <div className="v-id">{v.name}</div>
+                    <div className="v-tag">{v.tag}</div>
+                    {selected && <div className="v-selected">✓ Wybrany</div>}
+                  </header>
+                  <div className="v-rate">
+                    <strong>{(v.sfPct * 100).toFixed(1)}%</strong>
+                    <span>wartości dofinansowania</span>
+                  </div>
+                  <div className="v-stack">
+                    <div className="v-row">
+                      <span>Opłata wstępna</span>
+                      <strong>{fmt(v.base)}</strong>
+                    </div>
+                    <div className="v-row big">
+                      <span>Wynagrodzenie wynikowe</span>
+                      <strong>{fmt(v.sfAmount)}</strong>
+                    </div>
+                    <div className="v-divider" />
+                    <div className="v-row total">
+                      <span>Razem (szacunkowo)</span>
+                      <strong>{fmt(v.total)}</strong>
+                    </div>
+                  </div>
+                  <div className="v-schedule">
+                    <div className="v-sched-label">Harmonogram płatności</div>
+                    {(v.payment ?? []).map((p, i) => (
+                      <div key={i} className="v-sched-row">
+                        <div className="v-sched-bar" style={{ width: `${p.pct}%` }} />
+                        <div className="v-sched-text">
+                          <strong>{p.pct}%</strong> <span>{p.when}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              );
+            })}
           </div>
 
-          {dto.contactPerson && (
-            <div className="contact__card reveal">
-              <div className="contact__name">{dto.contactPerson.name}</div>
-              <div className="contact__role">{dto.contactPerson.role}</div>
-              <div className="contact__info">
-                {dto.contactPerson.phone && (
-                  <span>
-                    tel.{' '}
-                    <a
-                      href={`tel:${dto.contactPerson.phone.replace(/\s/g, '')}`}
-                      style={{ color: 'var(--k2-white-soft)' }}
-                    >
-                      {dto.contactPerson.phone}
-                    </a>
-                  </span>
-                )}
-                {dto.contactPerson.email && (
-                  <span>
-                    e-mail:{' '}
-                    <a
-                      href={`mailto:${dto.contactPerson.email}`}
-                      style={{ color: 'var(--k2-white-soft)' }}
-                    >
-                      {dto.contactPerson.email}
-                    </a>
-                  </span>
-                )}
+          {selectedVariant && (
+            <div className="exec-fee">
+              <div>
+                <div className="ef-kicker">Obsługa i rozliczanie projektu (opcjonalnie)</div>
+                <h4>Wynagrodzenie miesięczne</h4>
+                <p>
+                  Po pozytywnej decyzji, jeśli zdecydują się Państwo kontynuować współpracę przy
+                  obsłudze projektu.
+                </p>
+              </div>
+              <div className="ef-price">
+                <strong>{fmt(selectedVariant.monthly)}</strong>
+                <span>netto / miesiąc</span>
               </div>
             </div>
           )}
+        </section>
 
-          <div
-            style={{ width: 72, height: 2, background: 'var(--k2-red)', margin: '0 auto 1.5rem' }}
-            className="reveal"
-          />
+        {/* ==================== 06. PROCES ==================== */}
+        <section id="proces" className="section proces reveal">
+          <div className="section-head">
+            <div className="section-kicker">05 · Schemat procesu</div>
+            <h2>
+              Od spotkania <em>do umowy</em>
+            </h2>
+            <p className="section-lead">
+              Przejrzysty proces współpracy — od pierwszego kontaktu po podpisanie umowy.
+            </p>
+          </div>
+          <ProcessTimeline steps={PROCESS} />
+        </section>
 
-          <div className="contact__company reveal">
-            <strong>K2Biznes Sp. z o.o.</strong>
-            <span>45-835 Opole, ul. Wrocławska 156a</span>
-            <span>tel. +48 784 377 277</span>
-            <span>e-mail: kontakt@k2biznes.pl</span>
-            <span style={{ marginTop: '0.4rem' }}>
-              NIP: 7543090519 &nbsp;|&nbsp; REGON: 360850700 &nbsp;|&nbsp; KRS: 0001008787
-            </span>
-            <span style={{ marginTop: '0.6rem', color: 'var(--k2-white-soft)', fontSize: 'var(--fs-body)' }}>
-              www.k2biznes.pl
-            </span>
+        {/* ==================== 07. ONAS ==================== */}
+        {/* Sekcja 06 (after — oś czasu po podpisaniu) usunięta na życzenie biznesu. */}
+        <section id="onas" className="section onas reveal">
+          <div className="section-head">
+            <div className="section-kicker">06 · Dlaczego K2Biznes</div>
+            <h2>
+              Dwie energie, <em>jedna misja</em>
+            </h2>
+          </div>
+          <div className="onas-quote">
+            <span className="q-open" aria-hidden>„</span>
+            <p>Pomagając tworzyć i rozwijając Twój biznes, doskonalimy siebie.</p>
+            <span className="q-close" aria-hidden>”</span>
+          </div>
+          <div className="energies">
+            <div className="energy e-navy">
+              <div className="e-label">Niebieska</div>
+              <div className="e-desc">Zaufanie, planowanie i wieloletnie doświadczenie.</div>
+            </div>
+            <div className="energy-plus">+</div>
+            <div className="energy e-red">
+              <div className="e-label">Czerwona</div>
+              <div className="e-desc">Pasja i nowa energia dla projektów naszych klientów.</div>
+            </div>
+          </div>
+          <div className="stats">
+            <div className="stat">
+              <div className="stat-num">
+                <CountUp to={475} /> mln zł
+              </div>
+              <div className="stat-lbl">pozyskanego dofinansowania dla klientów</div>
+            </div>
+            <div className="stat">
+              <div className="stat-num">
+                ponad <CountUp to={288} />
+              </div>
+              <div className="stat-lbl">skutecznie zrealizowanych projektów</div>
+            </div>
+            <div className="stat">
+              <div className="stat-num">
+                <CountUp to={15} />+ lat
+              </div>
+              <div className="stat-lbl">doświadczenia w pozyskiwaniu środków UE</div>
+            </div>
+          </div>
+          {/* Logos-bar usunięta — sekcja Case Study (poniżej) jest miejscem
+              prezentacji wybranego przez admina szablonu projektu klienta. */}
+        </section>
+
+        {/* ==================== 08. CASE STUDY (Zaufali nam) ====================
+            Zawsze renderowane — sekcja jest "miejscem" prezentacji szablonu
+            projektu klienta wybranego przez admina (sekcja Załączniki w
+            edytorze oferty). Bez wybranego case'a pokazujemy placeholder. */}
+        <section id="case" className="section case reveal">
+          <div className="section-head">
+            <div className="section-kicker">07 · Zaufali nam</div>
+            <h2>
+              {dto.caseStudy ? (
+                <>Case study: <em>{dto.caseStudy.client}</em></>
+              ) : (
+                <>Wybrany <em>projekt klienta</em></>
+              )}
+            </h2>
+          </div>
+          <div className="case-wrap">
+            <div className="case-story">
+              {dto.caseStudy ? (
+                <>
+                  {dto.caseStudy.tag && <div className="case-tag">{dto.caseStudy.tag}</div>}
+                  <h3>{dto.caseStudy.title}</h3>
+                  {dto.caseStudy.paragraph1 && <p>{dto.caseStudy.paragraph1}</p>}
+                  {dto.caseStudy.paragraph2 && <p>{dto.caseStudy.paragraph2}</p>}
+                  {dto.caseStudy.industries.length > 0 && (
+                    <div className="case-stats">
+                      {dto.caseStudy.industries.map((ind, i) => (
+                        <div key={i}>
+                          <strong>{ind}</strong>
+                          <span>branża</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="case-placeholder">
+                  <p>
+                    Tutaj zaprezentujemy jeden z naszych zrealizowanych projektów,
+                    najbardziej dopasowany do branży i charakteru przedsięwzięcia
+                    klienta. Konsultant wybiera szablon w panelu administratora.
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="case-visual">
+              <div className="case-frame">
+                <div className="case-img-overlay" />
+                <svg className="case-rings" viewBox="0 0 400 400" aria-hidden>
+                  <defs>
+                    <mask id="crgap">
+                      <rect width="400" height="400" fill="white" />
+                      <rect x="195" y="0" width="10" height="200" fill="black" />
+                    </mask>
+                  </defs>
+                  <g mask="url(#crgap)">
+                    <circle cx="200" cy="200" r="180" fill="none" stroke="currentColor" strokeWidth="20" />
+                  </g>
+                  <g mask="url(#crgap)" transform="translate(50 50)">
+                    <circle cx="150" cy="150" r="120" fill="none" stroke="currentColor" strokeWidth="14" opacity=".55" />
+                  </g>
+                </svg>
+                <div className="case-logo">
+                  <div className="case-logo-big">{dto.caseStudy?.client ?? '— wybierz w panelu —'}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ==================== 10. FAQ ==================== */}
+        <section id="faq" className="section faq reveal">
+          <div className="section-head">
+            <div className="section-kicker">08 · FAQ</div>
+            <h2>
+              Najczęstsze <em>pytania</em>
+            </h2>
+          </div>
+          <FaqAccordion items={FAQ_ITEMS} />
+        </section>
+
+        {/* ==================== 11. AKCEPT ==================== */}
+        {selectedVariant && (
+          <section id="akcept" className="section akcept reveal">
+            <div className="section-head">
+              <div className="section-kicker">09 · Akceptacja oferty</div>
+              <h2>
+                Gotowi, by <em>zacząć</em>?
+              </h2>
+              <p className="section-lead">
+                {isActive
+                  ? 'Wybierz wariant i potwierdź. Skontaktujemy się w ciągu 1 dnia roboczego.'
+                  : isPreview
+                    ? 'Podsumowanie wybranego wariantu. W trybie klienta będzie tu formularz akceptacji.'
+                    : `Status: ${dto.status}. Akceptacja niedostępna.`}
+              </p>
+            </div>
+
+            <div className="accept-grid">
+              <div className="accept-card">
+                <h3>Podsumowanie</h3>
+                <dl>
+                  <div>
+                    <dt>Klient</dt>
+                    <dd>{dto.clientName}</dd>
+                  </div>
+                  <div>
+                    <dt>Numer oferty</dt>
+                    <dd>{dto.offerNumber}</dd>
+                  </div>
+                  <div>
+                    <dt>Wartość projektu</dt>
+                    <dd>{fmt(dto.projectValue)}</dd>
+                  </div>
+                  <div>
+                    <dt>Dofinansowanie ({Math.round(dto.fundingRate * 100)}%)</dt>
+                    <dd>{fmt(funding)}</dd>
+                  </div>
+                  <div>
+                    <dt>Wybrany wariant</dt>
+                    <dd>Wariant {selectedVariant.id}</dd>
+                  </div>
+                  <div>
+                    <dt>Opłata wstępna</dt>
+                    <dd>{fmt(selectedVariant.base)}</dd>
+                  </div>
+                  <div>
+                    <dt>Wynagrodzenie wynikowe</dt>
+                    <dd>{fmt(selectedVariant.sfAmount)}</dd>
+                  </div>
+                  <div className="total">
+                    <dt>Razem (szacunkowo)</dt>
+                    <dd>{fmt(selectedVariant.base + selectedVariant.sfAmount)}</dd>
+                  </div>
+                </dl>
+              </div>
+
+              {(isActive || isPreview) && gdprRes.data && (
+                <AcceptForm
+                  token={params.token}
+                  offeredVariants={dto.offeredVariants}
+                  defaultVariant={dto.selectedVariant}
+                  gdprClauseVersion={gdprRes.data.version}
+                  gdprText={gdprRes.data.text}
+                  previewOnly={!isActive && isPreview}
+                />
+              )}
+            </div>
+
+            {/* Contact card pod akcept-grid */}
+            {dto.contactPerson && (
+              <div className="contact-card">
+                <div className="contact-portrait">
+                  {dto.contactPerson.photoUrl ? (
+                    <img src={dto.contactPerson.photoUrl} alt={dto.contactPerson.name} />
+                  ) : (
+                    <div className="contact-placeholder">{dto.contactPerson.name.charAt(0)}</div>
+                  )}
+                </div>
+                <div className="contact-info">
+                  <div className="ck">Twoja osoba kontaktowa</div>
+                  <div className="cname">{dto.contactPerson.name}</div>
+                  <div className="crole">{dto.contactPerson.role}</div>
+                  <div className="cmethods">
+                    {dto.contactPerson.phone && (
+                      <a href={`tel:${dto.contactPerson.phone}`}>{dto.contactPerson.phone}</a>
+                    )}
+                    {dto.contactPerson.email && (
+                      <a href={`mailto:${dto.contactPerson.email}`}>{dto.contactPerson.email}</a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+      </main>
+
+      {/* ==================== FOOTER ==================== */}
+      <footer className="footer">
+        <div className="f-top">
+          <div>
+            <img src="/branding-v2/k2-logo.png" alt="K2" className="f-logo" />
+            <p className="f-tag">
+              Projekty badawczo-rozwojowe · Projekty inwestycyjne · Ulga B+R i&nbsp;IP BOX
+            </p>
+          </div>
+          <div className="f-cols">
+            <div>
+              <div className="f-h">Siedziba</div>
+              <p>
+                45-835 Opole
+                <br />
+                ul. Wrocławska 156a/319
+              </p>
+            </div>
+            <div>
+              <div className="f-h">Kontakt</div>
+              <p>
+                <a href="tel:+48784377277">+48 784 377 277</a>
+                <br />
+                <a href="mailto:kontakt@k2biznes.pl">kontakt@k2biznes.pl</a>
+              </p>
+            </div>
+            <div>
+              <div className="f-h">Spółka</div>
+              <p>
+                NIP 7543090519
+                <br />
+                REGON 360850700
+                <br />
+                KRS 0001008787
+              </p>
+            </div>
           </div>
         </div>
-      </section>
-
-      {/* ==================== CTA FLOATING BAR ==================== */}
-      {!isPrint && isActive && gdpr && (
-        <CtaBar
-          token={params.token}
-          offeredVariants={dto.offeredVariants}
-          defaultVariant={dto.selectedVariant}
-          gdprClauseVersion={gdpr.version}
-          gdprText={gdpr.text}
-          contactEmail={dto.contactPerson?.email ?? null}
-        />
-      )}
+        <div className="f-bot">
+          <span>© K2Biznes Sp. z&nbsp;o.o.</span>
+          <a href="https://www.k2biznes.pl" target="_blank" rel="noopener noreferrer">
+            www.k2biznes.pl
+          </a>
+        </div>
+      </footer>
     </>
   );
 }
-
-// -----------------------------------------------------------------------------
-// Statyczna treść (port z OFERTA_INTERAKTYWNA — copy-deck konsultantów K2)
-// -----------------------------------------------------------------------------
-
-const SCOPE_STEPS: string[] = [
-  '<strong>Analiza potrzeb i potencjału pomysłu</strong> — czy projekt ma potencjał biznesowy, innowacyjny, ekologiczny?',
-  'Weryfikujemy kondycję finansową przedsiębiorstwa i doradzamy, <strong>jak przygotować firmę do procesu aplikacyjnego</strong>, by zwiększyć wiarygodność i zdolność dofinansowania.',
-  'Analizujemy Twój pomysł pod kątem kryteriów formalnych i merytorycznych, pomagając dobrać strukturę, zakres i wydatki tak, by <strong>zmaksymalizować wysokość dotacji i szanse na pozytywną ocenę</strong>.',
-  'Koordynujemy i opracowujemy pełną dokumentację projektu — wniosek, załączniki, harmonogramy i oświadczenia — zapewniając, że całość jest <strong>spójna, zgodna z wytycznymi i gotowa do złożenia</strong>.',
-  'Monitorujemy przebieg oceny wniosku, wprowadzamy niezbędne korekty i modyfikacje. Jeżeli procedura tego wymaga — <strong>przygotowujemy klienta do spotkania panelowego z ekspertami</strong>.',
-  '<strong>Przygotowanie do podpisania umowy.</strong> Po pozytywnej ocenie projektu pomagamy opracować wszystkie załączniki niezbędne do zawarcia umowy o dofinansowanie.',
-  '<strong>Wsparcie po negatywnej ocenie</strong> (jeśli dotyczy). W przypadku odrzucenia wniosku przeprowadzamy analizę i — jeśli istnieją realne szanse — przygotowujemy skuteczny protest.',
-];
-
-const OPTIONAL_ITEMS: string[] = [
-  '<strong>Spotkanie doradcze wprowadzające</strong> do realizacji projektu, w tym przedstawienie zasad informacji i promocji Projektu, analiza zapisów umowy o dofinansowanie',
-  '<strong>Monitorowanie harmonogramu</strong> rzeczowo-finansowego Projektu',
-  '<strong>Przygotowywanie dokumentów</strong> związanych ze zmianami harmonogramu rzeczowo-finansowego Projektu',
-  '<strong>Nadzór nad wyborem wykonawców/dostawców</strong> w ramach Projektu, w tym przygotowanie stosownej dokumentacji',
-  '<strong>Przygotowywanie wniosków o płatność</strong> w formie zaliczki, refundacji, sprawozdania i płatności końcowej',
-  '<strong>Konsultacje i doradztwo</strong> związane z prawidłową realizacją Projektu zgodnie z zapisami umowy',
-  '<strong>Audyt dokumentacji Projektu</strong> w przypadku kontroli realizacji Projektu',
-  '<strong>Czynny udział Managera Projektu</strong> podczas kontroli odbywającej się w okresie realizacji projektu',
-  '<strong>Kontakt z Instytucją Pośredniczącą i/lub Zarządzającą</strong> — nadzorującymi realizację Projektu',
-  '<strong>Obsługa systemu teleinformatycznego</strong> wskazanego w umowie o dofinansowanie',
-];
-
-const TIMELINE: Array<{ title: string; desc: string }> = [
-  {
-    title: 'Spotkanie z klientem',
-    desc: 'Omówienie możliwości aplikowania, zakresu współpracy, szans projektu.',
-  },
-  {
-    title: 'Wysłanie oferty',
-    desc: 'Klient do 2 dni roboczych po spotkaniu otrzymuje spersonalizowaną ofertę.',
-  },
-  {
-    title: 'Omówienie oferty',
-    desc: 'Po 5 dniach roboczych kontakt pracownika K2Biznes w celu omówienia oferty.',
-  },
-  { title: 'Zaakceptowanie oferty', desc: 'Klient potwierdza gotowość do podpisania umowy.' },
-  {
-    title: 'Podpisana umowa — start prac',
-    desc: 'Po obustronnym podpisaniu umowy przystępujemy do przygotowania dokumentacji aplikacyjnej.',
-  },
-];

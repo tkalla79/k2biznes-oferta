@@ -25,7 +25,10 @@ export type PublicOfferContext = {
  * - status `accepted`/`rejected`/`expired` → zwracamy ofertę, ale `isActive=false`
  *   (frontend pokaże read-only summary; nie można już akceptować/odrzucać)
  */
-export async function fetchPublicOffer(token: string): Promise<PublicOfferContext> {
+export async function fetchPublicOffer(
+  token: string,
+  opts: { allowDraft?: boolean } = {},
+): Promise<PublicOfferContext> {
   if (!token || token.length < 20) {
     throw Errors.notFound('Niepoprawny token oferty.');
   }
@@ -40,8 +43,9 @@ export async function fetchPublicOffer(token: string): Promise<PublicOfferContex
   if (error) throw new ApiError('INTERNAL_ERROR', error.message, 500);
   if (!data || data.deleted_at) throw Errors.notFound();
 
-  if (data.status === 'draft') {
+  if (data.status === 'draft' && !opts.allowDraft) {
     // Konsultant jeszcze nie wysłał — token istnieje, ale link nieaktywny.
+    // `allowDraft` = preview konsultanta z sesji (sprawdzane przez caller).
     throw Errors.notFound('Oferta jeszcze nie została wysłana.');
   }
 

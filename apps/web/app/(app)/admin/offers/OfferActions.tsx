@@ -86,9 +86,19 @@ export default function OfferActions({
   }
 
   function copyLink() {
-    const url = `${window.location.origin}/o/${clientToken}`;
+    // Draft: kopiujemy preview URL (działa tylko dla zalogowanego konsultanta).
+    // Sent+: kopiujemy publiczny URL klienta.
+    const base = `${window.location.origin}/o/${clientToken}`;
+    const url = status === 'draft' ? `${base}?__preview=1` : base;
     void navigator.clipboard.writeText(url).then(
-      () => setMsg({ kind: 'ok', text: 'Link skopiowany do schowka.' }),
+      () =>
+        setMsg({
+          kind: 'ok',
+          text:
+            status === 'draft'
+              ? 'Link podglądu skopiowany (działa tylko dla zalogowanego konsultanta).'
+              : 'Link klienta skopiowany.',
+        }),
       () => setMsg({ kind: 'err', text: 'Nie udało się skopiować.' }),
     );
   }

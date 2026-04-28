@@ -75,12 +75,12 @@ export default async function EditOfferPage({ params }: { params: { id: string }
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
           <a
-            href={dto.clientUrl}
+            href={offer.status === 'draft' ? `${dto.clientUrl}?__preview=1` : dto.clientUrl}
             target="_blank"
             rel="noopener noreferrer"
             style={linkPreview}
           >
-            Podgląd klienta ↗
+            {offer.status === 'draft' ? 'Podgląd (draft) ↗' : 'Podgląd klienta ↗'}
           </a>
           <Link href="/admin/offers" style={linkBack}>
             ← Lista
