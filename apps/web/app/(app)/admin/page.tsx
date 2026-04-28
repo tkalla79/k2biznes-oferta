@@ -32,9 +32,18 @@ export default async function AdminDashboard() {
         Computed at {new Date(overview.computed_at).toLocaleString('pl-PL')}
       </p>
 
-      <nav style={{ display: 'flex', gap: 12, marginTop: 12, fontSize: 13 }}>
+      <nav style={{ display: 'flex', gap: 16, marginTop: 12, fontSize: 13, flexWrap: 'wrap' }}>
         <Link href="/admin/offers" style={{ color: '#c92b3a', textDecoration: 'none', fontWeight: 600 }}>
           → Oferty
+        </Link>
+        <Link href="/admin/programs" style={{ color: '#6b7a92', textDecoration: 'none' }}>
+          Programy
+        </Link>
+        <Link href="/admin/case-studies" style={{ color: '#6b7a92', textDecoration: 'none' }}>
+          Case studies
+        </Link>
+        <Link href="/admin/contact-persons" style={{ color: '#6b7a92', textDecoration: 'none' }}>
+          Osoby kontaktowe
         </Link>
         <Link href="/admin/users" style={{ color: '#6b7a92', textDecoration: 'none' }}>
           Użytkownicy
