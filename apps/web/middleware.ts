@@ -93,6 +93,12 @@ export async function middleware(req: NextRequest) {
     } else if (pathname.startsWith('/api/public/')) {
       const r = await checkRateLimit('public', `ip:${ip}`);
       if (!r.success) return rateLimited(r);
+    } else if (pathname.startsWith('/api/admin/')) {
+      // PR #18 review: write-heavy admin endpointy (katalogi, invite, role,
+      // GDPR approve). 30/min/IP zamiast 1000/min — admin compromised
+      // credentials nie zdoła zaspamować DB.
+      const r = await checkRateLimit('admin', `ip:${ip}`);
+      if (!r.success) return rateLimited(r);
     } else if (pathname.startsWith('/api/')) {
       // Klucz po user.id ustalimy poniżej, więc fallback na IP dla unauth.
       const r = await checkRateLimit('auth', `ip:${ip}`);

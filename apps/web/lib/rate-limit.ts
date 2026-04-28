@@ -3,7 +3,11 @@
  *
  * - `/api/public/*` — 100 req/min per IP
  * - `/api/*` (authenticated) — 1000 req/min per user
+ * - `/api/admin/*` — 30 req/min per IP (PR #18 review: katalog mgmt + invite +
+ *   role + GDPR — write-heavy admin endpointy. 1000/min auth bucket = za
+ *   liberalny, attacker z compromised admin creds mógłby spamować DB)
  * - `/api/auth/signin` — 10 req/min per IP (sekcja 7.6, bruteforce protection)
+ * - `/api/auth/mfa/verify` — 10 req/min per IP (PR #13 review: TOTP brute-force)
  * - `/api/auth/request-data-deletion` — 5 req/24h per IP (sekcja 11.4, anti-spam)
  * - `/api/public/offers/[token]/pdf` — 5 req/min per IP (PR #4 review:
  *   PDF render = ~17s CPU, brak limitu = realny DoS przez wyczerpanie Lambda)
@@ -13,7 +17,7 @@
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
-type Bucket = 'public' | 'auth' | 'signin' | 'restrictive' | 'expensive';
+type Bucket = 'public' | 'auth' | 'admin' | 'signin' | 'restrictive' | 'expensive';
 
 let cachedLimiters: Record<Bucket, Ratelimit> | null = null;
 
@@ -37,6 +41,16 @@ function getLimiters(): Record<Bucket, Ratelimit> | null {
       redis,
       limiter: Ratelimit.slidingWindow(1000, '60 s'),
       prefix: 'rl:auth',
+      analytics: true,
+    }),
+    // `admin`: dla `/api/admin/*` — write-heavy, gated przez requireAdmin.
+    // 30/min/IP = realne admin operacje (kilka klików/sekundę), poniżej DoS.
+    // Auth bucket (1000/min) byłby za liberalny: admin compromised credentials
+    // + spam PATCH = DB write contention.
+    admin: new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(30, '60 s'),
+      prefix: 'rl:admin',
       analytics: true,
     }),
     signin: new Ratelimit({
