@@ -1,13 +1,13 @@
+import { redirect } from 'next/navigation';
+
+/**
+ * Root `/` przekierowuje na signin. Faktyczne strony wejściowe to:
+ * - `/auth/signin` — dla konsultantów/adminów
+ * - `/o/<token>` — dla klientów (link z maila)
+ *
+ * Po zalogowaniu middleware kieruje admin/super_admin na /admin (a stamtąd
+ * konsultanci klikają w listę ofert).
+ */
 export default function Home() {
-  return (
-    <main style={{ fontFamily: 'system-ui, sans-serif', padding: 48, maxWidth: 720 }}>
-      <h1>K2Biznes Oferta</h1>
-      <p>Aplikacja w toku wdrażania. Status: PR #1 (setup + DB + auth).</p>
-      <ul>
-        <li>
-          <a href="/health">/health</a> — healthcheck
-        </li>
-      </ul>
-    </main>
-  );
+  redirect('/auth/signin');
 }
