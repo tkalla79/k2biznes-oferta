@@ -29,8 +29,6 @@ import {
   SCOPE_PREP,
   SCOPE_EXEC,
   PROCESS,
-  AFTER_PHASES,
-  CLIENT_LOGOS,
   FAQ_ITEMS,
 } from './staticContent';
 
@@ -155,7 +153,6 @@ export default async function OfferPage({ params, searchParams }: Props) {
               <li><a href="#zakres">Zakres</a></li>
               <li><a href="#cennik">Wycena</a></li>
               <li><a href="#proces">Proces</a></li>
-              <li><a href="#after">Po umowie</a></li>
               <li><a href="#onas">O nas</a></li>
               <li><a href="#case">Referencje</a></li>
               <li><a href="#faq">FAQ</a></li>
@@ -439,34 +436,11 @@ export default async function OfferPage({ params, searchParams }: Props) {
           <ProcessTimeline steps={PROCESS} />
         </section>
 
-        {/* ==================== 07. AFTER ==================== */}
-        <section id="after" className="section after reveal">
-          <div className="section-head">
-            <div className="section-kicker">06 · Oś czasu projektu</div>
-            <h2>
-              Co się dzieje <em>po podpisaniu umowy</em> z nami
-            </h2>
-            <p className="section-lead">
-              Orientacyjny przebieg projektu od startu współpracy po rozliczenie końcowe. Ramy
-              czasowe zależą od wybranego programu i terminu naboru.
-            </p>
-          </div>
-          <div className="after-wrap">
-            {AFTER_PHASES.map((p, i) => (
-              <div className="after-card" key={i} style={{ ['--i' as string]: i } as React.CSSProperties}>
-                <div className="after-month">{p.month}</div>
-                <div className="after-line" />
-                <h4>{p.t}</h4>
-                <p>{p.d}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ==================== 08. ONAS + LOGOS ==================== */}
+        {/* ==================== 07. ONAS ==================== */}
+        {/* Sekcja 06 (after — oś czasu po podpisaniu) usunięta na życzenie biznesu. */}
         <section id="onas" className="section onas reveal">
           <div className="section-head">
-            <div className="section-kicker">07 · Dlaczego K2Biznes</div>
+            <div className="section-kicker">06 · Dlaczego K2Biznes</div>
             <h2>
               Dwie energie, <em>jedna misja</em>
             </h2>
@@ -507,76 +481,83 @@ export default async function OfferPage({ params, searchParams }: Props) {
               <div className="stat-lbl">doświadczenia w pozyskiwaniu środków UE</div>
             </div>
           </div>
-          <section className="logos-bar">
-            <div className="logos-head">Zaufali nam — wybrani klienci</div>
-            <div className="logos-track">
-              <div className="logos-line">
-                {[...CLIENT_LOGOS, ...CLIENT_LOGOS].map((n, i) => (
-                  <div key={i} className="logo-pill">
-                    {n}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
+          {/* Logos-bar usunięta — sekcja Case Study (poniżej) jest miejscem
+              prezentacji wybranego przez admina szablonu projektu klienta. */}
         </section>
 
-        {/* ==================== 09. CASE STUDY ==================== */}
-        {dto.caseStudy && (
-          <section id="case" className="section case reveal">
-            <div className="section-head">
-              <div className="section-kicker">08 · Referencje</div>
-              <h2>
-                Case study: <em>{dto.caseStudy.client}</em>
-              </h2>
+        {/* ==================== 08. CASE STUDY (Zaufali nam) ====================
+            Zawsze renderowane — sekcja jest "miejscem" prezentacji szablonu
+            projektu klienta wybranego przez admina (sekcja Załączniki w
+            edytorze oferty). Bez wybranego case'a pokazujemy placeholder. */}
+        <section id="case" className="section case reveal">
+          <div className="section-head">
+            <div className="section-kicker">07 · Zaufali nam</div>
+            <h2>
+              {dto.caseStudy ? (
+                <>Case study: <em>{dto.caseStudy.client}</em></>
+              ) : (
+                <>Wybrany <em>projekt klienta</em></>
+              )}
+            </h2>
+          </div>
+          <div className="case-wrap">
+            <div className="case-story">
+              {dto.caseStudy ? (
+                <>
+                  {dto.caseStudy.tag && <div className="case-tag">{dto.caseStudy.tag}</div>}
+                  <h3>{dto.caseStudy.title}</h3>
+                  {dto.caseStudy.paragraph1 && <p>{dto.caseStudy.paragraph1}</p>}
+                  {dto.caseStudy.paragraph2 && <p>{dto.caseStudy.paragraph2}</p>}
+                  {dto.caseStudy.industries.length > 0 && (
+                    <div className="case-stats">
+                      {dto.caseStudy.industries.map((ind, i) => (
+                        <div key={i}>
+                          <strong>{ind}</strong>
+                          <span>branża</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="case-placeholder">
+                  <p>
+                    Tutaj zaprezentujemy jeden z naszych zrealizowanych projektów,
+                    najbardziej dopasowany do branży i charakteru przedsięwzięcia
+                    klienta. Konsultant wybiera szablon w panelu administratora.
+                  </p>
+                </div>
+              )}
             </div>
-            <div className="case-wrap">
-              <div className="case-story">
-                {dto.caseStudy.tag && <div className="case-tag">{dto.caseStudy.tag}</div>}
-                <h3>{dto.caseStudy.title}</h3>
-                {dto.caseStudy.paragraph1 && <p>{dto.caseStudy.paragraph1}</p>}
-                {dto.caseStudy.paragraph2 && <p>{dto.caseStudy.paragraph2}</p>}
-                {dto.caseStudy.industries.length > 0 && (
-                  <div className="case-stats">
-                    {dto.caseStudy.industries.map((ind, i) => (
-                      <div key={i}>
-                        <strong>{ind}</strong>
-                        <span>branża</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="case-visual">
-                <div className="case-frame">
-                  <div className="case-img-overlay" />
-                  <svg className="case-rings" viewBox="0 0 400 400" aria-hidden>
-                    <defs>
-                      <mask id="crgap">
-                        <rect width="400" height="400" fill="white" />
-                        <rect x="195" y="0" width="10" height="200" fill="black" />
-                      </mask>
-                    </defs>
-                    <g mask="url(#crgap)">
-                      <circle cx="200" cy="200" r="180" fill="none" stroke="currentColor" strokeWidth="20" />
-                    </g>
-                    <g mask="url(#crgap)" transform="translate(50 50)">
-                      <circle cx="150" cy="150" r="120" fill="none" stroke="currentColor" strokeWidth="14" opacity=".55" />
-                    </g>
-                  </svg>
-                  <div className="case-logo">
-                    <div className="case-logo-big">{dto.caseStudy.client}</div>
-                  </div>
+            <div className="case-visual">
+              <div className="case-frame">
+                <div className="case-img-overlay" />
+                <svg className="case-rings" viewBox="0 0 400 400" aria-hidden>
+                  <defs>
+                    <mask id="crgap">
+                      <rect width="400" height="400" fill="white" />
+                      <rect x="195" y="0" width="10" height="200" fill="black" />
+                    </mask>
+                  </defs>
+                  <g mask="url(#crgap)">
+                    <circle cx="200" cy="200" r="180" fill="none" stroke="currentColor" strokeWidth="20" />
+                  </g>
+                  <g mask="url(#crgap)" transform="translate(50 50)">
+                    <circle cx="150" cy="150" r="120" fill="none" stroke="currentColor" strokeWidth="14" opacity=".55" />
+                  </g>
+                </svg>
+                <div className="case-logo">
+                  <div className="case-logo-big">{dto.caseStudy?.client ?? '— wybierz w panelu —'}</div>
                 </div>
               </div>
             </div>
-          </section>
-        )}
+          </div>
+        </section>
 
         {/* ==================== 10. FAQ ==================== */}
         <section id="faq" className="section faq reveal">
           <div className="section-head">
-            <div className="section-kicker">09 · FAQ</div>
+            <div className="section-kicker">08 · FAQ</div>
             <h2>
               Najczęstsze <em>pytania</em>
             </h2>
@@ -588,7 +569,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
         {selectedVariant && (
           <section id="akcept" className="section akcept reveal">
             <div className="section-head">
-              <div className="section-kicker">10 · Akceptacja oferty</div>
+              <div className="section-kicker">09 · Akceptacja oferty</div>
               <h2>
                 Gotowi, by <em>zacząć</em>?
               </h2>
