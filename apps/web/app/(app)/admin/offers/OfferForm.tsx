@@ -19,6 +19,30 @@ const COMPANY_SIZES = [
   { value: 'large', label: 'Duża (250+)' },
 ];
 
+// 16 województw PL — sortowane alfabetycznie. Plus "ogólnopolski" dla projektów
+// rozproszonych. Wartości po polsku (lowercase, bez polskich znaków) — używane
+// w filtrach + audycie.
+const VOIVODESHIPS = [
+  { value: '', label: '— nie wybrano —' },
+  { value: 'dolnoslaskie', label: 'Dolnośląskie' },
+  { value: 'kujawsko-pomorskie', label: 'Kujawsko-pomorskie' },
+  { value: 'lubelskie', label: 'Lubelskie' },
+  { value: 'lubuskie', label: 'Lubuskie' },
+  { value: 'lodzkie', label: 'Łódzkie' },
+  { value: 'malopolskie', label: 'Małopolskie' },
+  { value: 'mazowieckie', label: 'Mazowieckie' },
+  { value: 'opolskie', label: 'Opolskie' },
+  { value: 'podkarpackie', label: 'Podkarpackie' },
+  { value: 'podlaskie', label: 'Podlaskie' },
+  { value: 'pomorskie', label: 'Pomorskie' },
+  { value: 'slaskie', label: 'Śląskie' },
+  { value: 'swietokrzyskie', label: 'Świętokrzyskie' },
+  { value: 'warminsko-mazurskie', label: 'Warmińsko-mazurskie' },
+  { value: 'wielkopolskie', label: 'Wielkopolskie' },
+  { value: 'zachodniopomorskie', label: 'Zachodniopomorskie' },
+  { value: 'ogolnopolski', label: 'Ogólnopolski (cała PL)' },
+];
+
 type FormState = {
   // Klient
   clientName: string;
@@ -362,13 +386,17 @@ export default function OfferForm({
             </select>
           </Field>
           <Field label="Województwo">
-            <input
-              type="text"
-              maxLength={50}
+            <select
               value={form.clientVoivodeship}
               onChange={(e) => update('clientVoivodeship', e.target.value)}
               style={input}
-            />
+            >
+              {VOIVODESHIPS.map((v) => (
+                <option key={v.value} value={v.value}>
+                  {v.label}
+                </option>
+              ))}
+            </select>
           </Field>
         </Grid2>
       </Section>

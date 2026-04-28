@@ -31,6 +31,10 @@ export function createAdminClient() {
     },
     global: {
       headers: { 'x-k2-actor': 'service_role' },
+      // Next.js cache'uje GET fetch calls domyślnie — Supabase JS używa fetch
+      // pod spodem, więc stary status oferty był serwowany po `send` aż do
+      // restartu serwera. Wymuszamy `no-store` żeby DB query zawsze były świeże.
+      fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }),
     },
   });
 
