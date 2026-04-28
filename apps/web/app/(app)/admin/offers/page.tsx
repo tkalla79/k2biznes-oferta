@@ -84,9 +84,14 @@ export default async function OffersListPage({
     <main style={main}>
       <header style={topbar}>
         <h1 style={h1}>Oferty</h1>
-        <Link href="/admin" style={linkBack}>
-          ← Dashboard
-        </Link>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'baseline' }}>
+          <Link href="/admin/offers/new" style={btnNewOffer}>
+            + Nowa oferta
+          </Link>
+          <Link href="/admin" style={linkBack}>
+            ← Dashboard
+          </Link>
+        </div>
       </header>
 
       <p style={lead}>
@@ -153,6 +158,9 @@ export default async function OffersListPage({
                     )}
                   </td>
                   <td style={tdRight}>
+                    <Link href={`/admin/offers/${o.id}/edit`} style={btnEdit}>
+                      Edytuj
+                    </Link>
                     <a
                       href={`/o/${o.client_token}`}
                       style={btnLink}
@@ -317,6 +325,15 @@ const topbar: React.CSSProperties = {
 };
 const h1: React.CSSProperties = { fontSize: 28, marginBottom: 4 };
 const linkBack: React.CSSProperties = { fontSize: 13, color: '#6b7a92', textDecoration: 'none' };
+const btnNewOffer: React.CSSProperties = {
+  padding: '8px 16px',
+  background: '#c92b3a',
+  color: '#fff',
+  fontSize: 13,
+  fontWeight: 600,
+  textDecoration: 'none',
+  borderRadius: 6,
+};
 const lead: React.CSSProperties = { color: '#6b7a92', fontSize: 13, marginTop: 0, marginBottom: 24 };
 
 const panel: React.CSSProperties = {
@@ -372,6 +389,13 @@ const errorBox: React.CSSProperties = {
 const btnLink: React.CSSProperties = {
   fontSize: 12,
   color: '#c92b3a',
+  textDecoration: 'none',
+  fontWeight: 500,
+  marginLeft: 12,
+};
+const btnEdit: React.CSSProperties = {
+  fontSize: 12,
+  color: '#1B2A4A',
   textDecoration: 'none',
   fontWeight: 500,
 };
