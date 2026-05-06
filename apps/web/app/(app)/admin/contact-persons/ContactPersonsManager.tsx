@@ -77,8 +77,33 @@ export default function ContactPersonsManager({ initial }: { initial: ContactPer
     }
   }
 
+  async function remove(id: string, name: string) {
+    if (!confirm(`Usunąć osobę "${name}"? Operacja nieodwracalna. Oferty które ją używały stracą referencję.`)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/contact-persons/${id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error?.message ?? 'Błąd usuwania.');
+      setItems((arr) => arr.filter((p) => p.id !== id));
+      startTransition(() => router.refresh());
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div style={{ display: 'grid', gap: 16 }}>
+      <div style={onboardingBox}>
+        <strong>💡 Jak to działa?</strong> Osoba kontaktowa wybrana w edytorze
+        oferty (sekcja &quot;Załączniki&quot;) pojawi się klientowi w sekcji{' '}
+        <em>Akceptacja oferty</em> ze zdjęciem, telefonem i emailem. Zdjęcie
+        dodajesz jako URL w polu <em>URL zdjęcia</em>. Aby zmienić:{' '}
+        <kbd style={kbd}>Edytuj</kbd>. Aby trwale usunąć: <kbd style={kbd}>Usuń</kbd>.
+      </div>
+
       <div>
         <button type="button" onClick={() => setCreating(true)} style={btnPrimary} disabled={creating}>
           + Nowa osoba
@@ -109,6 +134,7 @@ export default function ContactPersonsManager({ initial }: { initial: ContactPer
               onCancel={() => setEditingId(null)}
               onSave={(patch) => update(p.id, patch)}
               onToggle={() => update(p.id, { is_active: !p.is_active })}
+              onDelete={() => remove(p.id, p.name)}
               busy={busy}
             />
           ))}
@@ -125,6 +151,7 @@ function Row({
   onCancel,
   onSave,
   onToggle,
+  onDelete,
   busy,
 }: {
   cp: ContactPerson;
@@ -133,6 +160,7 @@ function Row({
   onCancel: () => void;
   onSave: (patch: Partial<FormData>) => void;
   onToggle: () => void;
+  onDelete: () => void;
   busy: boolean;
 }) {
   if (isEditing) {
@@ -147,9 +175,23 @@ function Row({
   return (
     <tr style={cp.is_active ? undefined : rowMuted}>
       <td style={td}>
-        <div style={slug}>{cp.id}</div>
-        <div style={label}>{cp.name}</div>
-        <div style={tdMutedInline}>{cp.role}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {cp.photo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={cp.photo_url}
+              alt={cp.name}
+              style={{ width: 44, height: 44, borderRadius: 22, objectFit: 'cover', objectPosition: 'top center', border: '1px solid #e4e9f2' }}
+            />
+          ) : (
+            <div style={photoFallback}>{cp.name.charAt(0)}</div>
+          )}
+          <div>
+            <div style={slug}>{cp.id}</div>
+            <div style={label}>{cp.name}</div>
+            <div style={tdMutedInline}>{cp.role}</div>
+          </div>
+        </div>
       </td>
       <td style={tdMuted}>
         <div>{cp.email ?? '—'}</div>
@@ -159,9 +201,12 @@ function Row({
       <td style={tdCenter}>
         <input type="checkbox" checked={cp.is_active} onChange={onToggle} disabled={busy} />
       </td>
-      <td style={tdRight}>
-        <button type="button" onClick={onEdit} style={btnLink} disabled={busy}>
+      <td style={tdActions}>
+        <button type="button" onClick={onEdit} style={btnEdit} disabled={busy}>
           Edytuj
+        </button>
+        <button type="button" onClick={onDelete} style={btnDelete} disabled={busy}>
+          Usuń
         </button>
       </td>
     </tr>
@@ -374,4 +419,61 @@ const errBox: React.CSSProperties = {
   borderRadius: 6,
   color: '#c92b3a',
   fontSize: 13,
+};
+
+const onboardingBox: React.CSSProperties = {
+  padding: 14,
+  background: '#fef9c3',
+  border: '1px solid #facc15',
+  borderRadius: 8,
+  fontSize: 13,
+  lineHeight: 1.55,
+  color: '#713f12',
+};
+const kbd: React.CSSProperties = {
+  background: '#fff',
+  border: '1px solid #d4a72c',
+  borderRadius: 4,
+  padding: '1px 6px',
+  fontSize: 12,
+  fontFamily: 'JetBrains Mono, ui-monospace, monospace',
+};
+const tdActions: React.CSSProperties = {
+  padding: '10px 14px',
+  borderBottom: '1px solid #eef1f7',
+  textAlign: 'right',
+  display: 'flex',
+  justifyContent: 'flex-end',
+  gap: 6,
+};
+const btnEdit: React.CSSProperties = {
+  padding: '6px 14px',
+  background: '#1B2A4A',
+  color: '#fff',
+  border: 'none',
+  borderRadius: 4,
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: 'pointer',
+};
+const btnDelete: React.CSSProperties = {
+  padding: '6px 14px',
+  background: '#fff',
+  color: '#c92b3a',
+  border: '1px solid #c92b3a',
+  borderRadius: 4,
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: 'pointer',
+};
+const photoFallback: React.CSSProperties = {
+  width: 44,
+  height: 44,
+  borderRadius: 22,
+  background: '#1B2A4A',
+  color: '#fff',
+  fontSize: 18,
+  fontWeight: 600,
+  display: 'grid',
+  placeItems: 'center',
 };

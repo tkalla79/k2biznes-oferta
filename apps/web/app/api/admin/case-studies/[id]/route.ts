@@ -1,8 +1,8 @@
 /**
- * /api/admin/case-studies/[id] — PATCH (sekcja 5.2 + 3.2.5).
+ * /api/admin/case-studies/[id] — PATCH + DELETE (sekcja 5.2 + 3.2.5).
  *
- * Soft-disable przez `is_active=false` (FK z offers ON DELETE SET NULL,
- * ale chcemy zachować referencję dla audytu).
+ * DELETE jest hard-delete: `offers.case_study_id` ON DELETE SET NULL.
+ * Soft-disable (is_active=false) wciąż dostępny przez PATCH.
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { handleError, ApiError, Errors } from '@/lib/api/error';
@@ -56,6 +56,25 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       throw new ApiError('INTERNAL_ERROR', error.message, 500);
     }
     return NextResponse.json({ data });
+  } catch (e) {
+    return handleError(e);
+  }
+}
+
+export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    await requireAdmin();
+    if (!SLUG_RE.test(params.id)) {
+      throw new ApiError('VALIDATION_ERROR', 'Niepoprawny slug w URL.', 422);
+    }
+    const sb = createAdminClient();
+    const { error, count } = await sb
+      .from('case_studies')
+      .delete({ count: 'exact' })
+      .eq('id', params.id);
+    if (error) throw new ApiError('INTERNAL_ERROR', error.message, 500);
+    if (!count) throw Errors.notFound('Case study nie istnieje.');
+    return NextResponse.json({ data: { ok: true, id: params.id } });
   } catch (e) {
     return handleError(e);
   }

@@ -79,7 +79,8 @@ insert into case_studies (id, client, tag, title, paragraph_1, industries, progr
     array['feng-smart']::text[],
     1
   ),
-  -- PLACEHOLDER #1 — IT/SaaS
+  -- PLACEHOLDER #1 — IT/SaaS (zostawiamy bo realnie wykorzystywany jako Kocot Kids
+  -- po edycji w panelu admin, mimo że id wciąż zaczyna się od 'placeholder-')
   (
     'placeholder-saas-eic',
     '[Klient SaaS — placeholder]',
@@ -90,43 +91,9 @@ insert into case_studies (id, client, tag, title, paragraph_1, industries, progr
     array['it', 'saas']::text[],
     array['horyzont-eic-accelerator']::text[],
     2
-  ),
-  -- PLACEHOLDER #2 — Energetyka
-  (
-    'placeholder-energy-feng',
-    '[Klient Energy — placeholder]',
-    'FENG · Innowacje proekologiczne',
-    'Modernizacja procesów produkcyjnych pod cele klimatyczne',
-    'PLACEHOLDER: opis projektu redukcji śladu węglowego w procesach produkcyjnych. ' ||
-    'Aplikacja FENG, decyzja środowiskowa, monitoring KPI.',
-    array['energetyka', 'produkcja']::text[],
-    array['feng-innowacje-eko']::text[],
-    3
-  ),
-  -- PLACEHOLDER #3 — Agro/spożywczy
-  (
-    'placeholder-agro-kpo',
-    '[Klient Agro — placeholder]',
-    'KPO · Modernizacja rolnictwa',
-    'Robotyzacja linii produkcyjnej spożywczej',
-    'PLACEHOLDER: opis projektu wdrożenia automatyzacji w zakładzie spożywczym. ' ||
-    'Konsultacje techniczne, biznesplan, rozliczenie KPO.',
-    array['rolnictwo', 'spożywczy']::text[],
-    array['kpo-rolnictwo']::text[],
-    4
-  ),
-  -- PLACEHOLDER #4 — Logistyka regionalna
-  (
-    'placeholder-logistics-fepw',
-    '[Klient Logistyka — placeholder]',
-    'FEPW · Automatyzacja i robotyzacja',
-    'Centrum logistyczne w Polsce Wschodniej',
-    'PLACEHOLDER: opis projektu uruchomienia centrum logistycznego z automatyką. ' ||
-    'Aplikacja FEPW, lokalizacja w Polsce Wschodniej, montaż finansowy.',
-    array['logistyka', 'transport']::text[],
-    array['fepw-automatyzacja']::text[],
-    5
   )
+  -- 3 placeholder'y (energy/agro/logistics) usunięte z seed po feedbacku biznesu
+  -- (PR #26): biznes uzupełnia własnymi case studies przez panel admin.
 on conflict (id) do nothing;
 
 -- -----------------------------------------------------------------------------

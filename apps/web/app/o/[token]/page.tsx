@@ -547,7 +547,16 @@ export default async function OfferPage({ params, searchParams }: Props) {
                   </g>
                 </svg>
                 <div className="case-logo">
-                  <div className="case-logo-big">{dto.caseStudy?.client ?? '— wybierz w panelu —'}</div>
+                  {dto.caseStudy?.logoBig ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={dto.caseStudy.logoBig}
+                      alt={dto.caseStudy.client}
+                      style={{ maxWidth: '160px', maxHeight: '120px', objectFit: 'contain' }}
+                    />
+                  ) : (
+                    <div className="case-logo-big">{dto.caseStudy?.client ?? '— wybierz w panelu —'}</div>
+                  )}
                 </div>
               </div>
             </div>
