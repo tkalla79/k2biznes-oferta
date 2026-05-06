@@ -3,6 +3,12 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { OfferDto } from '@/lib/offers/mapper';
+import {
+  DEFAULT_PAYMENT_MILESTONES,
+  type PricingOverride,
+  type VariantOverride,
+} from '@/lib/pricing/override';
+import type { PaymentMilestone } from '@/lib/pricing/types';
 
 type ProgramOpt = { id: string; label: string; group_name: string };
 type CaseStudyOpt = { id: string; client: string; title: string };
@@ -43,6 +49,20 @@ const VOIVODESHIPS = [
   { value: 'ogolnopolski', label: 'Ogólnopolski (cała PL)' },
 ];
 
+type VariantOverrideUI = {
+  base: string; // input as text — '' = use auto-calc
+  sfPct: string; // wpisywany jako % (np. "5" = 5% = 0.05)
+  monthly: string;
+  payment: PaymentMilestone[];
+};
+
+type ExecFeeUI = {
+  kicker: string;
+  title: string;
+  desc: string;
+  monthly: string; // '' = use selectedVariant.monthly
+};
+
 type FormState = {
   // Klient
   clientName: string;
@@ -70,6 +90,10 @@ type FormState = {
   contentFooter: string;
   // Ownership (admin only)
   assignedConsultantId: string;
+  // Pricing override (sekcja 6.5 spec / PR #29)
+  pricingMode: 'auto' | 'manual';
+  overrides: Record<Variant, VariantOverrideUI>;
+  execFee: ExecFeeUI;
 };
 
 type SimulatorResult = {
@@ -90,6 +114,66 @@ type SimulatorResult = {
 
 const fmtPLN = (n: number) =>
   n.toLocaleString('pl-PL', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' zł';
+
+function emptyVariantOverride(): VariantOverrideUI {
+  return { base: '', sfPct: '', monthly: '', payment: [...DEFAULT_PAYMENT_MILESTONES] };
+}
+
+function emptyOverrides(): Record<Variant, VariantOverrideUI> {
+  return {
+    I: emptyVariantOverride(),
+    II: emptyVariantOverride(),
+    III: emptyVariantOverride(),
+    IV: emptyVariantOverride(),
+  };
+}
+
+function emptyExecFee(): ExecFeeUI {
+  return { kicker: '', title: '', desc: '', monthly: '' };
+}
+
+function overridesFromOffer(offer: OfferDto): Record<Variant, VariantOverrideUI> {
+  const ov = offer.pricingOverride;
+  const snap = offer.pricingSnapshot;
+  const out = emptyOverrides();
+  for (const id of ALL_VARIANTS) {
+    const ovV = ov?.variants?.[id] ?? null;
+    const snapV = snap?.variants?.find((x) => x.id === id);
+    out[id] = {
+      base: ovV?.base != null ? String(ovV.base) : snapV ? String(snapV.base) : '',
+      sfPct:
+        ovV?.sfPct != null
+          ? String(Math.round(ovV.sfPct * 10000) / 100)
+          : snapV
+            ? String(Math.round(snapV.sfPct * 10000) / 100)
+            : '',
+      monthly: ovV?.monthly != null ? String(ovV.monthly) : snapV ? String(snapV.monthly) : '',
+      payment:
+        ovV?.payment ??
+        (snapV?.payment && snapV.payment.length > 0
+          ? snapV.payment
+          : [...DEFAULT_PAYMENT_MILESTONES]),
+    };
+  }
+  return out;
+}
+
+function execFeeFromOffer(offer: OfferDto): ExecFeeUI {
+  const ex = offer.pricingOverride?.execFee;
+  return {
+    kicker: ex?.kicker ?? '',
+    title: ex?.title ?? '',
+    desc: ex?.desc ?? '',
+    monthly: ex?.monthly != null ? String(ex.monthly) : '',
+  };
+}
+
+function pricingModeFromOffer(offer: OfferDto): 'auto' | 'manual' {
+  const variants = offer.pricingOverride?.variants;
+  if (!variants) return 'auto';
+  const hasAny = Object.values(variants).some((v) => v && Object.keys(v).length > 0);
+  return hasAny ? 'manual' : 'auto';
+}
 
 function initialFromOffer(offer: OfferDto): FormState {
   const c = offer.content as { intro?: unknown; footer?: unknown } | null;
@@ -113,6 +197,9 @@ function initialFromOffer(offer: OfferDto): FormState {
     contentIntro: typeof c?.intro === 'string' ? c.intro : '',
     contentFooter: typeof c?.footer === 'string' ? c.footer : '',
     assignedConsultantId: offer.assignedConsultantId ?? '',
+    pricingMode: pricingModeFromOffer(offer),
+    overrides: overridesFromOffer(offer),
+    execFee: execFeeFromOffer(offer),
   };
 }
 
@@ -137,6 +224,9 @@ function blankInitial(): FormState {
     contentIntro: '',
     contentFooter: '',
     assignedConsultantId: '',
+    pricingMode: 'auto',
+    overrides: emptyOverrides(),
+    execFee: emptyExecFee(),
   };
 }
 
@@ -241,6 +331,111 @@ export default function OfferForm({
     }));
   }
 
+  // Toggle Auto/Ręczne — przy włączaniu Manual prefillujemy override z bieżącego
+  // simulator pricingu (lub snapshotu), żeby konsultant edytował od realnych
+  // wartości a nie pustych pól.
+  function setPricingMode(next: 'auto' | 'manual') {
+    setForm((f) => {
+      if (next === f.pricingMode) return f;
+      if (next === 'auto') return { ...f, pricingMode: 'auto' };
+      // → manual: prefill z pricing (jeśli jest), inaczej zostaw obecne overrides
+      const overrides = { ...f.overrides };
+      if (pricing) {
+        for (const id of ALL_VARIANTS) {
+          const pv = pricing.variants.find((x) => x.id === id);
+          if (!pv) continue;
+          const cur = overrides[id];
+          overrides[id] = {
+            base: cur.base !== '' ? cur.base : String(pv.base),
+            sfPct:
+              cur.sfPct !== ''
+                ? cur.sfPct
+                : pv.total > 0 && pv.base >= 0
+                  ? // sfAmount/funding ≈ sfPct, ale simulator zwraca już sfAmount —
+                    // odzyskujemy % z (sfAmount/funding) * 100
+                    String(Math.round((pv.sfAmount / Math.max(1, pricing.funding)) * 10000) / 100)
+                  : '',
+            monthly: cur.monthly !== '' ? cur.monthly : String(pv.monthly),
+            payment: cur.payment.length > 0 ? cur.payment : [...DEFAULT_PAYMENT_MILESTONES],
+          };
+        }
+      }
+      return { ...f, pricingMode: 'manual', overrides };
+    });
+  }
+
+  function updateOverride(id: Variant, key: keyof VariantOverrideUI, value: string) {
+    setForm((f) => ({
+      ...f,
+      overrides: { ...f.overrides, [id]: { ...f.overrides[id], [key]: value } },
+    }));
+  }
+
+  function updatePayment(id: Variant, idx: number, key: 'pct' | 'when', value: string) {
+    setForm((f) => {
+      const list = [...f.overrides[id].payment];
+      list[idx] = { ...list[idx], [key]: key === 'pct' ? Number(value) : value };
+      return {
+        ...f,
+        overrides: { ...f.overrides, [id]: { ...f.overrides[id], payment: list } },
+      };
+    });
+  }
+
+  function addPayment(id: Variant) {
+    setForm((f) => {
+      const list = [...f.overrides[id].payment, { pct: 0, when: '' }];
+      return {
+        ...f,
+        overrides: { ...f.overrides, [id]: { ...f.overrides[id], payment: list } },
+      };
+    });
+  }
+
+  function removePayment(id: Variant, idx: number) {
+    setForm((f) => {
+      const list = f.overrides[id].payment.filter((_, i) => i !== idx);
+      return {
+        ...f,
+        overrides: { ...f.overrides, [id]: { ...f.overrides[id], payment: list } },
+      };
+    });
+  }
+
+  function updateExecFee<K extends keyof ExecFeeUI>(key: K, value: ExecFeeUI[K]) {
+    setForm((f) => ({ ...f, execFee: { ...f.execFee, [key]: value } }));
+  }
+
+  // Buduje pricingOverride do wysłania w body PATCH/POST.
+  // Auto mode + brak exec-fee → {} (czyści override).
+  // Manual mode → variants per offered + execFee fields jeśli wypełnione.
+  function buildPricingOverride(): PricingOverride {
+    const out: PricingOverride = {};
+    if (form.pricingMode === 'manual') {
+      const variants: NonNullable<PricingOverride['variants']> = {};
+      for (const id of form.offeredVariants) {
+        const o = form.overrides[id];
+        const v: VariantOverride = {};
+        if (o.base !== '' && !Number.isNaN(Number(o.base))) v.base = Number(o.base);
+        if (o.sfPct !== '' && !Number.isNaN(Number(o.sfPct))) v.sfPct = Number(o.sfPct) / 100;
+        if (o.monthly !== '' && !Number.isNaN(Number(o.monthly))) v.monthly = Number(o.monthly);
+        const cleanPayment = o.payment.filter((p) => p.when.trim() !== '' && p.pct >= 0);
+        if (cleanPayment.length > 0) v.payment = cleanPayment;
+        if (Object.keys(v).length > 0) variants[id] = v;
+      }
+      if (Object.keys(variants).length > 0) out.variants = variants;
+    }
+    const ex: NonNullable<PricingOverride['execFee']> = {};
+    if (form.execFee.kicker.trim()) ex.kicker = form.execFee.kicker.trim();
+    if (form.execFee.title.trim()) ex.title = form.execFee.title.trim();
+    if (form.execFee.desc.trim()) ex.desc = form.execFee.desc.trim();
+    if (form.execFee.monthly !== '' && !Number.isNaN(Number(form.execFee.monthly))) {
+      ex.monthly = Number(form.execFee.monthly);
+    }
+    if (Object.keys(ex).length > 0) out.execFee = ex;
+    return out;
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -284,6 +479,7 @@ export default function OfferForm({
       assignedConsultantId:
         canAssignConsultant && form.assignedConsultantId ? form.assignedConsultantId : undefined,
       content,
+      pricingOverride: buildPricingOverride(),
     };
 
     try {
@@ -500,6 +696,34 @@ export default function OfferForm({
 
       {/* SECTION 4: Pricing preview (live) */}
       <Section title="Pricing (live preview)">
+        <div style={modeToggleRow}>
+          <span style={{ fontSize: 13, color: '#6b7a92', fontWeight: 600 }}>Tryb cennika:</span>
+          <label style={radioRow}>
+            <input
+              type="radio"
+              name="pricingMode"
+              checked={form.pricingMode === 'auto'}
+              onChange={() => setPricingMode('auto')}
+            />
+            <span>Auto-calc (z konfiguracji segmentów)</span>
+          </label>
+          <label style={radioRow}>
+            <input
+              type="radio"
+              name="pricingMode"
+              checked={form.pricingMode === 'manual'}
+              onChange={() => setPricingMode('manual')}
+            />
+            <span>Ręczne (negocjacje)</span>
+          </label>
+        </div>
+        {form.pricingMode === 'manual' && (
+          <p style={hint}>
+            Tryb ręczny: wartości poniżej są wpisane przez Ciebie i będą zapisane w ofercie.
+            Auto-calc nie nadpisze ich. Aby wrócić do auto, przełącz wyżej — override zostanie
+            wyczyszczony przy zapisie.
+          </p>
+        )}
         {pricing ? (
           <div>
             <p style={pricingSummary}>
@@ -513,8 +737,10 @@ export default function OfferForm({
                   <th style={thLeft}></th>
                   <th style={thCell}>Wariant</th>
                   <th style={thRight}>Opłata wstępna</th>
+                  <th style={thRight}>SF %</th>
                   <th style={thRight}>Wynagrodzenie wynikowe</th>
                   <th style={thRight}>Razem</th>
+                  <th style={thRight}>Mies. (exec)</th>
                   <th style={thRight} title="Wartość oczekiwana — total × prawdopodobieństwo akceptacji">EV ⓘ</th>
                 </tr>
               </thead>
@@ -522,6 +748,23 @@ export default function OfferForm({
                 {pricing.variants.map((v) => {
                   const offered = form.offeredVariants.includes(v.id);
                   const selected = form.selectedVariant === v.id;
+                  const ov = form.overrides[v.id];
+                  // W manual mode wartości pokazujemy z override (z fallbackiem do
+                  // simulator). W auto mode — tylko z simulatora.
+                  const sfPctNum =
+                    form.pricingMode === 'manual' && ov.sfPct !== ''
+                      ? Number(ov.sfPct) / 100
+                      : pricing.funding > 0
+                        ? v.sfAmount / pricing.funding
+                        : 0;
+                  const baseNum =
+                    form.pricingMode === 'manual' && ov.base !== '' ? Number(ov.base) : v.base;
+                  const monthlyNum =
+                    form.pricingMode === 'manual' && ov.monthly !== ''
+                      ? Number(ov.monthly)
+                      : v.monthly;
+                  const sfAmount = Math.round(pricing.funding * sfPctNum);
+                  const totalNum = baseNum + sfAmount;
                   return (
                     <tr
                       key={v.id}
@@ -540,15 +783,111 @@ export default function OfferForm({
                           <span style={recoTag}>★</span>
                         )}
                       </td>
-                      <td style={tdRight}>{fmtPLN(v.base)}</td>
-                      <td style={tdRight}>{fmtPLN(v.sfAmount)}</td>
-                      <td style={tdRight}>{fmtPLN(v.total)}</td>
+                      <td style={tdRight}>
+                        {form.pricingMode === 'manual' ? (
+                          <input
+                            type="number"
+                            min={0}
+                            step="any"
+                            value={ov.base}
+                            onChange={(e) => updateOverride(v.id, 'base', e.target.value)}
+                            placeholder={String(v.base)}
+                            style={cellInput}
+                          />
+                        ) : (
+                          fmtPLN(v.base)
+                        )}
+                      </td>
+                      <td style={tdRight}>
+                        {form.pricingMode === 'manual' ? (
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step="any"
+                            value={ov.sfPct}
+                            onChange={(e) => updateOverride(v.id, 'sfPct', e.target.value)}
+                            placeholder={(sfPctNum * 100).toFixed(2)}
+                            style={cellInput}
+                          />
+                        ) : (
+                          `${(sfPctNum * 100).toFixed(2)}%`
+                        )}
+                      </td>
+                      <td style={tdRight}>{fmtPLN(sfAmount)}</td>
+                      <td style={tdRight}>{fmtPLN(totalNum)}</td>
+                      <td style={tdRight}>
+                        {form.pricingMode === 'manual' ? (
+                          <input
+                            type="number"
+                            min={0}
+                            step="any"
+                            value={ov.monthly}
+                            onChange={(e) => updateOverride(v.id, 'monthly', e.target.value)}
+                            placeholder={String(v.monthly)}
+                            style={cellInput}
+                          />
+                        ) : (
+                          fmtPLN(v.monthly)
+                        )}
+                      </td>
                       <td style={{ ...tdRight, fontWeight: 600 }}>{fmtPLN(v.expectedValue)}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
+
+            {form.pricingMode === 'manual' && (
+              <div style={{ marginTop: 16 }}>
+                <h3 style={subH3}>Harmonogram płatności (per wariant)</h3>
+                {form.offeredVariants.map((id) => (
+                  <div key={id} style={paymentBlock}>
+                    <div style={paymentBlockHead}>Wariant {id}</div>
+                    <div style={paymentList}>
+                      {form.overrides[id].payment.map((p, idx) => (
+                        <div key={idx} style={paymentRow}>
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={p.pct}
+                            onChange={(e) => updatePayment(id, idx, 'pct', e.target.value)}
+                            style={{ ...cellInput, width: 60 }}
+                            aria-label="Procent"
+                          />
+                          <span style={{ fontSize: 13, color: '#6b7a92' }}>%</span>
+                          <input
+                            type="text"
+                            maxLength={120}
+                            value={p.when}
+                            onChange={(e) => updatePayment(id, idx, 'when', e.target.value)}
+                            placeholder="np. po podpisaniu umowy"
+                            style={{ ...cellInput, flex: 1 }}
+                            aria-label="Kiedy płatne"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removePayment(id, idx)}
+                            style={btnSmallGhost}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      <button type="button" onClick={() => addPayment(id)} style={btnSmall}>
+                        + dodaj ratę
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <p style={hint}>
+                  Suma % nie musi być 100 — zachowujesz dowolność (np. zaliczka + finalizacja).
+                  Pole „kiedy płatne” pojawi się dosłownie w ofercie pod paskiem.
+                </p>
+              </div>
+            )}
 
             <div style={{ marginTop: 12, display: 'flex', gap: 12, alignItems: 'center' }}>
               <span style={{ fontSize: 13, color: '#6b7a92' }}>Wariant rekomendowany dla klienta:</span>
@@ -569,6 +908,60 @@ export default function OfferForm({
         ) : (
           <p style={{ color: '#6b7a92', fontSize: 13 }}>Liczę pricing…</p>
         )}
+      </Section>
+
+      {/* SECTION 4b: Wynagrodzenie wykonawcze (exec fee) — opcjonalne nadpisanie
+          tekstu i kwoty miesięcznej. Pola puste = wartości domyślne (kicker/title/desc)
+          oraz monthly z wybranego wariantu. */}
+      <Section title="Wynagrodzenie wykonawcze (exec-fee)">
+        <p style={hint}>
+          Pojawia się pod tabelą wariantów na ofercie. Jeśli chcesz zachować
+          domyślne brzmienie, zostaw pola puste — pojawi się tekst standardowy. Pole „kwota
+          miesięczna” puste = używamy <code>monthly</code> z wybranego wariantu.
+        </p>
+        <Grid2>
+          <Field label="Kicker (mała etykieta nad tytułem)">
+            <input
+              type="text"
+              maxLength={200}
+              value={form.execFee.kicker}
+              onChange={(e) => updateExecFee('kicker', e.target.value)}
+              placeholder="Obsługa i rozliczanie projektu (opcjonalnie)"
+              style={input}
+            />
+          </Field>
+          <Field label="Tytuł">
+            <input
+              type="text"
+              maxLength={200}
+              value={form.execFee.title}
+              onChange={(e) => updateExecFee('title', e.target.value)}
+              placeholder="Wynagrodzenie miesięczne"
+              style={input}
+            />
+          </Field>
+        </Grid2>
+        <Field label="Opis">
+          <textarea
+            rows={2}
+            maxLength={2000}
+            value={form.execFee.desc}
+            onChange={(e) => updateExecFee('desc', e.target.value)}
+            placeholder="Po pozytywnej decyzji, jeśli zdecydują się Państwo kontynuować współpracę przy obsłudze projektu."
+            style={textarea}
+          />
+        </Field>
+        <Field label="Kwota miesięczna (PLN, opcjonalnie)">
+          <input
+            type="number"
+            min={0}
+            step="any"
+            value={form.execFee.monthly}
+            onChange={(e) => updateExecFee('monthly', e.target.value)}
+            placeholder="np. 6000 — puste = z wariantu"
+            style={input}
+          />
+        </Field>
       </Section>
 
       {/* SECTION 5: Treść (rich text — start z dwóch textareas) */}
@@ -813,4 +1206,77 @@ const warnBox: React.CSSProperties = {
   borderRadius: 6,
   color: '#92400e',
   fontSize: 13,
+};
+const modeToggleRow: React.CSSProperties = {
+  display: 'flex',
+  gap: 16,
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  padding: '8px 12px',
+  marginBottom: 12,
+  background: '#f7f9fc',
+  border: '1px solid #e4e9f2',
+  borderRadius: 6,
+};
+const cellInput: React.CSSProperties = {
+  width: 110,
+  padding: '4px 6px',
+  fontSize: 13,
+  border: '1px solid #e4e9f2',
+  borderRadius: 4,
+  background: '#fff',
+  fontFamily: 'inherit',
+  fontVariantNumeric: 'tabular-nums',
+  textAlign: 'right',
+  boxSizing: 'border-box',
+};
+const subH3: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 600,
+  color: '#1B2A4A',
+  margin: '0 0 8px',
+  textTransform: 'uppercase',
+  letterSpacing: 0.4,
+};
+const paymentBlock: React.CSSProperties = {
+  marginBottom: 12,
+  padding: 10,
+  background: '#f7f9fc',
+  border: '1px solid #e4e9f2',
+  borderRadius: 6,
+};
+const paymentBlockHead: React.CSSProperties = {
+  fontSize: 12,
+  fontWeight: 600,
+  color: '#6b7a92',
+  marginBottom: 6,
+};
+const paymentList: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 6,
+};
+const paymentRow: React.CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  alignItems: 'center',
+};
+const btnSmall: React.CSSProperties = {
+  alignSelf: 'flex-start',
+  padding: '4px 10px',
+  fontSize: 12,
+  background: '#fff',
+  border: '1px solid #c92b3a',
+  color: '#c92b3a',
+  borderRadius: 4,
+  cursor: 'pointer',
+};
+const btnSmallGhost: React.CSSProperties = {
+  padding: '2px 8px',
+  fontSize: 14,
+  background: 'transparent',
+  border: '1px solid #e4e9f2',
+  color: '#6b7a92',
+  borderRadius: 4,
+  cursor: 'pointer',
 };

@@ -1,18 +1,38 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 type Variant = 'I' | 'II' | 'III' | 'IV';
+
+type VariantSummary = {
+  id: Variant;
+  base: number;
+  sfAmount: number;
+  total: number;
+};
 
 type Props = {
   token: string;
   offeredVariants: Variant[];
   defaultVariant: Variant;
+  /** Wszystkie warianty oferowane (z renderowanego pricingSnapshot z applyOverride). */
+  variants: VariantSummary[];
+  /** Naglowek podsumowania — klient/numer/dofinansowanie. */
+  summary: {
+    clientName: string;
+    offerNumber: string;
+    projectValue: number;
+    fundingRate: number;
+    funding: number;
+  };
   gdprClauseVersion: string;
   gdprText: string;
   /** Disabled-mode: pokazujemy formularz w trybie podglądu (preview konsultanta). */
   previewOnly?: boolean;
 };
+
+const fmt = (n: number) =>
+  n.toLocaleString('pl-PL', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' zł';
 
 /**
  * Formularz akceptacji oferty — pasuje do `.accept-form` w nowym designie
@@ -25,11 +45,17 @@ export default function AcceptForm({
   token,
   offeredVariants,
   defaultVariant,
+  variants,
+  summary,
   gdprClauseVersion,
   gdprText,
   previewOnly = false,
 }: Props) {
   const [variant, setVariant] = useState<Variant>(defaultVariant);
+  const currentVariant = useMemo(
+    () => variants.find((v) => v.id === variant) ?? variants[0] ?? null,
+    [variant, variants],
+  );
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [comment, setComment] = useState('');
@@ -102,8 +128,46 @@ export default function AcceptForm({
   }
 
   return (
-    <form className="accept-form" onSubmit={submit}>
-      <h3>{previewOnly ? 'Formularz (podgląd)' : 'Twoje dane'}</h3>
+    <>
+      <div className="accept-card">
+        <h3>Podsumowanie</h3>
+        <dl>
+          <div>
+            <dt>Klient</dt>
+            <dd>{summary.clientName}</dd>
+          </div>
+          <div>
+            <dt>Numer oferty</dt>
+            <dd>{summary.offerNumber}</dd>
+          </div>
+          <div>
+            <dt>Wartość projektu</dt>
+            <dd>{fmt(summary.projectValue)}</dd>
+          </div>
+          <div>
+            <dt>Dofinansowanie ({Math.round(summary.fundingRate * 100)}%)</dt>
+            <dd>{fmt(summary.funding)}</dd>
+          </div>
+          <div>
+            <dt>Wybrany wariant</dt>
+            <dd>Wariant {currentVariant?.id ?? variant}</dd>
+          </div>
+          <div>
+            <dt>Opłata wstępna</dt>
+            <dd>{fmt(currentVariant?.base ?? 0)}</dd>
+          </div>
+          <div>
+            <dt>Wynagrodzenie wynikowe</dt>
+            <dd>{fmt(currentVariant?.sfAmount ?? 0)}</dd>
+          </div>
+          <div className="total">
+            <dt>Razem (szacunkowo)</dt>
+            <dd>{fmt(currentVariant?.total ?? 0)}</dd>
+          </div>
+        </dl>
+      </div>
+      <form className="accept-form" onSubmit={submit}>
+        <h3>{previewOnly ? 'Formularz (podgląd)' : 'Twoje dane'}</h3>
 
       {offeredVariants.length > 1 && (
         <label>
@@ -201,5 +265,6 @@ export default function AcceptForm({
         </div>
       )}
     </form>
+    </>
   );
 }
