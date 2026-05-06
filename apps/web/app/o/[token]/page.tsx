@@ -22,6 +22,7 @@ import FaqAccordion from './FaqAccordion';
 import ScopeAccordion from './ScopeAccordion';
 import ProcessTimeline from './ProcessTimeline';
 import AcceptForm from './AcceptForm';
+import { sanitizeRichText } from '@/lib/richtext';
 import {
   NEEDS,
   PROGRAM_BULLETS,
@@ -92,7 +93,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
   }
 
   const sb = createAdminClient();
-  const [contactRes, caseRes, gdprRes] = await Promise.all([
+  const [contactRes, caseRes, gdprRes, faqRes] = await Promise.all([
     offer.contact_person_id
       ? sb.from('contact_persons').select('*').eq('id', offer.contact_person_id).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
@@ -100,9 +101,16 @@ export default async function OfferPage({ params, searchParams }: Props) {
       ? sb.from('case_studies').select('*').eq('id', offer.case_study_id).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     sb.from('gdpr_clauses').select('version, text').eq('is_current', true).maybeSingle(),
+    sb
+      .from('faq_items')
+      .select('id, question, answer')
+      .is('deleted_at', null)
+      .eq('is_active', true)
+      .order('display_order'),
   ]);
 
   const dto = toPublicOfferDto(offer, contactRes.data ?? null, caseRes.data ?? null);
+  const faqRows = (faqRes.data ?? []) as Array<{ id: string; question: string; answer: string }>;
   const isPrint = searchParams.print === 'true';
 
   // Variants — z pricing_snapshot, filtrowane przez offered_variants. Wybrany na końcu.
@@ -114,7 +122,17 @@ export default async function OfferPage({ params, searchParams }: Props) {
   const funding = dto.pricingSnapshot.funding;
 
   // Treść z offer.content (intro/footer textareas z OfferForm) lub default.
-  const content = (dto.content ?? {}) as { intro?: string; footer?: string };
+  const content = (dto.content ?? {}) as {
+    intro?: string;
+    footer?: string;
+    programDescription?: string;
+    altPrograms?: Array<{ name: string; program: string; nabor: string; desc: string; url: string }>;
+  };
+  const programDescriptionHtml = sanitizeRichText(content.programDescription);
+  const altPrograms =
+    Array.isArray(content.altPrograms) && content.altPrograms.length > 0
+      ? content.altPrograms
+      : ALT_PROGRAMS;
 
   // Status / preview banners
   const previewBanner = isPreview ? (
@@ -291,21 +309,28 @@ export default async function OfferPage({ params, searchParams }: Props) {
               </p>
             </div>
             <div className="program-separator" />
-            <div className="program-points">
-              {PROGRAM_BULLETS.map((b, i) => (
-                <div className="bullet" key={i}>
-                  <span className="marker">›</span>
-                  <span className="text">{b}</span>
-                </div>
-              ))}
-            </div>
+            {programDescriptionHtml ? (
+              <div
+                className="program-description"
+                dangerouslySetInnerHTML={{ __html: programDescriptionHtml }}
+              />
+            ) : (
+              <div className="program-points">
+                {PROGRAM_BULLETS.map((b, i) => (
+                  <div className="bullet" key={i}>
+                    <span className="marker">›</span>
+                    <span className="text">{b}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="alt-header">
             <h3>Inne możliwości wsparcia</h3>
             <p>Alternatywne programy, które możemy rozważyć równolegle lub jako backup.</p>
           </div>
           <div className="alt-grid">
-            {ALT_PROGRAMS.map((p, i) => (
+            {altPrograms.map((p, i) => (
               <article key={i} className="alt-card">
                 <div className="alt-program">{p.program}</div>
                 <h4>{p.name}</h4>
@@ -313,9 +338,11 @@ export default async function OfferPage({ params, searchParams }: Props) {
                   Nabór: <strong>{p.nabor}</strong>
                 </p>
                 <p className="alt-desc">{p.desc}</p>
-                <a href={p.url} target="_blank" rel="noopener noreferrer" className="alt-link">
-                  Dowiedz się więcej →
-                </a>
+                {p.url && (
+                  <a href={p.url} target="_blank" rel="noopener noreferrer" className="alt-link">
+                    Dowiedz się więcej →
+                  </a>
+                )}
               </article>
             ))}
           </div>
@@ -588,7 +615,13 @@ export default async function OfferPage({ params, searchParams }: Props) {
               Najczęstsze <em>pytania</em>
             </h2>
           </div>
-          <FaqAccordion items={FAQ_ITEMS} />
+          <FaqAccordion
+            items={
+              faqRows.length > 0
+                ? faqRows.map((f) => ({ q: f.question, a: f.answer }))
+                : FAQ_ITEMS
+            }
+          />
         </section>
 
         {/* ==================== 11. AKCEPT ==================== */}
