@@ -9,6 +9,7 @@ import {
   type VariantOverride,
 } from '@/lib/pricing/override';
 import type { PaymentMilestone } from '@/lib/pricing/types';
+import RichTextEditor from '@/components/RichTextEditor';
 
 type ProgramOpt = { id: string; label: string; group_name: string };
 type CaseStudyOpt = { id: string; client: string; title: string };
@@ -63,6 +64,14 @@ type ExecFeeUI = {
   monthly: string; // '' = use selectedVariant.monthly
 };
 
+type AltProgramUI = {
+  name: string;
+  program: string;
+  nabor: string;
+  desc: string;
+  url: string;
+};
+
 type FormState = {
   // Klient
   clientName: string;
@@ -88,6 +97,9 @@ type FormState = {
   // Treść (rich text — start prosty: dwa textareas)
   contentIntro: string;
   contentFooter: string;
+  // PR-D: edytowalne sekcje oferty
+  programDescription: string; // HTML z Tiptapa
+  altPrograms: AltProgramUI[]; // alternatywne programy (per oferta)
   // Ownership (admin only)
   assignedConsultantId: string;
   // Pricing override (sekcja 6.5 spec / PR #29)
@@ -176,7 +188,25 @@ function pricingModeFromOffer(offer: OfferDto): 'auto' | 'manual' {
 }
 
 function initialFromOffer(offer: OfferDto): FormState {
-  const c = offer.content as { intro?: unknown; footer?: unknown } | null;
+  const c = offer.content as
+    | {
+        intro?: unknown;
+        footer?: unknown;
+        programDescription?: unknown;
+        altPrograms?: unknown;
+      }
+    | null;
+  const altPrograms = Array.isArray(c?.altPrograms)
+    ? (c!.altPrograms as unknown[])
+        .filter((p): p is Record<string, unknown> => typeof p === 'object' && p !== null)
+        .map((p) => ({
+          name: typeof p.name === 'string' ? p.name : '',
+          program: typeof p.program === 'string' ? p.program : '',
+          nabor: typeof p.nabor === 'string' ? p.nabor : '',
+          desc: typeof p.desc === 'string' ? p.desc : '',
+          url: typeof p.url === 'string' ? p.url : '',
+        }))
+    : [];
   return {
     clientName: offer.clientName,
     clientNip: offer.clientNip ?? '',
@@ -196,6 +226,8 @@ function initialFromOffer(offer: OfferDto): FormState {
     contactPersonId: offer.contactPersonId ?? '',
     contentIntro: typeof c?.intro === 'string' ? c.intro : '',
     contentFooter: typeof c?.footer === 'string' ? c.footer : '',
+    programDescription: typeof c?.programDescription === 'string' ? c.programDescription : '',
+    altPrograms,
     assignedConsultantId: offer.assignedConsultantId ?? '',
     pricingMode: pricingModeFromOffer(offer),
     overrides: overridesFromOffer(offer),
@@ -223,6 +255,8 @@ function blankInitial(): FormState {
     contactPersonId: '',
     contentIntro: '',
     contentFooter: '',
+    programDescription: '',
+    altPrograms: [],
     assignedConsultantId: '',
     pricingMode: 'auto',
     overrides: emptyOverrides(),
@@ -455,9 +489,14 @@ export default function OfferForm({
     }
 
     setBusy(true);
-    const content: Record<string, string> = {};
+    const content: Record<string, unknown> = {};
     if (form.contentIntro.trim()) content.intro = form.contentIntro.trim();
     if (form.contentFooter.trim()) content.footer = form.contentFooter.trim();
+    if (form.programDescription.trim()) content.programDescription = form.programDescription;
+    const cleanAlts = form.altPrograms.filter(
+      (p) => p.name.trim() !== '' || p.desc.trim() !== '' || p.program.trim() !== '',
+    );
+    if (cleanAlts.length > 0) content.altPrograms = cleanAlts;
 
     const body = {
       clientName: form.clientName.trim(),
@@ -964,6 +1003,128 @@ export default function OfferForm({
         </Field>
       </Section>
 
+      {/* SECTION 4c: Opis rekomendowanego programu (rich text — Tiptap) */}
+      <Section title="Opis rekomendowanego programu (na ofercie)">
+        <p style={hint}>
+          Pojawia się w sekcji „Rekomendujemy: <em>{form.programLabel || '<nazwa programu>'}</em>”.
+          Pozostaw puste, by użyć domyślnych punktów (4 bullets).
+        </p>
+        <RichTextEditor
+          value={form.programDescription}
+          onChange={(html) => update('programDescription', html)}
+          placeholder="Wpisz dlaczego ten program jest najlepszy dla klienta — możesz użyć list, pogrubień, cytatów."
+          minHeight={180}
+        />
+      </Section>
+
+      {/* SECTION 4d: Alternatywne programy (per oferta) */}
+      <Section title="Alternatywne programy (Inne możliwości wsparcia)">
+        <p style={hint}>
+          Lista programów, które pojawią się pod opisem rekomendowanego — jako backup lub
+          uzupełnienie. Pusta lista = pokazuje domyślne 4 programy z szablonu.
+        </p>
+        {form.altPrograms.map((p, idx) => (
+          <div key={idx} style={altCardStyle}>
+            <div style={altCardHead}>
+              Program #{idx + 1}
+              <button
+                type="button"
+                onClick={() =>
+                  update(
+                    'altPrograms',
+                    form.altPrograms.filter((_, i) => i !== idx),
+                  )
+                }
+                style={btnSmallGhost}
+              >
+                Usuń
+              </button>
+            </div>
+            <Grid2>
+              <Field label="Nazwa programu (np. Ścieżka SMART)">
+                <input
+                  type="text"
+                  maxLength={120}
+                  value={p.name}
+                  onChange={(e) => {
+                    const next = [...form.altPrograms];
+                    next[idx] = { ...next[idx], name: e.target.value };
+                    update('altPrograms', next);
+                  }}
+                  style={input}
+                />
+              </Field>
+              <Field label="Etykieta programu (np. FENG 2021–2027)">
+                <input
+                  type="text"
+                  maxLength={120}
+                  value={p.program}
+                  onChange={(e) => {
+                    const next = [...form.altPrograms];
+                    next[idx] = { ...next[idx], program: e.target.value };
+                    update('altPrograms', next);
+                  }}
+                  style={input}
+                />
+              </Field>
+              <Field label="Termin naboru">
+                <input
+                  type="text"
+                  maxLength={80}
+                  value={p.nabor}
+                  onChange={(e) => {
+                    const next = [...form.altPrograms];
+                    next[idx] = { ...next[idx], nabor: e.target.value };
+                    update('altPrograms', next);
+                  }}
+                  placeholder="np. IV kw. 2026"
+                  style={input}
+                />
+              </Field>
+              <Field label="Link (URL)">
+                <input
+                  type="url"
+                  maxLength={400}
+                  value={p.url}
+                  onChange={(e) => {
+                    const next = [...form.altPrograms];
+                    next[idx] = { ...next[idx], url: e.target.value };
+                    update('altPrograms', next);
+                  }}
+                  placeholder="https://..."
+                  style={input}
+                />
+              </Field>
+            </Grid2>
+            <Field label="Krótki opis">
+              <textarea
+                rows={2}
+                maxLength={500}
+                value={p.desc}
+                onChange={(e) => {
+                  const next = [...form.altPrograms];
+                  next[idx] = { ...next[idx], desc: e.target.value };
+                  update('altPrograms', next);
+                }}
+                style={textarea}
+              />
+            </Field>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() =>
+            update('altPrograms', [
+              ...form.altPrograms,
+              { name: '', program: '', nabor: '', desc: '', url: '' },
+            ])
+          }
+          style={btnSmall}
+        >
+          + dodaj program alternatywny
+        </button>
+      </Section>
+
       {/* SECTION 5: Treść (rich text — start z dwóch textareas) */}
       <Section title="Treść w ofercie">
         <Field label="Wstęp (intro) — pojawi się nad pricingiem">
@@ -1279,4 +1440,22 @@ const btnSmallGhost: React.CSSProperties = {
   color: '#6b7a92',
   borderRadius: 4,
   cursor: 'pointer',
+};
+const altCardStyle: React.CSSProperties = {
+  padding: 12,
+  marginBottom: 12,
+  background: '#f7f9fc',
+  border: '1px solid #e4e9f2',
+  borderRadius: 6,
+};
+const altCardHead: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  fontSize: 12,
+  fontWeight: 600,
+  color: '#6b7a92',
+  textTransform: 'uppercase',
+  letterSpacing: 0.4,
+  marginBottom: 8,
 };

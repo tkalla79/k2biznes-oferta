@@ -111,3 +111,18 @@ export type ContactPersonInput = z.infer<typeof ContactPersonInput>;
 
 export const ContactPersonUpdate = ContactPersonInput.partial().omit({ id: true });
 export type ContactPersonUpdate = z.infer<typeof ContactPersonUpdate>;
+
+// =============================================================================
+// faq_items (PR-D / uwaga 19)
+// =============================================================================
+
+export const FaqItemInput = z.object({
+  question: z.string().min(1).max(500),
+  answer: z.string().min(1).max(4000),
+  display_order: z.coerce.number().int().min(0).max(9999).default(100),
+  is_active: z.boolean().default(true),
+});
+export type FaqItemInput = z.infer<typeof FaqItemInput>;
+
+export const FaqItemUpdate = FaqItemInput.partial();
+export type FaqItemUpdate = z.infer<typeof FaqItemUpdate>;
