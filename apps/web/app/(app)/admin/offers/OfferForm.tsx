@@ -454,10 +454,11 @@ export default function OfferForm({
               required
               min={1}
               max={1_000_000_000}
-              step={10000}
+              step="any"
               value={form.projectValue}
               onChange={(e) => update('projectValue', Number(e.target.value))}
               style={input}
+              placeholder="np. 3500000 lub 3500000.50"
             />
           </Field>
           <Field label={`Intensywność: ${(form.fundingRate * 100).toFixed(0)}%`}>
@@ -511,10 +512,10 @@ export default function OfferForm({
                 <tr>
                   <th style={thLeft}></th>
                   <th style={thCell}>Wariant</th>
-                  <th style={thRight}>Base</th>
-                  <th style={thRight}>SF</th>
-                  <th style={thRight}>Total</th>
-                  <th style={thRight}>EV</th>
+                  <th style={thRight}>Opłata wstępna</th>
+                  <th style={thRight}>Wynagrodzenie wynikowe</th>
+                  <th style={thRight}>Razem</th>
+                  <th style={thRight} title="Wartość oczekiwana — total × prawdopodobieństwo akceptacji">EV ⓘ</th>
                 </tr>
               </thead>
               <tbody>

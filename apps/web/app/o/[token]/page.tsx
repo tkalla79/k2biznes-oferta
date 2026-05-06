@@ -144,8 +144,8 @@ export default async function OfferPage({ params, searchParams }: Props) {
         <nav className="topnav">
           <div className="topnav-inner">
             <a href="#hero" className="brand">
-              <img src="/branding-v2/k2-logo.png" alt="K2" />
-              <span>K2<em>Biznes</em></span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/branding-v2/k2-logo.png" alt="K2 Biznes" />
             </a>
             <ul>
               <li><a href="#intro">Wprowadzenie</a></li>
@@ -157,11 +157,29 @@ export default async function OfferPage({ params, searchParams }: Props) {
               <li><a href="#case">Referencje</a></li>
               <li><a href="#faq">FAQ</a></li>
             </ul>
-            {isActive && (
-              <a href="#akcept" className="cta-mini">
-                Akceptuję ofertę →
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <a
+                href={`/api/public/offers/${params.token}/pdf`}
+                className="pdf-download"
+                title="Pobierz ofertę jako PDF"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+                  <path
+                    d="M8 1v9m0 0l-3-3m3 3l3-3M2 13v1a1 1 0 001 1h10a1 1 0 001-1v-1"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                PDF
               </a>
-            )}
+              {isActive && (
+                <a href="#akcept" className="cta-mini">
+                  Akceptuję ofertę →
+                </a>
+              )}
+            </div>
           </div>
         </nav>
       )}
@@ -240,13 +258,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
                 Na podstawie przeprowadzonych rozmów oraz przekazanych materiałów zidentyfikowaliśmy
                 kluczowe potrzeby Państwa przedsiębiorstwa.
               </p>
-              <div className="client-chip">
-                <div className="chip-label">Klient</div>
-                <div className="chip-name">{dto.clientName}</div>
-                <div className="chip-meta">
-                  numer oferty: <strong>{dto.offerNumber}</strong>
-                </div>
-              </div>
+              {/* Kafelek "Klient + numer oferty" usunięty — duplikuje info z hero (PR #27 feedback) */}
             </div>
             <ul className="needs-list">
               {NEEDS.map((n, i) => (
@@ -418,6 +430,14 @@ export default async function OfferPage({ params, searchParams }: Props) {
                 <strong>{fmt(selectedVariant.monthly)}</strong>
                 <span>netto / miesiąc</span>
               </div>
+            </div>
+          )}
+
+          {/* Podsumowanie (content.footer z OfferForm) — pojawia się pod pricingiem
+              jeśli konsultant wpisał. Plain text z line-breaks. */}
+          {content.footer && (
+            <div className="cennik-footer">
+              <p style={{ whiteSpace: 'pre-wrap' }}>{content.footer}</p>
             </div>
           )}
         </section>
