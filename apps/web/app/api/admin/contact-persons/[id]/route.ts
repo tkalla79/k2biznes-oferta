@@ -1,5 +1,7 @@
 /**
- * /api/admin/contact-persons/[id] — PATCH (sekcja 5.2 + 3.2.4).
+ * /api/admin/contact-persons/[id] — PATCH + DELETE (sekcja 5.2 + 3.2.4).
+ *
+ * DELETE jest hard-delete: `offers.contact_person_id` ON DELETE SET NULL.
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { handleError, ApiError, Errors } from '@/lib/api/error';
@@ -49,6 +51,25 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       throw new ApiError('INTERNAL_ERROR', error.message, 500);
     }
     return NextResponse.json({ data });
+  } catch (e) {
+    return handleError(e);
+  }
+}
+
+export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    await requireAdmin();
+    if (!SLUG_RE.test(params.id)) {
+      throw new ApiError('VALIDATION_ERROR', 'Niepoprawny slug w URL.', 422);
+    }
+    const sb = createAdminClient();
+    const { error, count } = await sb
+      .from('contact_persons')
+      .delete({ count: 'exact' })
+      .eq('id', params.id);
+    if (error) throw new ApiError('INTERNAL_ERROR', error.message, 500);
+    if (!count) throw Errors.notFound('Osoba kontaktowa nie istnieje.');
+    return NextResponse.json({ data: { ok: true, id: params.id } });
   } catch (e) {
     return handleError(e);
   }

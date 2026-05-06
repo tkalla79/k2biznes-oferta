@@ -84,8 +84,33 @@ export default function CaseStudiesManager({ initial }: { initial: CaseStudy[] }
     }
   }
 
+  async function remove(id: string, client: string) {
+    if (!confirm(`Usunąć case study "${client}"? Operacja nieodwracalna. Oferty które go używały stracą referencję.`)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/case-studies/${id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error?.message ?? 'Błąd usuwania.');
+      setItems((arr) => arr.filter((c) => c.id !== id));
+      startTransition(() => router.refresh());
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div style={{ display: 'grid', gap: 16 }}>
+      <div style={onboardingBox}>
+        <strong>💡 Jak to działa?</strong> Case study, które zostanie wybrane w
+        edytorze konkretnej oferty (sekcja &quot;Załączniki&quot;), pojawi się
+        klientowi w sekcji <em>Zaufali nam</em>. Logo dodajesz jako URL w polu{' '}
+        <em>Logo (URL, duże)</em> — pełny adres https://. Aby zmienić zawartość:{' '}
+        <kbd style={kbd}>Edytuj</kbd>. Aby trwale usunąć: <kbd style={kbd}>Usuń</kbd>.
+      </div>
+
       <div>
         <button type="button" onClick={() => setCreating(true)} style={btnPrimary} disabled={creating}>
           + Nowe case study
@@ -117,6 +142,7 @@ export default function CaseStudiesManager({ initial }: { initial: CaseStudy[] }
               onCancel={() => setEditingId(null)}
               onSave={(patch) => update(c.id, patch)}
               onToggle={() => update(c.id, { is_active: !c.is_active })}
+              onDelete={() => remove(c.id, c.client)}
               busy={busy}
             />
           ))}
@@ -133,6 +159,7 @@ function Row({
   onCancel,
   onSave,
   onToggle,
+  onDelete,
   busy,
 }: {
   cs: CaseStudy;
@@ -141,6 +168,7 @@ function Row({
   onCancel: () => void;
   onSave: (patch: Partial<FormData>) => void;
   onToggle: () => void;
+  onDelete: () => void;
   busy: boolean;
 }) {
   if (isEditing) {
@@ -152,12 +180,25 @@ function Row({
       </tr>
     );
   }
+  const logoSrc = cs.logo_sm || cs.logo_big || null;
   return (
     <tr style={cs.is_active ? undefined : rowMuted}>
       <td style={td}>
-        <div style={slug}>{cs.id}</div>
-        <div style={label}>
-          <strong>{cs.client}</strong> — {cs.title}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {logoSrc && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoSrc}
+              alt={cs.client}
+              style={{ width: 40, height: 40, objectFit: 'contain', borderRadius: 4, background: '#f9fafc' }}
+            />
+          )}
+          <div>
+            <div style={slug}>{cs.id}</div>
+            <div style={label}>
+              <strong>{cs.client}</strong> — {cs.title}
+            </div>
+          </div>
         </div>
       </td>
       <td style={tdMuted}>{cs.tag ?? '—'}</td>
@@ -171,9 +212,12 @@ function Row({
           disabled={busy}
         />
       </td>
-      <td style={tdRight}>
-        <button type="button" onClick={onEdit} style={btnLink} disabled={busy}>
+      <td style={tdActions}>
+        <button type="button" onClick={onEdit} style={btnEdit} disabled={busy}>
           Edytuj
+        </button>
+        <button type="button" onClick={onDelete} style={btnDelete} disabled={busy}>
+          Usuń
         </button>
       </td>
     </tr>
@@ -412,4 +456,50 @@ const errBox: React.CSSProperties = {
   borderRadius: 6,
   color: '#c92b3a',
   fontSize: 13,
+};
+
+const onboardingBox: React.CSSProperties = {
+  padding: 14,
+  background: '#fef9c3',
+  border: '1px solid #facc15',
+  borderRadius: 8,
+  fontSize: 13,
+  lineHeight: 1.55,
+  color: '#713f12',
+};
+const kbd: React.CSSProperties = {
+  background: '#fff',
+  border: '1px solid #d4a72c',
+  borderRadius: 4,
+  padding: '1px 6px',
+  fontSize: 12,
+  fontFamily: 'JetBrains Mono, ui-monospace, monospace',
+};
+const tdActions: React.CSSProperties = {
+  padding: '10px 14px',
+  borderBottom: '1px solid #eef1f7',
+  textAlign: 'right',
+  display: 'flex',
+  justifyContent: 'flex-end',
+  gap: 6,
+};
+const btnEdit: React.CSSProperties = {
+  padding: '6px 14px',
+  background: '#1B2A4A',
+  color: '#fff',
+  border: 'none',
+  borderRadius: 4,
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: 'pointer',
+};
+const btnDelete: React.CSSProperties = {
+  padding: '6px 14px',
+  background: '#fff',
+  color: '#c92b3a',
+  border: '1px solid #c92b3a',
+  borderRadius: 4,
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: 'pointer',
 };
