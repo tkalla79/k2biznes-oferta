@@ -1524,3 +1524,41 @@ main { display: block; }
 .onas .section-head { margin-bottom: 32px; }
 .onas-quote { margin: 24px 0 32px; }
 .onas .energies { margin-bottom: 56px; }
+
+/* Podsumowanie cennika (content.footer z editor'a) — sekcja 04 dolna część */
+.cennik-footer {
+  margin-top: 32px;
+  padding: 24px 28px;
+  background: var(--bg-2);
+  border-left: 3px solid var(--red);
+  border-radius: var(--radius);
+}
+.cennik-footer p {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  max-width: 760px;
+}
+
+/* PDF download w topnav (PR #27) */
+.pdf-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-2);
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-weight: 500;
+  transition: border-color .18s, color .18s;
+}
+.pdf-download:hover {
+  color: var(--red);
+  border-color: var(--red);
+}
+@media (max-width: 720px) {
+  .pdf-download span,
+  .pdf-download { font-size: 12px; padding: 6px 10px; }
+}
