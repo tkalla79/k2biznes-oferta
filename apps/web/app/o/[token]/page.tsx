@@ -419,15 +419,12 @@ export default async function OfferPage({ params, searchParams }: Props) {
           {selectedVariant && (
             <div className="exec-fee">
               <div>
-                <div className="ef-kicker">Obsługa i rozliczanie projektu (opcjonalnie)</div>
-                <h4>Wynagrodzenie miesięczne</h4>
-                <p>
-                  Po pozytywnej decyzji, jeśli zdecydują się Państwo kontynuować współpracę przy
-                  obsłudze projektu.
-                </p>
+                <div className="ef-kicker">{dto.execFee.kicker}</div>
+                <h4>{dto.execFee.title}</h4>
+                <p style={{ whiteSpace: 'pre-wrap' }}>{dto.execFee.desc}</p>
               </div>
               <div className="ef-price">
-                <strong>{fmt(selectedVariant.monthly)}</strong>
+                <strong>{fmt(dto.execFee.monthly ?? selectedVariant.monthly)}</strong>
                 <span>netto / miesiąc</span>
               </div>
             </div>
@@ -612,53 +609,50 @@ export default async function OfferPage({ params, searchParams }: Props) {
             </div>
 
             <div className="accept-grid">
-              <div className="accept-card">
-                <h3>Podsumowanie</h3>
-                <dl>
-                  <div>
-                    <dt>Klient</dt>
-                    <dd>{dto.clientName}</dd>
-                  </div>
-                  <div>
-                    <dt>Numer oferty</dt>
-                    <dd>{dto.offerNumber}</dd>
-                  </div>
-                  <div>
-                    <dt>Wartość projektu</dt>
-                    <dd>{fmt(dto.projectValue)}</dd>
-                  </div>
-                  <div>
-                    <dt>Dofinansowanie ({Math.round(dto.fundingRate * 100)}%)</dt>
-                    <dd>{fmt(funding)}</dd>
-                  </div>
-                  <div>
-                    <dt>Wybrany wariant</dt>
-                    <dd>Wariant {selectedVariant.id}</dd>
-                  </div>
-                  <div>
-                    <dt>Opłata wstępna</dt>
-                    <dd>{fmt(selectedVariant.base)}</dd>
-                  </div>
-                  <div>
-                    <dt>Wynagrodzenie wynikowe</dt>
-                    <dd>{fmt(selectedVariant.sfAmount)}</dd>
-                  </div>
-                  <div className="total">
-                    <dt>Razem (szacunkowo)</dt>
-                    <dd>{fmt(selectedVariant.base + selectedVariant.sfAmount)}</dd>
-                  </div>
-                </dl>
-              </div>
-
-              {(isActive || isPreview) && gdprRes.data && (
+              {(isActive || isPreview) && gdprRes.data ? (
                 <AcceptForm
                   token={params.token}
                   offeredVariants={dto.offeredVariants}
                   defaultVariant={dto.selectedVariant}
+                  variants={variants.map((v) => ({
+                    id: v.id,
+                    base: v.base,
+                    sfAmount: v.sfAmount,
+                    total: v.total,
+                  }))}
+                  summary={{
+                    clientName: dto.clientName,
+                    offerNumber: dto.offerNumber,
+                    projectValue: dto.projectValue,
+                    fundingRate: dto.fundingRate,
+                    funding,
+                  }}
                   gdprClauseVersion={gdprRes.data.version}
                   gdprText={gdprRes.data.text}
                   previewOnly={!isActive && isPreview}
                 />
+              ) : (
+                <div className="accept-card">
+                  <h3>Podsumowanie</h3>
+                  <dl>
+                    <div>
+                      <dt>Klient</dt>
+                      <dd>{dto.clientName}</dd>
+                    </div>
+                    <div>
+                      <dt>Numer oferty</dt>
+                      <dd>{dto.offerNumber}</dd>
+                    </div>
+                    <div>
+                      <dt>Wybrany wariant</dt>
+                      <dd>Wariant {selectedVariant.id}</dd>
+                    </div>
+                    <div className="total">
+                      <dt>Razem (szacunkowo)</dt>
+                      <dd>{fmt(selectedVariant.total)}</dd>
+                    </div>
+                  </dl>
+                </div>
               )}
             </div>
 

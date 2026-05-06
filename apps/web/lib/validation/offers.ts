@@ -4,6 +4,7 @@
  * Jeden source of truth: typy są pochodne od schematów (`z.infer<...>`).
  */
 import { z } from 'zod';
+import { PricingOverrideSchema } from '@/lib/pricing/override';
 
 // =============================================================================
 // Wspólne
@@ -83,6 +84,10 @@ export const UpdateOfferInput = z.object({
   assignedConsultantId: offerFields.assignedConsultantId,
 
   content: z.record(z.string(), z.unknown()).optional(),
+
+  // Manual override pricingu (toggle Auto/Ręczne w UI editora).
+  // {} oznacza brak override — auto-calc. Patrz lib/pricing/override.ts.
+  pricingOverride: PricingOverrideSchema.optional(),
 
   // PATCH-only
   status: OfferStatus.optional(),

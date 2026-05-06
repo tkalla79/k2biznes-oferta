@@ -124,6 +124,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (patch.assignedConsultantId !== undefined)
       update.assigned_consultant_id = patch.assignedConsultantId;
     if (patch.content !== undefined) update.content = patch.content as Json;
+    if (patch.pricingOverride !== undefined)
+      update.pricing_override = patch.pricingOverride as unknown as Json;
     if (patch.status !== undefined) update.status = patch.status;
     if (patch.expiresAt !== undefined) update.expires_at = patch.expiresAt;
 
@@ -154,8 +156,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       throw new ApiError('INTERNAL_ERROR', `update failed: ${error?.message}`, 500);
     }
 
-    // Invalidate PDF cache jeśli snapshot/content się zmienił (sekcja 9.1 / 11.8).
-    if (shouldRecalcSnapshot(patch) || patch.content !== undefined) {
+    // Invalidate PDF cache jeśli snapshot/content/override się zmienił (sekcja 9.1 / 11.8).
+    if (shouldRecalcSnapshot(patch) || patch.content !== undefined || patch.pricingOverride !== undefined) {
       void deletePdfsForOffer(updated.offer_number).catch((e) =>
         console.error('[patch] pdf invalidation failed:', e.message),
       );

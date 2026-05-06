@@ -5,6 +5,7 @@
  */
 import type { Database } from '@k2/database/types';
 import type { PricingResult } from '@/lib/pricing';
+import { applyOverride, parsePricingOverride, type PricingOverride } from '@/lib/pricing/override';
 
 type OfferRow = Database['public']['Tables']['offers']['Row'];
 type OfferInsert = Database['public']['Tables']['offers']['Insert'];
@@ -36,6 +37,7 @@ export type OfferDto = {
   projectCount: number;
 
   pricingSnapshot: PricingResult;
+  pricingOverride: PricingOverride | null;
 
   selectedVariant: OfferRow['selected_variant'];
   offeredVariants: OfferRow['offered_variants'];
@@ -95,6 +97,7 @@ export function toOfferDto(row: OfferRow, appUrl: string): OfferDto {
     projectCount: row.project_count,
 
     pricingSnapshot: row.pricing_snapshot as unknown as PricingResult,
+    pricingOverride: parsePricingOverride(row.pricing_override),
 
     selectedVariant: row.selected_variant,
     offeredVariants: row.offered_variants,
@@ -197,6 +200,20 @@ export function toCaseStudyDto(row: CaseStudyRow): PublicCaseStudyDto {
  * - `contactPerson` (rozwinięty z `contact_person_id`)
  * - `caseStudy` (rozwinięty z `case_study_id`)
  */
+/** Domyślne teksty exec-fee (sekcja 04 cennik, "Wynagrodzenie miesięczne"). */
+export const DEFAULT_EXEC_FEE = {
+  kicker: 'Obsługa i rozliczanie projektu (opcjonalnie)',
+  title: 'Wynagrodzenie miesięczne',
+  desc: 'Po pozytywnej decyzji, jeśli zdecydują się Państwo kontynuować współpracę przy obsłudze projektu.',
+} as const;
+
+export type ResolvedExecFee = {
+  kicker: string;
+  title: string;
+  desc: string;
+  monthly: number | null; // null = użyj selectedVariant.monthly
+};
+
 export type PublicOfferDto = Omit<
   OfferDto,
   | 'createdBy'
@@ -212,9 +229,11 @@ export type PublicOfferDto = Omit<
   | 'rejectedByName'
   | 'rejectedByEmail'
   | 'rejectReason'
+  | 'pricingOverride'
 > & {
   contactPerson: PublicContactPersonDto | null;
   caseStudy: PublicCaseStudyDto | null;
+  execFee: ResolvedExecFee;
 };
 
 export function toPublicOfferDto(
@@ -223,6 +242,9 @@ export function toPublicOfferDto(
   caseStudy: CaseStudyRow | null,
 ): PublicOfferDto {
   const full = toOfferDto(row, '');
+  // Apply override przed wystawieniem publicznym — klient widzi finalne wartości,
+  // nie rozróżnia auto-calc vs ręczne (sekcja 6.5 spec).
+  const renderedSnapshot = applyOverride(full.pricingSnapshot, full.pricingOverride);
   const {
     createdBy: _createdBy,
     assignedConsultantId: _assignedConsultantId,
@@ -237,12 +259,22 @@ export function toPublicOfferDto(
     rejectedByName: _rejectedByName,
     rejectedByEmail: _rejectedByEmail,
     rejectReason: _rejectReason,
+    pricingOverride: _pricingOverride,
     ...rest
   } = full;
+  const ovExec = full.pricingOverride?.execFee;
+  const execFee: ResolvedExecFee = {
+    kicker: ovExec?.kicker ?? DEFAULT_EXEC_FEE.kicker,
+    title: ovExec?.title ?? DEFAULT_EXEC_FEE.title,
+    desc: ovExec?.desc ?? DEFAULT_EXEC_FEE.desc,
+    monthly: ovExec?.monthly ?? null,
+  };
   return {
     ...rest,
+    pricingSnapshot: renderedSnapshot,
     contactPerson: contactPerson ? toContactPersonDto(contactPerson) : null,
     caseStudy: caseStudy ? toCaseStudyDto(caseStudy) : null,
+    execFee,
   };
 }
 
