@@ -50,12 +50,12 @@ values (
   'Akceptując ofertę wyrażam zgodę na przetwarzanie moich danych osobowych przez K2Biznes Sp. z o.o. ' ||
   'w celu realizacji procesu ofertowania i ewentualnego zawarcia umowy. Mam prawo do dostępu, ' ||
   'sprostowania, usunięcia, ograniczenia przetwarzania, przenoszenia danych oraz do wniesienia ' ||
-  'sprzeciwu. Pełna polityka prywatności: https://app.k2biznes.pl/privacy-policy',
+  'sprzeciwu. Pełna polityka prywatności: https://oferta.k2biznes.pl/privacy-policy',
   encode(digest(
     'Akceptując ofertę wyrażam zgodę na przetwarzanie moich danych osobowych przez K2Biznes Sp. z o.o. ' ||
     'w celu realizacji procesu ofertowania i ewentualnego zawarcia umowy. Mam prawo do dostępu, ' ||
     'sprostowania, usunięcia, ograniczenia przetwarzania, przenoszenia danych oraz do wniesienia ' ||
-    'sprzeciwu. Pełna polityka prywatności: https://app.k2biznes.pl/privacy-policy',
+    'sprzeciwu. Pełna polityka prywatności: https://oferta.k2biznes.pl/privacy-policy',
     'sha256'
   ), 'hex'),
   true
