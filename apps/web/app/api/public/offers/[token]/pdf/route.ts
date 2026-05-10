@@ -60,14 +60,14 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
             { reason: msg },
           );
         }
-        // DIAGNOSTIC: expose puppeteer/chromium error message + stack tail.
-        // Po naprawie usunac (lub gate za env DEBUG=true).
-        const stack = (e as Error).stack ?? '';
+        // Wszelkie inne bledy puppeteer/chromium — generic 503 z log w konsoli.
+        // Na Vercel Hobby chronicznie TargetCloseError (10s function timeout),
+        // przycisk PDF jest ukryty w UI az do upgrade'u Pro.
+        console.error('[pdf] render failed:', msg);
         throw new ApiError(
           'INTERNAL_ERROR',
-          `PDF render failed: ${msg}`,
-          500,
-          { stack: stack.split('\n').slice(0, 6).join(' | ') },
+          'Generowanie PDF jest tymczasowo niedostępne.',
+          503,
         );
       }
 
