@@ -4,9 +4,11 @@
  * heading/list/quote/paragraph). Zabezpiecza przed XSS — np. wkleja klient
  * <script> w editorze, nie dotrze do `/o/[token]`.
  *
- * isomorphic-dompurify dziala zarowno na serwerze (jsdom) jak i na kliencie.
+ * Wczesniej uzywalismy isomorphic-dompurify, ale jsdom dependency wywalalo
+ * SSR na Vercel serverless (module load fail → 500 na calej route /o/[token]).
+ * sanitize-html jest pure-JS, bez jsdom, dziala perfekcyjnie server-side.
  */
-import DOMPurify from 'isomorphic-dompurify';
+import sanitizeHtml from 'sanitize-html';
 
 const ALLOWED_TAGS = [
   'p',
@@ -32,13 +34,19 @@ const ALLOWED_TAGS = [
   'pre',
 ];
 
-const ALLOWED_ATTR = ['href', 'target', 'rel'];
-
 export function sanitizeRichText(html: string | null | undefined): string {
   if (!html) return '';
-  return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS,
-    ALLOWED_ATTR,
-    ADD_ATTR: ['target'],
+  return sanitizeHtml(html, {
+    allowedTags: ALLOWED_TAGS,
+    allowedAttributes: {
+      a: ['href', 'target', 'rel'],
+    },
+    // Auto-add rel="noopener noreferrer" for external links (XSS hardening)
+    transformTags: {
+      a: sanitizeHtml.simpleTransform('a', { rel: 'noopener noreferrer', target: '_blank' }),
+    },
+    // Disallow inline styles + classes (no CSS injection)
+    allowedSchemes: ['http', 'https', 'mailto'],
+    allowedSchemesAppliedToAttributes: ['href'],
   });
 }
