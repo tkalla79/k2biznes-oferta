@@ -60,7 +60,15 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
             { reason: msg },
           );
         }
-        throw e;
+        // DIAGNOSTIC: expose puppeteer/chromium error message + stack tail.
+        // Po naprawie usunac (lub gate za env DEBUG=true).
+        const stack = (e as Error).stack ?? '';
+        throw new ApiError(
+          'INTERNAL_ERROR',
+          `PDF render failed: ${msg}`,
+          500,
+          { stack: stack.split('\n').slice(0, 6).join(' | ') },
+        );
       }
 
       // Zapisz do cache (best-effort — błąd zapisu nie blokuje response).
