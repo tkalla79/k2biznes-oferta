@@ -27,3 +27,13 @@ export const UpdateRoleInput = z.object({
   role: z.enum(['consultant', 'admin', 'super_admin']),
 });
 export type UpdateRoleInput = z.infer<typeof UpdateRoleInput>;
+
+export const ForgotPasswordInput = z.object({
+  email: z.string().email().max(200),
+});
+export type ForgotPasswordInput = z.infer<typeof ForgotPasswordInput>;
+
+export const ResetPasswordInput = z.object({
+  password: z.string().min(8).max(200),
+});
+export type ResetPasswordInput = z.infer<typeof ResetPasswordInput>;

@@ -27,6 +27,7 @@ const ALWAYS_PUBLIC = [
   '/auth/',
   '/api/auth/signin',                // sekcja 7.2 — logowanie
   '/api/auth/magic-link',            // sekcja 7.2 — magic link
+  '/api/auth/forgot-password',       // reset hasla (Fala 3) — bez sesji
   '/api/auth/signout',               // sekcja 7.2 — wylogowanie (wymaga sesji ale samo nie kicka)
   '/api/auth/request-data-deletion', // RODO sekcja 11.4 — bez logowania
   '/privacy-policy',

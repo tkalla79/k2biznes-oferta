@@ -124,8 +124,11 @@ export default function SigninForm({
 
       {mode === 'password' && (
         <p style={hint}>
-          Nie pamiętasz hasła? Użyj <strong>magic link</strong> — wyślemy link logujący na
-          email.
+          Nie pamiętasz hasła?{' '}
+          <a href="/auth/forgot-password" style={{ color: '#c92b3a', textDecoration: 'none' }}>
+            Zresetuj hasło
+          </a>{' '}
+          lub użyj <strong>magic link</strong>.
         </p>
       )}
     </form>

@@ -139,7 +139,7 @@ Pełna spec: `BACKEND_SPEC.md` v1.1.1 (poza repo — w OneDrive-CLAUDE_CODE/OFER
 Reviewer może:
 - Czytać kod publicznie na GitHub (repo jest public/private — zależy od ustawień)
 - Sprawdzić działanie na `https://oferta.k2biznes.pl` — strona publiczna `/` widoczna bez logowania
-- Poprosić właściciela o invite do panelu admina (`tester@k2biznes.pl` z password) — staging environment
+- Poprosić właściciela o tymczasowe konto reviewera (dane logowania zostają przekazane out-of-band)
 
 ## Kontakt
 
