@@ -40,8 +40,7 @@ async function getBrowser(): Promise<Browser> {
         'PDF_NOT_CONFIGURED_PROD: @sparticuz/chromium not installed (required for Vercel/Lambda).',
       );
     }
-    // UWAGA: headless musi byc chromium.headless (`'shell'` w v148+) — `true`
-    // wywaluje Chromium 141+ z TargetCloseError przy starcie.
+    // sparticuz v148+ wymaga chromium.headless ('shell'), nie literal true.
     cachedBrowser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,

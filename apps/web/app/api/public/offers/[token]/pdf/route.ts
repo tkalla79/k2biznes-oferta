@@ -52,22 +52,14 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
         bytes = await renderOfferPdf({ url: printUrl });
       } catch (e) {
         const msg = (e as Error).message;
-        if (msg.startsWith('PDF_NOT_CONFIGURED')) {
-          throw new ApiError(
-            'INTERNAL_ERROR',
-            'Generowanie PDF jest tymczasowo niedostępne.',
-            503,
-            { reason: msg },
-          );
-        }
-        // Wszelkie inne bledy puppeteer/chromium — generic 503 z log w konsoli.
-        // Na Vercel Hobby chronicznie TargetCloseError (10s function timeout),
-        // przycisk PDF jest ukryty w UI az do upgrade'u Pro.
+        // Vercel Hobby 10s function timeout: chromium cold start zwykle przekracza
+        // → TargetCloseError. Przycisk PDF ukryty w UI az do upgrade'u Pro.
         console.error('[pdf] render failed:', msg);
         throw new ApiError(
           'INTERNAL_ERROR',
           'Generowanie PDF jest tymczasowo niedostępne.',
           503,
+          { reason: msg },
         );
       }
 

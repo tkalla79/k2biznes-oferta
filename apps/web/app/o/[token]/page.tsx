@@ -175,18 +175,11 @@ export default async function OfferPage({ params, searchParams }: Props) {
               <li><a href="#case">Referencje</a></li>
               <li><a href="#faq">FAQ</a></li>
             </ul>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              {/* PR-B B.7 PDF download button — ukryte do czasu upgrade Vercel Pro
-                  (Hobby ma 10s function timeout, niewystarczajacy dla puppeteer/
-                  sparticuz cold start). Klient pobiera plik przez browser print
-                  (Cmd+P / Ctrl+P -> Zapisz jako PDF). Endpoint /api/.../pdf
-                  zostawiamy aktywny — moze sie przydac jak ktos zna URL. */}
-              {isActive && (
-                <a href="#akcept" className="cta-mini">
-                  Akceptuję ofertę →
-                </a>
-              )}
-            </div>
+            {isActive && (
+              <a href="#akcept" className="cta-mini">
+                Akceptuję ofertę →
+              </a>
+            )}
           </div>
         </nav>
       )}
