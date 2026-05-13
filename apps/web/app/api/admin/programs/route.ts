@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
         group_name: body.group_name,
         label: body.label,
         description: body.description ?? null,
+        cover_storage_key: body.cover_storage_key ?? null,
         is_custom: body.is_custom,
         display_order: body.display_order,
         is_active: body.is_active,

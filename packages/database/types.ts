@@ -96,6 +96,7 @@ export type Database = {
           is_active: boolean
           logo_big: string | null
           logo_sm: string | null
+          logo_storage_key: string | null
           paragraph_1: string | null
           paragraph_2: string | null
           program_tags: string[]
@@ -113,6 +114,7 @@ export type Database = {
           is_active?: boolean
           logo_big?: string | null
           logo_sm?: string | null
+          logo_storage_key?: string | null
           paragraph_1?: string | null
           paragraph_2?: string | null
           program_tags?: string[]
@@ -130,6 +132,7 @@ export type Database = {
           is_active?: boolean
           logo_big?: string | null
           logo_sm?: string | null
+          logo_storage_key?: string | null
           paragraph_1?: string | null
           paragraph_2?: string | null
           program_tags?: string[]
@@ -149,6 +152,7 @@ export type Database = {
           is_active: boolean
           name: string
           phone: string | null
+          photo_storage_key: string | null
           photo_url: string | null
           profile_id: string | null
           role: string
@@ -162,6 +166,7 @@ export type Database = {
           is_active?: boolean
           name: string
           phone?: string | null
+          photo_storage_key?: string | null
           photo_url?: string | null
           profile_id?: string | null
           role: string
@@ -175,6 +180,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           phone?: string | null
+          photo_storage_key?: string | null
           photo_url?: string | null
           profile_id?: string | null
           role?: string
@@ -704,6 +710,7 @@ export type Database = {
       }
       programs: {
         Row: {
+          cover_storage_key: string | null
           created_at: string
           description: string | null
           display_order: number
@@ -715,6 +722,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cover_storage_key?: string | null
           created_at?: string
           description?: string | null
           display_order?: number
@@ -726,6 +734,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cover_storage_key?: string | null
           created_at?: string
           description?: string | null
           display_order?: number

@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
         program_tags: body.program_tags,
         logo_big: body.logo_big ?? null,
         logo_sm: body.logo_sm ?? null,
+        logo_storage_key: body.logo_storage_key ?? null,
         display_order: body.display_order,
         is_active: body.is_active,
       })

@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import FileUploadInput from '@/components/FileUploadInput';
+import { publicStorageUrl } from '@/lib/storage';
 
 type ContactPerson = {
   id: string;
@@ -11,6 +13,7 @@ type ContactPerson = {
   phone: string | null;
   email: string | null;
   photo_url: string | null;
+  photo_storage_key: string | null;
   display_order: number;
   is_active: boolean;
 };
@@ -22,6 +25,7 @@ type FormData = {
   phone?: string | null;
   email?: string | null;
   photo_url?: string | null;
+  photo_storage_key?: string | null;
   display_order: number;
   is_active: boolean;
 };
@@ -172,14 +176,15 @@ function Row({
       </tr>
     );
   }
+  const photoSrc = publicStorageUrl(cp.photo_storage_key, cp.photo_url);
   return (
     <tr style={cp.is_active ? undefined : rowMuted}>
       <td style={td}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {cp.photo_url ? (
+          {photoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={cp.photo_url}
+              src={photoSrc}
               alt={cp.name}
               style={{ width: 44, height: 44, borderRadius: 22, objectFit: 'cover', objectPosition: 'top center', border: '1px solid #e4e9f2' }}
             />
@@ -231,6 +236,7 @@ function PersonForm({
   const [phone, setPhone] = useState(initial?.phone ?? '');
   const [email, setEmail] = useState(initial?.email ?? '');
   const [photoUrl, setPhotoUrl] = useState(initial?.photo_url ?? '');
+  const [photoStorageKey, setPhotoStorageKey] = useState<string | null>(initial?.photo_storage_key ?? null);
   const [order, setOrder] = useState(initial?.display_order ?? 100);
   const [active, setActive] = useState(initial?.is_active ?? true);
   const [customId, setCustomId] = useState('');
@@ -243,6 +249,7 @@ function PersonForm({
       phone: phone.trim() || null,
       email: email.trim() || null,
       photo_url: photoUrl.trim() || null,
+      photo_storage_key: photoStorageKey,
       display_order: Number(order),
       is_active: active,
     };
@@ -283,9 +290,18 @@ function PersonForm({
         <Field label="Telefon">
           <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} style={input} />
         </Field>
-        <Field label="URL zdjęcia">
+        <Field label="URL zdjęcia — legacy">
           <input type="url" value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} style={input} />
         </Field>
+        <div>
+          <FileUploadInput
+            value={photoStorageKey}
+            onChange={setPhotoStorageKey}
+            folder="contact-persons"
+            label="Zdjęcie (upload)"
+            previewUrl={publicStorageUrl(photoStorageKey, null)}
+          />
+        </div>
         <Field label="Display order">
           <input
             type="number"
