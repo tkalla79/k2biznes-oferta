@@ -35,6 +35,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (patch.group_name !== undefined) update.group_name = patch.group_name;
     if (patch.label !== undefined) update.label = patch.label;
     if (patch.description !== undefined) update.description = patch.description;
+    if (patch.cover_storage_key !== undefined) update.cover_storage_key = patch.cover_storage_key;
     if (patch.is_custom !== undefined) update.is_custom = patch.is_custom;
     if (patch.display_order !== undefined) update.display_order = patch.display_order;
     if (patch.is_active !== undefined) update.is_active = patch.is_active;

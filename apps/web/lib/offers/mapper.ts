@@ -6,6 +6,7 @@
 import type { Database } from '@k2/database/types';
 import type { PricingResult } from '@/lib/pricing';
 import { applyOverride, parsePricingOverride, type PricingOverride } from '@/lib/pricing/override';
+import { publicStorageUrl } from '@/lib/storage';
 
 type OfferRow = Database['public']['Tables']['offers']['Row'];
 type OfferInsert = Database['public']['Tables']['offers']['Insert'];
@@ -166,7 +167,7 @@ export function toContactPersonDto(row: ContactPersonRow): PublicContactPersonDt
     role: row.role,
     email: row.email,
     phone: row.phone,
-    photoUrl: row.photo_url,
+    photoUrl: publicStorageUrl(row.photo_storage_key, row.photo_url),
   };
 }
 
@@ -181,7 +182,7 @@ export function toCaseStudyDto(row: CaseStudyRow): PublicCaseStudyDto {
     stats: Array.isArray(row.stats) ? row.stats : [],
     industries: row.industries,
     programTags: row.program_tags,
-    logoBig: row.logo_big,
+    logoBig: publicStorageUrl(row.logo_storage_key, row.logo_big),
     logoSm: row.logo_sm,
   };
 }

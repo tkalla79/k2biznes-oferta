@@ -37,6 +37,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (patch.program_tags !== undefined) update.program_tags = patch.program_tags;
     if (patch.logo_big !== undefined) update.logo_big = patch.logo_big;
     if (patch.logo_sm !== undefined) update.logo_sm = patch.logo_sm;
+    if (patch.logo_storage_key !== undefined) update.logo_storage_key = patch.logo_storage_key;
     if (patch.display_order !== undefined) update.display_order = patch.display_order;
     if (patch.is_active !== undefined) update.is_active = patch.is_active;
 

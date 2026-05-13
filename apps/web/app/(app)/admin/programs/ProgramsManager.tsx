@@ -2,12 +2,15 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import FileUploadInput from '@/components/FileUploadInput';
+import { publicStorageUrl } from '@/lib/storage';
 
 type Program = {
   id: string;
   group_name: string;
   label: string;
   description: string | null;
+  cover_storage_key: string | null;
   is_custom: boolean;
   display_order: number;
   is_active: boolean;
@@ -300,6 +303,7 @@ function ProgramForm({
   const [groupName, setGroupName] = useState(initial?.group_name ?? '');
   const [labelValue, setLabelValue] = useState(initial?.label ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
+  const [coverStorageKey, setCoverStorageKey] = useState<string | null>(initial?.cover_storage_key ?? null);
   const [displayOrder, setDisplayOrder] = useState(initial?.display_order ?? 100);
   const [isActive, setIsActive] = useState(initial?.is_active ?? true);
   const [customId, setCustomId] = useState('');
@@ -310,6 +314,7 @@ function ProgramForm({
       group_name: groupName.trim(),
       label: labelValue.trim(),
       description: description.trim() || null,
+      cover_storage_key: coverStorageKey,
       display_order: Number(displayOrder),
       is_active: isActive,
     };
@@ -384,6 +389,15 @@ function ProgramForm({
             style={textarea}
           />
         </Field>
+        <div>
+          <FileUploadInput
+            value={coverStorageKey}
+            onChange={setCoverStorageKey}
+            folder="programs"
+            label="Cover (upload)"
+            previewUrl={publicStorageUrl(coverStorageKey, null)}
+          />
+        </div>
         <label style={checkboxRow}>
           <input
             type="checkbox"

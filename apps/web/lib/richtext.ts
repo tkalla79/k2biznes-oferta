@@ -37,6 +37,7 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   },
   allowedSchemes: ['http', 'https', 'mailto'],
   allowedSchemesAppliedToAttributes: ['href'],
+  allowProtocolRelative: false, // belt-and-braces: blokuje //evil.com (resolved by browser do https://)
 };
 
 export function sanitizeRichText(html: string | null | undefined): string {

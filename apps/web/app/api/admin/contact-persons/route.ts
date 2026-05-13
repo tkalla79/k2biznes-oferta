@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
         phone: body.phone ?? null,
         email: body.email ?? null,
         photo_url: body.photo_url ?? null,
+        photo_storage_key: body.photo_storage_key ?? null,
         display_order: body.display_order,
         is_active: body.is_active,
       })

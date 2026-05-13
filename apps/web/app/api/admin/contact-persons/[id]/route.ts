@@ -32,6 +32,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (patch.phone !== undefined) update.phone = patch.phone;
     if (patch.email !== undefined) update.email = patch.email;
     if (patch.photo_url !== undefined) update.photo_url = patch.photo_url;
+    if (patch.photo_storage_key !== undefined) update.photo_storage_key = patch.photo_storage_key;
     if (patch.display_order !== undefined) update.display_order = patch.display_order;
     if (patch.is_active !== undefined) update.is_active = patch.is_active;
 

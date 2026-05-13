@@ -25,6 +25,13 @@ const URL_OR_NULL = z
   .optional()
   .transform((v) => v ?? null);
 
+const STORAGE_KEY_OR_NULL = z
+  .string()
+  .max(500)
+  .nullable()
+  .optional()
+  .transform((v) => v ?? null);
+
 /** Auto-generuje slug z labela jeśli user nie poda swojego. */
 export function slugify(s: string): string {
   return s
@@ -45,6 +52,7 @@ export const ProgramInput = z.object({
   group_name: z.string().min(1).max(200),
   label: z.string().min(1).max(200),
   description: z.string().max(2000).optional().nullable(),
+  cover_storage_key: STORAGE_KEY_OR_NULL,
   is_custom: z.boolean().default(false),
   display_order: z.coerce.number().int().min(0).max(9999).default(100),
   is_active: z.boolean().default(true),
@@ -85,6 +93,7 @@ export const CaseStudyInput = z.object({
   program_tags: csvArray.default([]),
   logo_big: URL_OR_NULL,
   logo_sm: URL_OR_NULL,
+  logo_storage_key: STORAGE_KEY_OR_NULL,
   display_order: z.coerce.number().int().min(0).max(9999).default(100),
   is_active: z.boolean().default(true),
 });
@@ -104,6 +113,7 @@ export const ContactPersonInput = z.object({
   phone: z.string().max(50).optional().nullable(),
   email: z.string().email().max(200).optional().nullable(),
   photo_url: URL_OR_NULL,
+  photo_storage_key: STORAGE_KEY_OR_NULL,
   display_order: z.coerce.number().int().min(0).max(9999).default(100),
   is_active: z.boolean().default(true),
 });

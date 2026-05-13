@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import FileUploadInput from '@/components/FileUploadInput';
+import { publicStorageUrl } from '@/lib/storage';
 
 type CaseStudy = {
   id: string;
@@ -14,6 +16,7 @@ type CaseStudy = {
   program_tags: string[];
   logo_big: string | null;
   logo_sm: string | null;
+  logo_storage_key: string | null;
   display_order: number;
   is_active: boolean;
 };
@@ -29,6 +32,7 @@ type FormData = {
   program_tags: string[];
   logo_big?: string | null;
   logo_sm?: string | null;
+  logo_storage_key?: string | null;
   display_order: number;
   is_active: boolean;
 };
@@ -180,7 +184,7 @@ function Row({
       </tr>
     );
   }
-  const logoSrc = cs.logo_sm || cs.logo_big || null;
+  const logoSrc = publicStorageUrl(cs.logo_storage_key, cs.logo_sm || cs.logo_big);
   return (
     <tr style={cs.is_active ? undefined : rowMuted}>
       <td style={td}>
@@ -246,6 +250,7 @@ function CaseStudyForm({
   const [programTags, setProgramTags] = useState((initial?.program_tags ?? []).join(', '));
   const [logoBig, setLogoBig] = useState(initial?.logo_big ?? '');
   const [logoSm, setLogoSm] = useState(initial?.logo_sm ?? '');
+  const [logoStorageKey, setLogoStorageKey] = useState<string | null>(initial?.logo_storage_key ?? null);
   const [order, setOrder] = useState(initial?.display_order ?? 100);
   const [active, setActive] = useState(initial?.is_active ?? true);
   const [customId, setCustomId] = useState('');
@@ -268,6 +273,7 @@ function CaseStudyForm({
         .filter(Boolean),
       logo_big: logoBig.trim() || null,
       logo_sm: logoSm.trim() || null,
+      logo_storage_key: logoStorageKey,
       display_order: Number(order),
       is_active: active,
     };
@@ -319,12 +325,21 @@ function CaseStudyForm({
         <Field label="Display order">
           <input type="number" min={0} max={9999} value={order} onChange={(e) => setOrder(Number(e.target.value))} style={input} />
         </Field>
-        <Field label="Logo (URL, duże)">
+        <Field label="Logo (URL, duże) — legacy">
           <input type="url" value={logoBig} onChange={(e) => setLogoBig(e.target.value)} style={input} />
         </Field>
-        <Field label="Logo (URL, małe)">
+        <Field label="Logo (URL, małe) — legacy">
           <input type="url" value={logoSm} onChange={(e) => setLogoSm(e.target.value)} style={input} />
         </Field>
+        <div>
+          <FileUploadInput
+            value={logoStorageKey}
+            onChange={setLogoStorageKey}
+            folder="case-studies"
+            label="Logo (upload)"
+            previewUrl={publicStorageUrl(logoStorageKey, null)}
+          />
+        </div>
         <label style={checkboxRow}>
           <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
           <span>Aktywny</span>
