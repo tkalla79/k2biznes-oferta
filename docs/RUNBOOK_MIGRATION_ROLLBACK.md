@@ -99,6 +99,57 @@ Zawsze rób w tej kolejności:
 
 ---
 
+## Template nowej migracji (od 30 października 2026)
+
+Od 30.10.2026 Supabase **nie nadaje domyślnych grantów** dla nowych tabel w `public`. Każda nowa tabela MUSI mieć explicit `GRANT`, inaczej supabase-js zwróci błąd `42501`.
+
+**Boilerplate dla nowej tabeli:**
+
+```sql
+-- 1. CREATE TABLE
+create table public.nowa_tabela (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  -- ... pozostale kolumny
+);
+
+-- 2. GRANTY (WYMAGANE od 30.10.2026 dla nowych projektów; od 30.10.2026 wszystkie)
+grant select, insert, update, delete on public.nowa_tabela to authenticated;
+grant select, insert, update, delete on public.nowa_tabela to service_role;
+-- Tylko jeśli tabela ma być public-readable (np. publiczne katalogi):
+grant select on public.nowa_tabela to anon;
+
+-- 3. RLS — obowiązkowo
+alter table public.nowa_tabela enable row level security;
+
+-- 4. POLICIES — per role + per operation
+create policy "authenticated_select_own" on public.nowa_tabela
+  for select to authenticated
+  using (created_by = auth.uid());
+
+-- Public select tylko gdy potrzeba (np. dla /o/[token])
+create policy "anon_select_public" on public.nowa_tabela
+  for select to anon
+  using (is_public = true);
+```
+
+**Audyt istniejących tabel** (skoroczas przed październikiem):
+
+```sql
+-- Sprawdz ktore tabele NIE maja grantu dla service_role / authenticated
+select table_name
+  from information_schema.tables t
+  where t.table_schema = 'public'
+    and not exists (
+      select 1 from information_schema.role_table_grants g
+      where g.table_schema = 'public'
+        and g.table_name = t.table_name
+        and g.grantee = 'service_role'
+    );
+```
+
+---
+
 ## Najczestsze pulapki migracji
 
 ### 1. Dodawanie NOT NULL column do tabeli z danymi
