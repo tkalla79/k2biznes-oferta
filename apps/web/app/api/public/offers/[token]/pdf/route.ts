@@ -52,14 +52,16 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
         bytes = await renderOfferPdf({ url: printUrl });
       } catch (e) {
         const msg = (e as Error).message;
-        // Vercel Hobby 10s function timeout: chromium cold start zwykle przekracza
-        // → TargetCloseError. Przycisk PDF ukryty w UI az do upgrade'u Pro.
         console.error('[pdf] render failed:', msg);
+        // details.reason TYLKO dla kontrolowanych komunikatow PDF_NOT_CONFIGURED_*.
+        // Raw Error.message (puppeteer/chromium internals, paths, etc.) NIE leakuje
+        // do anonymous endpoint.
+        const isControlled = msg.startsWith('PDF_NOT_CONFIGURED');
         throw new ApiError(
           'INTERNAL_ERROR',
           'Generowanie PDF jest tymczasowo niedostępne.',
           503,
-          { reason: msg },
+          isControlled ? { reason: msg } : {},
         );
       }
 
