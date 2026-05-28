@@ -37,7 +37,10 @@ export async function POST(req: NextRequest) {
     );
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
-    const redirectTo = `${baseUrl}/auth/reset-password`;
+    // PKCE flow: link z maila idzie do /auth/callback (exchangeCodeForSession),
+    // a callback redirect na /auth/reset-password z aktywna sesja recovery.
+    // Bez tego /auth/reset-password page nie ma sesji i POST zwraca 401.
+    const redirectTo = `${baseUrl}/auth/callback?next=${encodeURIComponent('/auth/reset-password')}`;
 
     // Anti-enum: ignorujemy error (np. brak konta) — zwracamy ok:true.
     await supabase.auth.resetPasswordForEmail(body.email, { redirectTo });
