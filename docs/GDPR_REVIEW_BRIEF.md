@@ -70,7 +70,10 @@ Stare oferty zachowują w `offers.gdpr_clause_version='v1-2026-04'` — dowód c
 ## Status
 
 - [x] Brief zatwierdzony (2026-05-28)
-- [ ] Wysłany do radcy
-- [ ] Otrzymane v2 / poprawki
-- [ ] v2 wdrożony przez SQL migration
-- [ ] Verify: nowa oferta używa v2
+- [x] Wysłany do radcy
+- [x] Otrzymane v2 / poprawki — pełna polityka + krótka klauzula (wariant B)
+- [x] v2 wdrożony przez REST API insert (2026-05-28 20:20 UTC)
+  - `gdpr_clauses.v2-2026-05` is_current=true
+  - `gdpr_clauses.v1-2026-04` is_current=false (zachowane dla starych ofert)
+- [x] `/privacy-policy` page zaktualizowany (commit `6991a83`)
+- [ ] Verify: nowa oferta używa v2 (smoke test — utworz testowa oferta i sprawdz checkbox text na `/o/[token]`)
