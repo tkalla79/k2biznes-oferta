@@ -2,10 +2,13 @@
  * POST /api/admin/upload — multipart/form-data file upload do Supabase Storage.
  *
  * Fields:
- *   file   — plik (max 5MB, image/jpeg|png|webp|svg+xml)
+ *   file   — plik (max 5MB, image/jpeg|png|webp)
  *   folder — 'case-studies' | 'contact-persons' | 'programs'
  *
  * Response: { data: { storage_key: string, public_url: string } }
+ *
+ * SVG celowo NIEDOZWOLONE — przegladarki wykonują <script> w SVG serwowanym
+ * top-level (storage.supabase.co), co tworzy XSS surface przy admin-compromise.
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { handleError, ApiError } from '@/lib/api/error';
@@ -23,7 +26,6 @@ const ALLOWED_MIMES: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
   'image/webp': 'webp',
-  'image/svg+xml': 'svg',
 };
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
