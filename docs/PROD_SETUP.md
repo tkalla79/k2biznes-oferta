@@ -1,5 +1,11 @@
 # Production setup runbook — K2Biznes Oferta
 
+> **STATUS (2026-05-29):** wszystkie etapy 1-8 done. Produkcja live na https://oferta.k2biznes.pl.
+> Ten dokument zachowany jako historia (kroki initial setup). Do **on-going operations**
+> używaj **[TECH_ADMIN_MANUAL.md](TECH_ADMIN_MANUAL.md)** + **[BACKUP_RECOVERY.md](BACKUP_RECOVERY.md)**.
+
+---
+
 Krok-po-kroku przygotowania produkcji. Decyzje (2026-05-06):
 
 - **Domena prod:** `oferta.k2biznes.pl`

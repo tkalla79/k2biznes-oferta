@@ -2,6 +2,12 @@
 
 Dokument dla zewnętrznego doradcy / code reviewera. Skraca onboarding do projektu z 1 dnia do 1 godziny.
 
+> **Powiązane dokumenty (tech-admin):**
+> - **[TECH_ADMIN_MANUAL.md](TECH_ADMIN_MANUAL.md)** — masterdoc operacyjny (architektura, deploy, monitoring, troubleshooting)
+> - **[BACKEND_SPEC.md](BACKEND_SPEC.md)** — pełna specyfikacja (single source of truth, ~1660 linii)
+> - **[APPLICATIONS_INVENTORY.md](APPLICATIONS_INVENTORY.md)** — inwentarz 10 external services + jak rotować klucze
+> - **[BACKUP_RECOVERY.md](BACKUP_RECOVERY.md)** — procedury backup + recovery po katastrofie
+
 ---
 
 ## TL;DR — czym jest aplikacja
