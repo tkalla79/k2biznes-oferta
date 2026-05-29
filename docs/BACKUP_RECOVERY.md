@@ -14,7 +14,7 @@ prod-DB lost, bucket storage usunięty, sekrety utracone).
 | **Kod (repo)** | Automat. przy każdym commit | `git push origin main` | github.com/tkalla79/k2biznes-oferta |
 | **Prod DB** | Tygodniowo (Pn rano) | `bash scripts/backup-db.sh` | `~/Backups/k2biznes-oferta/db/YYYY-MM-DD.sql.gz` |
 | **Storage bucket** | Miesięcznie (1. każdego mies.) | `bash scripts/backup-storage.sh` | `~/Backups/k2biznes-oferta/storage/YYYY-MM-DD/` |
-| **Sekrety (.env.production.local)** | Po każdej zmianie | Manualnie do 1Password | 1Password Secure Note "K2Biznes Oferta prod credentials" |
+| **Sekrety (.env.production.local)** | Po każdej zmianie | Manualnie do Bitwarden | Bitwarden Secure Note "K2Biznes Oferta prod credentials" |
 | **GDPR clauses + spec** | Wersjonowane w DB | Automat. (zachowane w `gdpr_clauses` per version) | Prod DB + GitHub (`docs/BACKEND_SPEC.md`) |
 
 **Dodatkowo (automatycznie, bez naszej akcji):**
@@ -87,14 +87,14 @@ ls -la ~/Backups/k2biznes-oferta/storage/ | tail -3
 find ~/Backups/k2biznes-oferta/storage/$(date +%Y-%m-%d) -type f | wc -l
 ```
 
-### 2.4. Sekrety — `.env.production.local` w 1Password
+### 2.4. Sekrety — `.env.production.local` w Bitwarden
 
 **Po każdej zmianie:**
-1. Otwórz 1Password → znajdź item "K2Biznes Oferta prod credentials" (typ: Secure Note)
+1. Otwórz Bitwarden → znajdź item "K2Biznes Oferta prod credentials" (typ: Secure Note)
 2. Zaktualizuj treść — wklej całą zawartość pliku `.env.production.local`
 3. Zapisz
 
-**Lista sekretów które MUSZĄ być w 1Password:**
+**Lista sekretów które MUSZĄ być w Bitwarden:**
 - `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` (public, dla referencji)
 - `SUPABASE_SERVICE_ROLE_KEY` (krytyczny — admin DB access)
 - `SUPABASE_JWT_SECRET`
@@ -108,7 +108,7 @@ find ~/Backups/k2biznes-oferta/storage/$(date +%Y-%m-%d) -type f | wc -l
 - `NEXT_PUBLIC_SENTRY_DSN`
 - (jeśli używane) `RATE_LIMIT_REDIS_URL` + `RATE_LIMIT_REDIS_TOKEN` (Upstash)
 
-**Wszystkie te sekrety są też w Vercel** (Production scope env vars) — drugie miejsce backup, ale 1Password jest twoim primary.
+**Wszystkie te sekrety są też w Vercel** (Production scope env vars) — drugie miejsce backup, ale Bitwarden jest twoim primary.
 
 **Rotacja `IP_HASH_SALT` (co 90 dni):**
 ```bash
@@ -117,7 +117,7 @@ echo "Nowy salt: $NEW_SALT"
 # 1. Wstaw do prod DB:
 #    insert into ip_hash_salts (salt) values ('<NEW_SALT>');
 # 2. Update Vercel env IP_HASH_SALT (Production scope)
-# 3. Update 1Password
+# 3. Update Bitwarden
 # 4. Redeploy Vercel
 ```
 
@@ -127,7 +127,7 @@ echo "Nowy salt: $NEW_SALT"
 
 ### Scenariusz 1: Utrata laptopa / nowy komputer
 
-Zakładamy: GitHub repo żyje, prod-DB żyje, 1Password żyje.
+Zakładamy: GitHub repo żyje, prod-DB żyje, Bitwarden żyje.
 
 ```bash
 # 1. Setup nowego kompa (~10 min)
@@ -145,8 +145,8 @@ npm install
 git config --global user.email "t.kalla@k2biznes.pl"
 git config --global user.name "Tomek Kalla"
 
-# 4. Sekrety — pobierz z 1Password
-#    Otwórz 1Password → "K2Biznes Oferta prod credentials" → kopiuj zawartość
+# 4. Sekrety — pobierz z Bitwarden
+#    Otwórz Bitwarden → "K2Biznes Oferta prod credentials" → kopiuj zawartość
 #    Wklej do .env.production.local (gitignored)
 
 # 5. Skopiuj memory Claude Code z innego źródła (jeśli masz w iCloud)
@@ -205,7 +205,7 @@ curl -s "https://yuyyejwnryuynbosqwwa.supabase.co/storage/v1/bucket/public-uploa
 
 Pliki w `~/Backups/k2biznes-oferta/storage/YYYY-MM-DD/`. Zachowana struktura folderów (case-studies/, contact-persons/, programs/).
 
-### Scenariusz 4: Utrata 1Password / sekretów
+### Scenariusz 4: Utrata Bitwarden / sekretów
 
 **Sekrety które MOŻNA odtworzyć z Vercel:**
 - Wszystkie env vars w Vercel Settings → Environment Variables → "..." → Reveal Value

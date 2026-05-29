@@ -20,7 +20,7 @@ co przestaje działać jak padnie, jak rotować klucze.
 7. [Upstash Redis](#7-upstash-redis) — rate-limit store
 8. [CreaTech.pl DNS](#8-createchpl-dns) — DNS apex `k2biznes.pl`
 9. [Vercel DNS / CNAME](#9-vercel-dns--cname) — subdomena `oferta.k2biznes.pl`
-10. [1Password](#10-1password) — secrets vault
+10. [Bitwarden](#10-bitwarden) — secrets vault
 
 ---
 
@@ -88,7 +88,7 @@ Mitygacja: UptimeRobot ping na `/api/health` co 5 min trzyma to aktywne.
 
 **Rotacja:**
 - `SUPABASE_DB_PASSWORD` — Settings → Database → "Reset password" (co 6 mies. lub po wycieku)
-- `SUPABASE_SERVICE_ROLE_KEY` — Settings → API → "Reset" (krytyczna; reset → upload do Vercel env + 1P + redeploy)
+- `SUPABASE_SERVICE_ROLE_KEY` — Settings → API → "Reset" (krytyczna; reset → upload do Vercel env + Bitwarden + redeploy)
 - `SUPABASE_JWT_SECRET` — Settings → API → "Rotate JWT secret" (UWAGA: wyloguje wszystkich userów)
 
 **Pooler vs direct connection:**
@@ -130,7 +130,7 @@ Wszystkie sekrety z `.env.example` muszą tam być (jak w lokalnym `.env.product
 
 **Kontakt support:** dashboard → "?" → Submit ticket (Hobby ~3 dni)
 
-**Rotacja:** vercel tokens (nie używamy stałych). Jedyne stałe credentials → Personal Access Token w 1P (jeśli istnieje).
+**Rotacja:** vercel tokens (nie używamy stałych). Jedyne stałe credentials → Personal Access Token w Bitwarden (jeśli istnieje).
 
 ---
 
@@ -165,7 +165,7 @@ Rekordy ustawione w **CreaTech.pl panel DNS** (sekcja 8).
 
 **Kontakt support:** Resend dashboard → chat (response ~kilka godzin)
 
-**Rotacja:** `RESEND_API_KEY` — dashboard → API Keys → "Roll" (co 6 mies. + update Vercel env + 1P + redeploy)
+**Rotacja:** `RESEND_API_KEY` — dashboard → API Keys → "Roll" (co 6 mies. + update Vercel env + Bitwarden + redeploy)
 
 ---
 
@@ -250,7 +250,7 @@ Rekordy ustawione w **CreaTech.pl panel DNS** (sekcja 8).
 
 **Kontakt support:** dashboard → chat (Free tier ~24h)
 
-**Rotacja:** `RATE_LIMIT_REDIS_TOKEN` — dashboard → Details → "Reset Token" (co 12 mies.). Jeśli zmieniany — update Vercel env + 1P + redeploy.
+**Rotacja:** `RATE_LIMIT_REDIS_TOKEN` — dashboard → Details → "Reset Token" (co 12 mies.). Jeśli zmieniany — update Vercel env + Bitwarden + redeploy.
 
 ---
 
@@ -302,34 +302,39 @@ Jeśli cert wygasł albo CNAME zniknął:
 
 ---
 
-## 10. 1Password
+## 10. Bitwarden
 
 | Pole | Wartość |
 |---|---|
-| **URL** | https://k2biznes.1password.com (lub przez app) |
-| **Account** | t.kalla@k2biznes.pl + master password + biometric |
-| **Vault** | "K2Biznes Oferta prod credentials" |
-| **Plan** | Family/Business (sprawdz Tomku — Free ma limity) |
+| **URL** | https://vault.bitwarden.com (web) + Edge extension + iOS app |
+| **Account** | t.kalla@k2biznes.pl + master password + 2FA (TOTP) |
+| **Folder** | "K2Biznes Oferta prod" |
+| **Plan** | Free (unlimited items, sync cross-device, browser extension — wszystko czego potrzebujemy) |
 
 **Do czego służy:**
 - Vault dla wszystkich produkcyjnych sekretów (`.env.production.local` jako Secure Note)
-- Backup login credentials do każdej usługi z tej listy
-- Recovery passphrases
+- Backup login credentials do każdej usługi z tej listy (Supabase, Vercel, Resend, Sentry, UptimeRobot, Upstash, CreaTech DNS, GitHub)
+- Recovery passphrases + 2FA backup codes
+- Autofill loginów w Edge (przez Bitwarden extension)
 
 **Co MUSI być w vault** (per [docs/BACKUP_RECOVERY.md](BACKUP_RECOVERY.md) sekcja 2.4):
-- Pełny `.env.production.local`
-- Master passwords / 2FA backup codes dla GitHub/Supabase/Vercel/Resend/Sentry/UptimeRobot/Upstash/CreaTech
-- Recovery codes po MFA reset
+- Secure Note "env.production.local" — pełna zawartość pliku
+- Login items dla każdego z 9 zewnętrznych services (sekcje 1-9 wyżej) z polami: URL, username, password, TOTP secret, recovery codes
+- Master password do samego Bitwarden — **NIE w pliku, tylko w głowie + na kartce w bezpiecznym miejscu fizycznym** (szuflada w domu / sejf)
 
 **Co przestaje działać jak padnie:**
 - Brak dostępu do sekretów → impossible recovery po katastrofie
-- KRYTYCZNE — drugie miejsce backup sekretów = Vercel env vars (read-only po wpisaniu)
+- KRYTYCZNE — drugie miejsce backup sekretów = Vercel env vars (read-only po wpisaniu, ograniczone do env aplikacji — bez master passwords do services)
 
-**Backup planu:** 1Password emergency kit (PDF z secret key + master password hint) — drukowany + w skrytce bankowej Tomka. NIE w chmurze.
+**Backup planu:**
+- Bitwarden **Emergency Access** (Free): wskaż zaufaną osobę która po Twoim incydencie + grace period (np. 7 dni) dostanie read-only access do vaultu. Konfiguracja w Settings → Emergency Access.
+- **Export vault** raz na pół roku: Web vault → Tools → Export vault → format JSON encrypted → upload do OneDrive lub szyfrowany zip na pendrive w szufladzie. Hasło do exportu = master password Bitwarden (więc bezpieczne nawet jak OneDrive zostanie skompromitowany).
 
-**Kontakt support:** 1password.com → support (response < 24h Family)
+**Kontakt support:** https://bitwarden.com/contact (Free tier — community + docs, response ~48h)
 
-**Rotacja:** master password co 12 mies. + secret key bezpieczny offline.
+**Rotacja:** master password co 12 mies. + 2FA recovery codes wydrukowane offline.
+
+**Dlaczego Bitwarden a nie 1Password:** free unlimited (1Password wymaga sub), open-source (audytowane), cross-platform, łatwy sharing jak dojdzie 2gi dev (Team plan $1/user/mc).
 
 ---
 
@@ -371,6 +376,6 @@ dig TXT k2biznes.pl                     # powinno wrócić SPF rekord
 # 6. Sentry events ostatnie 7 dni
 #    Sprawdz Dashboard → Issues — nie ma nowych ze score > medium
 
-# 7. Vercel env vars zgodne z 1Password
-#    Manual compare — sprawdz że secret hash w 1P = secret hash w Vercel
+# 7. Vercel env vars zgodne z Bitwarden
+#    Manual compare — sprawdz że secret hash w Bitwarden = secret hash w Vercel
 ```

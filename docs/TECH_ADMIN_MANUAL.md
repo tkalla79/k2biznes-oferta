@@ -151,7 +151,7 @@ curl http://localhost:3000/api/health
 
 ### Prod environment (do operacji on production-DB)
 
-Sekrety masz w **`~/Code/k2biznes-oferta/.env.production.local`** (gitignored). Jeśli brak — odtwórz z 1Password Secure Note "K2Biznes Oferta prod credentials" lub z Vercel env vars (Settings → Environment Variables → "..." → Reveal).
+Sekrety masz w **`~/Code/k2biznes-oferta/.env.production.local`** (gitignored). Jeśli brak — odtwórz z Bitwarden Secure Note "env.production.local" (folder "K2Biznes Oferta prod") lub z Vercel env vars (Settings → Environment Variables → "..." → Reveal).
 
 Zawartość: patrz `.env.example` — to lista wymaganych zmiennych.
 
@@ -342,7 +342,7 @@ echo "Nowy salt: $NEW_SALT"
 - **Kod** — `git push` (auto przy commit, zawsze)
 - **DB** — `bash scripts/backup-db.sh` (tygodniowo)
 - **Storage** — `bash scripts/backup-storage.sh` (miesięcznie)
-- **Sekrety** — 1Password Secure Note "K2Biznes Oferta prod credentials"
+- **Sekrety** — Bitwarden Secure Note "env.production.local" (folder "K2Biznes Oferta prod")
 
 ---
 
