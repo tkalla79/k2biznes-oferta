@@ -183,6 +183,8 @@ function SendDialog({
   const [recipientName, setRecipientName] = useState('');
   const [subject, setSubject] = useState(`Oferta K2Biznes — ${offerNumber}`);
   const [message, setMessage] = useState('');
+  // expiresAt — sluzy walidacji UI; format `datetime-local` to "YYYY-MM-DDTHH:MM"
+  // (lokalny czas bez timezony). Patrz nizej input z `min` zeby zablokowac przeszlosc.
   const [expiresAt, setExpiresAt] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -204,6 +206,13 @@ function SendDialog({
       if (message.trim()) body.message = message.trim();
       if (expiresAt) {
         const iso = new Date(expiresAt).toISOString();
+        const tMs = new Date(iso).getTime();
+        const minMs = Date.now() + 60 * 60 * 1000; // +1h
+        if (tMs < minMs) {
+          setError('Data wygasniecia musi byc co najmniej 1h w przyszlosci.');
+          setBusy(false);
+          return;
+        }
         body.expiresAt = iso;
       }
       const res = await fetch(`/api/offers/${offerId}/send`, {
@@ -284,13 +293,23 @@ function SendDialog({
             />
           </Field>
 
-          <Field label="Wygaśnie (opcjonalnie)">
+          <Field label="Wygaśnie (opcjonalnie — domyślnie bez wygaśnięcia)">
             <input
               type="datetime-local"
               value={expiresAt}
               onChange={(e) => setExpiresAt(e.target.value)}
+              // min = teraz + 1h (zablokuj przeszlosc + zbyt bliska przyszlosc).
+              // Local timezone format "YYYY-MM-DDTHH:MM" bez sekund/timezony.
+              min={(() => {
+                const t = new Date(Date.now() + 60 * 60 * 1000);
+                const off = t.getTimezoneOffset() * 60 * 1000;
+                return new Date(t.getTime() - off).toISOString().slice(0, 16);
+              })()}
               style={input}
             />
+            <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+              Min. 1h od teraz. Zostaw puste = oferta bezterminowa.
+            </div>
           </Field>
 
           {error && <div style={errBox}>{error}</div>}
