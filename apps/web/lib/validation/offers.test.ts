@@ -100,10 +100,29 @@ describe('UpdateOfferInput', () => {
     expect(() => UpdateOfferInput.parse({ status: 'foo' })).toThrow();
   });
 
-  it('akceptuje expiresAt jako ISO datetime lub null', () => {
-    expect(UpdateOfferInput.parse({ expiresAt: '2026-12-31T23:59:00Z' })).toBeDefined();
+  it('akceptuje expiresAt jako ISO datetime w przyszlosci lub null', () => {
+    const inFuture = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    expect(UpdateOfferInput.parse({ expiresAt: inFuture })).toBeDefined();
     expect(UpdateOfferInput.parse({ expiresAt: null })).toBeDefined();
     expect(() => UpdateOfferInput.parse({ expiresAt: 'invalid' })).toThrow();
+  });
+
+  it('odrzuca expiresAt w przeszlosci (bug 2026-05-29)', () => {
+    // Test regression: konsultant wybral "dzis 18:34" w UI picker, wyslal za
+    // 35 sekund → oferta natychmiast expired → klient 404 na linku z maila.
+    const past = new Date(Date.now() - 60 * 1000).toISOString();
+    expect(() => UpdateOfferInput.parse({ expiresAt: past })).toThrow();
+
+    const now = new Date().toISOString();
+    expect(() => UpdateOfferInput.parse({ expiresAt: now })).toThrow();
+
+    const in30min = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+    expect(() => UpdateOfferInput.parse({ expiresAt: in30min })).toThrow();
+  });
+
+  it('odrzuca expiresAt dalej niz 365 dni w przyszlosci', () => {
+    const tooFar = new Date(Date.now() + 400 * 24 * 60 * 60 * 1000).toISOString();
+    expect(() => UpdateOfferInput.parse({ expiresAt: tooFar })).toThrow();
   });
 });
 
