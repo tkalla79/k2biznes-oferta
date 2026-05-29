@@ -10,8 +10,14 @@
  * - update offer (status='accepted', accepted_*, gdpr_*)
  * - insert event 'accepted'
  * - audit_log
- * - email do konsultanta — TODO PR #5
- * - webhook CRM — TODO PR #7
+ * - email do konsultanta (`OfferAcceptedConsultant`) — wdrozone PR #5
+ * - webhook CRM 'offer.accepted' — wdrozone PR #5 (enqueue do `webhook_jobs`,
+ *   dispatch przez cron)
+ *
+ * Notify + enqueue sa best-effort: bledy nie blokuja response (klient widzi
+ * sukces akceptacji nawet jak email/webhook padl). Vercel serverless zabija
+ * async work po `return` — dlatego notify+enqueue MUSZA byc w
+ * `Promise.allSettled` przed return, nie jako fire-and-forget po return.
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { handleError, ApiError, Errors } from '@/lib/api/error';
@@ -133,15 +139,18 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
       }),
     ]);
 
-    // Email do konsultanta — best-effort, nie blokuje response (sekcja 8.2)
-    notifyConsultantOfferAccepted(updated).catch((e) =>
-      console.error('[accept] notify consultant failed:', e.message),
-    );
-
-    // CRM webhook 'offer.accepted' — best-effort enqueue (sekcja 10)
-    enqueueOfferWebhook({ event: 'offer.accepted', offer: updated }).catch((e) =>
-      console.error('[accept] enqueue webhook failed:', e.message),
-    );
+    // Email do konsultanta + CRM webhook enqueue — best-effort (sekcja 8.2 + 10).
+    // MUSZA byc awaited przed return — Vercel serverless zabija async work po
+    // response, wiec fire-and-forget `.catch()` po return wczesniej w prod
+    // dawal 0 wyslanych emaili mimo zaakceptowanych ofert.
+    await Promise.allSettled([
+      notifyConsultantOfferAccepted(updated).catch((e: Error) =>
+        console.error('[accept] notify consultant failed:', e.message),
+      ),
+      enqueueOfferWebhook({ event: 'offer.accepted', offer: updated }).catch((e: Error) =>
+        console.error('[accept] enqueue webhook failed:', e.message),
+      ),
+    ]);
 
     return NextResponse.json({
       data: {
