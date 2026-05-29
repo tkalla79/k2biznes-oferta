@@ -2,25 +2,34 @@
 
 SaaS do ofert handlowych dla klientów dotacyjnych (FENG / FEPW / KPO / FELU).
 
-> **Stan:** PR #1 (setup + DB + auth) + PR #2 (pricing engine) + PR #3 (API CRUD `/api/offers`) + PR #4 (public `/o/[token]` + accept/reject) + PR #5 (email Resend + 3 templates) + PR #6 (PDF generation z cache).
+> **Stan:** Produkcja https://oferta.k2biznes.pl (PR #1-#29 zmergowane). 3 rundy code review, 4 admin userzy, RODO/GDPR v2 + privacy policy live. Stack: Next.js 14 + Supabase Cloud + Vercel + Resend + Sentry + UptimeRobot.
 
 ## Lokalizacja
 
-- **Kod:** `~/Code/k2biznes-oferta/` (lokalny dysk).
-- **Specyfikacja:** OneDrive → `CLAUDE_CODE/OFERTA/` (dokumenty trzymane w synchronizacji zespołowej).
+- **Kod:** `~/Code/k2biznes-oferta/` (lokalny dysk) + https://github.com/tkalla79/k2biznes-oferta (single source of truth)
+- **Specyfikacja:** [docs/BACKEND_SPEC.md](docs/BACKEND_SPEC.md) w repo. OneDrive `CLAUDE_CODE/OFERTA/` jest kopią roboczą do edycji zespołowej — repo wygrywa.
 
-## Dokumentacja
+## Dokumentacja (tech-admin)
 
-- Specyfikacja: `~/Library/CloudStorage/OneDrive-K2BiznesSp.zo.o/CLAUDE_CODE/OFERTA/BACKEND_SPEC.md` (v1.1.1)
-- Render HTML: `…/OFERTA/backend-spec.html`
+Zacznij od **[docs/TECH_ADMIN_MANUAL.md](docs/TECH_ADMIN_MANUAL.md)** — masterdoc spinający wszystko.
+
+- **[docs/BACKEND_SPEC.md](docs/BACKEND_SPEC.md)** — pełna specyfikacja techniczna (v1.1.1, ~1660 linii)
+- **[docs/APPLICATIONS_INVENTORY.md](docs/APPLICATIONS_INVENTORY.md)** — inwentarz 10 external services
+- **[docs/BACKUP_RECOVERY.md](docs/BACKUP_RECOVERY.md)** — procedury backup + recovery scenarios
+- **[docs/PROD_SETUP.md](docs/PROD_SETUP.md)** — setup produkcji (1-time)
+- **[docs/RUNBOOK_MIGRATION_ROLLBACK.md](docs/RUNBOOK_MIGRATION_ROLLBACK.md)** — rollback migracji DB
+- **[docs/CODE_REVIEW_HANDOFF.md](docs/CODE_REVIEW_HANDOFF.md)** — onboarding code reviewera
+- **[docs/PLANY_ROZWOJU.md](docs/PLANY_ROZWOJU.md)** — backlog post-MVP
 
 ## Stack
 
 - **Next.js 14** (App Router, TypeScript strict, Zod)
-- **Supabase** (Postgres 15 + Auth + Storage + Edge Functions; RLS na każdej tabeli)
+- **Supabase Cloud** (Postgres 17 + Auth (PKCE) + Storage + Edge Functions; RLS na każdej tabeli)
+- **Vercel** (Hobby, region cdg1)
 - **Upstash Redis** (rate-limit, sekcja 5.1.1)
-- **Resend** (email — sekcja 8, nie wdrożone w PR #1)
-- **Sentry** (monitoring + PII scrubbing — sekcja 12.1, nie wdrożone w PR #1)
+- **Resend** (email — `noreply@k2biznes.pl`, DKIM/SPF verified)
+- **Sentry** (monitoring + PII scrubbing — sekcja 12.1, EU region)
+- **UptimeRobot** (ping `/api/health` co 5 min)
 
 ## Struktura
 
@@ -184,28 +193,13 @@ npm test               # Vitest (PR #2 — 26 testów pricingu, < 200ms)
 > tam `npx vitest run` kończy się w ~150ms. Docelowo: przenieść projekt na
 > lokalny dysk lub wykluczyć z OneDrive sync.
 
-## Wartości pricing — TODO biznes
+## Pricing — segmenty seedowane
 
-`supabase/seed.sql` zawiera 5 segmentów, ale 4 mają wartości `0` jako placeholder.
-Tomasz musi uzupełnić **przed deployem produkcyjnym**:
+Wszystkie 5 segmentów (`s500k` / `s1m` / `s2m` / `s5m` / `s5mplus`) mają realne wartości
+w `supabase/migrations/` + prod-DB (post PR #29). Edycja przez Supabase Studio →
+`pricing_config` tabela (admin-only przez RLS).
 
-- `s500k` (0 – 500 tys.)
-- `s1m` (500 tys. – 1M)
-- `s2m` (1M – 2M)
-- `s5m` ✅ wartości z testów Vitest (sekcja 6.1) — base 15000, sf 4.5/5.5/7%, monthly 4000
-- `s5mplus` (5M+)
+## Backlog
 
-Pełna tabela do uzupełnienia: [Appendix C](../OFERTA/BACKEND_SPEC.md#appendix-c--pricing-seed-segments--pricing_config).
-
-## Następne PR-y
-
-| PR | Zakres | Zależność |
-|---|---|---|
-| ~~#2~~ | ~~`lib/pricing/` + 26 testów Vitest~~ ✅ DONE (działa z `s5m`; pozostałe segmenty wpadają we floor) | — |
-| ~~#3~~ | ~~API CRUD `/api/offers` + walidacja Zod~~ ✅ DONE (50 testów łącznie) | — |
-| #4 | Public endpoint `/o/[token]` (render + accept) | #3 |
-| #5 | Email templates (Resend) + `POST /offers/:id/send` | #4 |
-| #6 | Edge Function `generate-pdf` | #5 |
-| #7 | Webhook queue + cron consumer | #6 |
-| #8 | Admin dashboard + simulator + forecast | #7 |
-| #9 | RODO UI (consent, deletion request, export) | #8 |
+Patrz [docs/PLANY_ROZWOJU.md](docs/PLANY_ROZWOJU.md) (post-MVP roadmap)
+i [docs/FRONTEND_POLISH_BACKLOG.md](docs/FRONTEND_POLISH_BACKLOG.md) (UX polish).
