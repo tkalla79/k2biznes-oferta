@@ -3,34 +3,77 @@
  * Per BACKEND_SPEC sekcja 12.1 — Sentry NIE wysyla emailow, imion, tokenow.
  *
  * Pokrycie:
- * - event.request.url (token w sciezce)
+ * - event.request.url + query_string (token w sciezce + JWT/access_token w query)
  * - event.message
  * - event.exception.values[].value
- * - event.breadcrumbs[] (URLs + messages — default integrations zbieraja fetch/console/navigation)
- * - event.user (defensive — zerujemy, nawet jak ktos zrobi setUser)
+ * - event.exception.values[].stacktrace.frames[].vars (rekurencyjnie, depth-limited)
+ * - event.breadcrumbs[] (URLs + data, rekurencyjnie)
+ * - event.user (defensive zerowanie nawet po setUser)
  * - event.contexts.trace.data["http.url"]
- * - event.extra (best effort)
+ * - event.extra (rekurencyjnie)
  * - cookies + auth headers (server only)
  */
 import type { ErrorEvent, EventHint } from '@sentry/nextjs';
 
-// Token w URL `/o/<24-byte-base64url>`
-const TOKEN_RE = /\/o\/[A-Za-z0-9_-]{8,}/g;
-const TOKEN_REDACT = '/o/[REDACTED]';
+// Token w URL `/o/<token>` — zawezone {8,} dla prod (24-byte base64url ≈ 32),
+// ale fallback dla wszystkiego po /o/ rowniez (test/staging fixtures z krotkimi).
+const TOKEN_PATH_RE = /\/o\/[^/?#\s]+/g;
+const TOKEN_PATH_REDACT = '/o/[REDACTED]';
 
-// Email (broader niz prosty — pokrywa +tags, IDN-friendly, polskie znaki w local part)
-const EMAIL_RE = /[a-zA-Z0-9._%+'-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+// Email — Unicode-aware (polskie znaki w local part jak `kowalśki@firma.pl`)
+const EMAIL_RE = /[\p{L}\p{N}._%+'-]+@[\p{L}\p{N}.-]+\.[\p{L}]{2,}/gu;
 const EMAIL_REDACT = '[EMAIL]';
 
-// Hex/JWT-like tokens w URL query (np. ?token=abc123, ?code=xyz, ?__pdfBypass=...)
-const QUERY_TOKEN_RE = /([?&](?:token|code|sig|__pdfBypass|__pdfTs)=)[^&#]+/gi;
+// Query-string tokens — wildcard pokrywa access_token, refresh_token, id_token,
+// session_key, api_key, csrf_token etc. + nasze __pdfBypass/__pdfTs.
+// Wymaga `?` lub `&` przed param name; param=value oddzielone `=`.
+const QUERY_TOKEN_RE =
+  /([?&](?:[\w-]*(?:token|key|secret|password|auth|session|code|sig)[\w-]*|__pdf\w+)=)[^&#\s]+/gi;
 const QUERY_TOKEN_REDACT = '$1[REDACTED]';
+
+// Klucze ktore zawsze redactujemy (frame.vars, breadcrumb.data, extra)
+const SENSITIVE_KEY_RE = /email|token|pass|secret|key|auth|cookie|session/i;
+
+// Depth limit dla rekurencyjnego scrub — zapobiega cyclic refs + perf blowup.
+const MAX_DEPTH = 4;
 
 function scrubString(s: string): string {
   return s
-    .replace(TOKEN_RE, TOKEN_REDACT)
+    .replace(TOKEN_PATH_RE, TOKEN_PATH_REDACT)
     .replace(QUERY_TOKEN_RE, QUERY_TOKEN_REDACT)
     .replace(EMAIL_RE, EMAIL_REDACT);
+}
+
+/**
+ * Rekurencyjny scrub dla obiektow (frame.vars, breadcrumb.data, extra).
+ * - Klucze pasujace SENSITIVE_KEY_RE → '[REDACTED]'
+ * - Stringi → scrubString
+ * - Obiekty/Arrays → rekurencja (depth-limited)
+ * Mutuje in-place dla performance.
+ */
+function scrubObject(obj: Record<string, unknown> | unknown[], depth: number): void {
+  if (depth > MAX_DEPTH) return;
+  if (Array.isArray(obj)) {
+    for (let i = 0; i < obj.length; i++) {
+      const v = obj[i];
+      if (typeof v === 'string') {
+        obj[i] = scrubString(v);
+      } else if (v && typeof v === 'object') {
+        scrubObject(v as Record<string, unknown> | unknown[], depth + 1);
+      }
+    }
+    return;
+  }
+  for (const k of Object.keys(obj)) {
+    const v = obj[k];
+    if (SENSITIVE_KEY_RE.test(k)) {
+      obj[k] = '[REDACTED]';
+    } else if (typeof v === 'string') {
+      obj[k] = scrubString(v);
+    } else if (v && typeof v === 'object') {
+      scrubObject(v as Record<string, unknown> | unknown[], depth + 1);
+    }
+  }
 }
 
 export function scrubEvent(event: ErrorEvent, _hint?: EventHint): ErrorEvent {
@@ -40,7 +83,7 @@ export function scrubEvent(event: ErrorEvent, _hint?: EventHint): ErrorEvent {
     delete event.request.cookies;
     if (event.request.headers && typeof event.request.headers === 'object') {
       for (const key of Object.keys(event.request.headers)) {
-        if (/auth|cookie|token|key/i.test(key)) {
+        if (SENSITIVE_KEY_RE.test(key)) {
           (event.request.headers as Record<string, string>)[key] = '[REDACTED]';
         }
       }
@@ -53,65 +96,43 @@ export function scrubEvent(event: ErrorEvent, _hint?: EventHint): ErrorEvent {
   // Strip message
   if (event.message) event.message = scrubString(event.message);
 
-  // Strip exception values + stack frame vars (lokalne zmienne ktore Sentry zalapuje)
+  // Strip exception values + stack frame vars (rekurencyjny)
   if (event.exception?.values) {
     for (const ex of event.exception.values) {
       if (ex.value) ex.value = scrubString(ex.value);
       if (ex.stacktrace?.frames) {
         for (const frame of ex.stacktrace.frames) {
-          // vars: locals z funkcji — moga zawierac email/token/password
           if (frame.vars && typeof frame.vars === 'object') {
-            for (const k of Object.keys(frame.vars)) {
-              if (/email|token|pass|secret|key/i.test(k)) {
-                (frame.vars as Record<string, unknown>)[k] = '[REDACTED]';
-              } else if (typeof frame.vars[k] === 'string') {
-                (frame.vars as Record<string, unknown>)[k] = scrubString(
-                  frame.vars[k] as string,
-                );
-              }
-            }
+            scrubObject(frame.vars as Record<string, unknown>, 0);
           }
         }
       }
     }
   }
 
-  // Strip breadcrumbs — default integrations zbieraja navigation/fetch/xhr/console
+  // Strip breadcrumbs (rekurencyjny przez data)
   if (event.breadcrumbs) {
     for (const bc of event.breadcrumbs) {
       if (bc.message) bc.message = scrubString(bc.message);
       if (bc.data && typeof bc.data === 'object') {
-        for (const k of Object.keys(bc.data)) {
-          if (typeof bc.data[k] === 'string') {
-            bc.data[k] = scrubString(bc.data[k] as string);
-          }
-        }
+        scrubObject(bc.data as Record<string, unknown>, 0);
       }
     }
   }
 
-  // Strip event.user — defensive zerowanie nawet gdy ktos zrobil setUser
+  // Defensive zerowanie event.user (nawet gdy ktos zrobil setUser)
   if (event.user) {
     event.user = { id: event.user.id ? '[REDACTED]' : undefined };
   }
 
-  // Trace context http.url
+  // Trace context (rekurencyjnie)
   if (event.contexts?.trace?.data && typeof event.contexts.trace.data === 'object') {
-    const data = event.contexts.trace.data as Record<string, unknown>;
-    for (const k of Object.keys(data)) {
-      if (typeof data[k] === 'string') {
-        data[k] = scrubString(data[k] as string);
-      }
-    }
+    scrubObject(event.contexts.trace.data as Record<string, unknown>, 0);
   }
 
-  // Extras best-effort
+  // Extras (rekurencyjnie)
   if (event.extra && typeof event.extra === 'object') {
-    for (const k of Object.keys(event.extra)) {
-      if (typeof event.extra[k] === 'string') {
-        event.extra[k] = scrubString(event.extra[k] as string);
-      }
-    }
+    scrubObject(event.extra as Record<string, unknown>, 0);
   }
 
   return event;

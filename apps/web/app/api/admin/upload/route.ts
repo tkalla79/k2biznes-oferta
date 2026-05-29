@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     if (!ext) {
       throw new ApiError(
         'VALIDATION_ERROR',
-        `Niedozwolony typ pliku: ${mime}. Dozwolone: jpeg, png, webp, svg.`,
+        `Niedozwolony typ pliku: ${mime}. Dozwolone: jpeg, png, webp.`,
         415,
       );
     }
