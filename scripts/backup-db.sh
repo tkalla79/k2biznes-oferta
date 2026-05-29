@@ -50,14 +50,14 @@ mkdir -p "$BACKUP_DIR"
 TIMESTAMP=$(date +%Y-%m-%d-%H%M)
 OUTPUT_FILE="$BACKUP_DIR/$TIMESTAMP-db.sql.gz"
 
-CONN_STR="host=aws-1-eu-central-1.pooler.supabase.com port=5432 user=postgres.$PROJECT_REF dbname=postgres sslmode=require"
+# URI format dziala z session poolerem (5432); host=... format mial issue z SCRAM auth
+CONN_URI="postgresql://postgres.$PROJECT_REF:$DB_PASS@aws-1-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require"
 
 echo "→ Backup prod-DB ($PROJECT_REF) → $OUTPUT_FILE"
-echo "  Pooler: aws-1-eu-central-1.pooler.supabase.com:5432"
+echo "  Pooler: aws-1-eu-central-1.pooler.supabase.com:5432 (session)"
 
-# pg_dump z hasłem przez env (bezpieczniej niz w URL)
-PGPASSWORD="$DB_PASS" "$PG_DUMP" \
-  "$CONN_STR" \
+"$PG_DUMP" \
+  "$CONN_URI" \
   --no-owner \
   --no-acl \
   --clean \

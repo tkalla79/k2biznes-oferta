@@ -75,12 +75,13 @@ if [[ "$CONFIRM" != "YES" ]]; then
   exit 0
 fi
 
-CONN_STR="host=aws-1-eu-central-1.pooler.supabase.com port=5432 user=postgres.$PROJECT_REF dbname=postgres sslmode=require"
+# URI format dziala z session poolerem (5432) — patrz backup-db.sh
+CONN_URI="postgresql://postgres.$PROJECT_REF:$DB_PASS@aws-1-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require"
 
 echo ""
 echo "→ Restore z $DUMP_FILE..."
 
-gunzip -c "$DUMP_FILE" | PGPASSWORD="$DB_PASS" "$PSQL" "$CONN_STR" -v ON_ERROR_STOP=1
+gunzip -c "$DUMP_FILE" | "$PSQL" "$CONN_URI" -v ON_ERROR_STOP=1
 
 echo ""
 echo "✓ Restore OK. Verify:"
