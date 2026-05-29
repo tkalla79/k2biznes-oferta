@@ -72,15 +72,17 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
       }),
     ]);
 
-    // Email do konsultanta — best-effort (sekcja 8.3)
-    notifyConsultantOfferRejected(updated).catch((e) =>
-      console.error('[reject] notify consultant failed:', e.message),
-    );
-
-    // CRM webhook 'offer.rejected' — best-effort enqueue (sekcja 10)
-    enqueueOfferWebhook({ event: 'offer.rejected', offer: updated }).catch((e) =>
-      console.error('[reject] enqueue webhook failed:', e.message),
-    );
+    // Email do konsultanta + CRM webhook enqueue — best-effort (sekcja 8.3 + 10).
+    // Awaited przed return — patrz accept/route.ts docstring (Vercel serverless
+    // zabija async work po response, wiec fire-and-forget nie dziala w prod).
+    await Promise.allSettled([
+      notifyConsultantOfferRejected(updated).catch((e: Error) =>
+        console.error('[reject] notify consultant failed:', e.message),
+      ),
+      enqueueOfferWebhook({ event: 'offer.rejected', offer: updated }).catch((e: Error) =>
+        console.error('[reject] enqueue webhook failed:', e.message),
+      ),
+    ]);
 
     return NextResponse.json({
       data: {
