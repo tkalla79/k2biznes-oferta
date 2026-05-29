@@ -83,13 +83,14 @@ export async function middleware(req: NextRequest) {
       if (!r.success) return rateLimited(r);
     } else if (pathname === '/api/auth/request-data-deletion') {
       // Sekcja 11.4 — public endpoint piszący do DB + wysyłka emaila. 5/24h/IP
-      // chroni przed spamem (vs auth bucket 1000/min byłby zbyt liberalny).
-      const r = await checkRateLimit('restrictive', `ip:${ip}`);
+      // chroni przed spamem. Key z prefiksem endpointu zeby nie kolidowal
+      // z forgot-password (review post-PR#28).
+      const r = await checkRateLimit('restrictive', `data-del:ip:${ip}`);
       if (!r.success) return rateLimited(r);
     } else if (pathname === '/api/auth/forgot-password') {
       // Public endpoint wysylajacy email — restrictive zeby uniknac
-      // email-bombing klientow z naszej domeny.
-      const r = await checkRateLimit('restrictive', `ip:${ip}`);
+      // email-bombing klientow z naszej domeny. Osobny key od data-del.
+      const r = await checkRateLimit('restrictive', `forgot-pwd:ip:${ip}`);
       if (!r.success) return rateLimited(r);
     } else if (pathname.startsWith('/api/public/offers/') && pathname.endsWith('/pdf')) {
       // PR #4 review: PDF render to ~17s CPU. 5/min/IP zamiast 100/min chroni

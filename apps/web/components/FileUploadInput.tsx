@@ -17,7 +17,7 @@ export default function FileUploadInput({
   value,
   onChange,
   folder,
-  accept = 'image/jpeg,image/png,image/webp,image/svg+xml',
+  accept = 'image/jpeg,image/png,image/webp',
   label = 'Plik (upload)',
   previewUrl,
 }: Props) {
