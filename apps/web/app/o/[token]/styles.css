@@ -53,6 +53,10 @@ main { display: block; }
   padding: 140px var(--gutter) 80px;
   position: relative;
 }
+/* Polish #1 (FRONTEND_POLISH_BACKLOG 2026-05-25): intro po hero ma mniejszy
+   top padding. Hero ma bottom 80px → intro mial 140px = razem 220px pustki.
+   Teraz hero 80 + intro 64 = 144px, bardziej naturalna kontynuacja. */
+.section.intro { padding-top: 64px; }
 .section-head { margin-bottom: 64px; max-width: 840px; }
 .section-kicker {
   display: inline-flex; align-items: center; gap: 10px;
@@ -411,11 +415,13 @@ main { display: block; }
 /* ============================================================
    PROGRAM
    ============================================================ */
+/* Polish #2 (FRONTEND_POLISH_BACKLOG 2026-05-25): usunieto granatowy box.
+   Zachowany red accent (border-left) jako delikatny visual marker. */
 .program-hero {
-  background: #1B2A4A;
-  border-left: 3px solid #CC0000;
-  border-radius: 0 12px 12px 0;
-  padding: 28px 32px;
+  background: transparent;
+  border-left: 3px solid var(--red);
+  border-radius: 0;
+  padding: 4px 0 4px 24px;
   overflow: hidden;
   position: relative;
   margin-bottom: 80px;
@@ -449,7 +455,7 @@ main { display: block; }
 }
 .program-separator {
   height: 1px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(42, 50, 75, 0.1); /* dark navy na 10% — visible na bialym tle */
   margin: 20px 0;
   position: relative;
   z-index: 1;
@@ -471,12 +477,13 @@ main { display: block; }
   min-width: 0;
 }
 .bullet .marker {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--red);
   font-size: 16px;
   flex-shrink: 0;
+  font-weight: 700;
 }
 .bullet .text {
-  color: #FFFFFF;
+  color: var(--ink);
   font-size: 13px;
   line-height: 1.5;
   flex: 1;
