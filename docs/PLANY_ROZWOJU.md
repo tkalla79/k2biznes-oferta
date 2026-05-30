@@ -64,6 +64,62 @@ Do tego czasu — Supabase Studio SQL Editor wystarcza dla rzadkich edycji.
 
 ---
 
+## 2. Edytowalne `programBullets` per oferta
+
+**Dodane:** 2026-05-30
+**Status:** 💡 pomysł
+**Priorytet:** średni (UX polish, ale wymaga schema change)
+
+### Kontekst
+
+W sekcji `02 · Proponowane rozwiązanie` w `/o/[token]` renderowane są 4 bullety
+korzyści programu. Obecnie:
+- Jeśli konsultant wypełni `programDescription` (Tiptap rich-text — PR-D #25)
+  → renderuje się jako HTML
+- W przeciwnym razie → fallback do hardcoded `PROGRAM_BULLETS` w `staticContent.ts`
+  ("Wysoka intensywność…", "Refundacja 80%", …)
+
+User feedback (FRONTEND_POLISH_BACKLOG.md #2): chce dedykowane pole `programBullets`
+(string[]) zamiast wymuszać rich-text dla zwykłej listy.
+
+### Motywacja
+
+- Tiptap UX dla zwykłej listy "1 linia per bullet" to overkill (user musi
+  zaznaczać typ listy, formatowanie etc.)
+- Hardcoded `PROGRAM_BULLETS` w `staticContent.ts` wymaga deploya przy zmianie
+  treści dla nowego programu (np. inny program FENG = inne bullety)
+- Per-oferta override pozwala na cherry-pick bulletów dla konkretnego klienta
+
+### Szkic implementacji
+
+**Schema:**
+- Dodać `programBullets: string[]` (4 elementy) do `offers.content` jsonb
+- Zod validation w `OfferContentSchema`
+- Bez DB migration (content jest jsonb)
+
+**Editor:**
+- 4 pola tekstowe (lub 1 textarea z line-per-bullet) w `/admin/offers/[id]/edit`
+- Domyślnie pre-fill z `PROGRAM_BULLETS` dla wstecznej kompatybilności
+- Walidacja: max 80 znaków per bullet, min 1 max 6 bulletów
+
+**Public view (`/o/[token]/page.tsx`):**
+- Zamiast `PROGRAM_BULLETS` używaj `content.programBullets ?? PROGRAM_BULLETS`
+- Reszta layoutu bez zmian (CSS już naprawiony 2026-05-30 — usunięto granatowy box)
+
+**Estymacja:** 1-1.5h (schema + walidacja + UI + test).
+
+### Decyzja "kiedy"
+
+Trigger:
+- Tomek pisze drugą ofertę z innym programem (np. NCBR zamiast FENG) i widzi że
+  bullety nie pasują → bug-driven priority
+- Lub: pierwsza realna kampania marketingowa dla różnych programów
+
+Do tego czasu — `programDescription` (Tiptap) daje pełną elastyczność tylko
+trochę droższym UX.
+
+---
+
 ## (template — następne pomysły dopisuj poniżej)
 
 <!--
