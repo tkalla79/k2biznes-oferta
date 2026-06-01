@@ -706,7 +706,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
           <div>
             <img src="/branding-v2/k2-logo.png" alt="K2" className="f-logo" />
             <p className="f-tag">
-              Projekty badawczo-rozwojowe · Projekty inwestycyjne · Ulga B+R i&nbsp;IP BOX
+              Projekty badawczo-rozwojowe · Projekty inwestycyjne · Ulga B+R i&nbsp;IP&nbsp;BOX
             </p>
           </div>
           <div className="f-cols">

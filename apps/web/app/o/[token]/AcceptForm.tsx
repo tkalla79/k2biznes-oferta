@@ -32,7 +32,8 @@ type Props = {
 };
 
 const fmt = (n: number) =>
-  n.toLocaleString('pl-PL', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' zł';
+  // NBSP ( ) przed "zł" zeby "15 000 zł" nie lamalo sie na koniec linii.
+  n.toLocaleString('pl-PL', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' zł';
 
 /**
  * Formularz akceptacji oferty — pasuje do `.accept-form` w nowym designie
