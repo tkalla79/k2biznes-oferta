@@ -28,6 +28,7 @@
 }
 
 * { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 html, body { margin: 0; padding: 0; }
 body {
   font-family: var(--sans);
@@ -35,7 +36,7 @@ body {
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
   line-height: 1.55;
-  font-size: 17px;
+  font-size: 20px;  /* Polish 2026-06-01: bylo 17px, podniesione dla czytelnosci. */
 }
 img { max-width: 100%; display: block; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
@@ -1569,3 +1570,26 @@ main { display: block; }
   .pdf-download span,
   .pdf-download { font-size: 12px; padding: 6px 10px; }
 }
+
+/* ============================================================
+   POLISH 2026-06-01: KOMPAKTOWE ODSTĘPY (z Claude Design iteration)
+   Sekcje sa krotsze o ~50% (140->72px top, 80->48px bottom). Hero
+   bez wymuszonej 100vh — pozwala krotszej ofercie nie miec pustych
+   sekcji. Calosc: mniej skroll, gestsza tresc.
+   ============================================================ */
+.section { padding-top: 72px; padding-bottom: 48px; }
+.section.intro { padding-top: 72px; }
+.section-head { margin-bottom: 36px; }
+.hero { padding-top: 120px; padding-bottom: 56px; min-height: auto; }
+.intro-grid { gap: 48px; }
+.program-hero,
+.alt-grid,
+.cennik .calc,
+.timeline,
+.after-grid,
+.energies,
+.stats,
+.faq-list,
+.case-wrap { margin-bottom: 48px; }
+.program-top { margin-bottom: 14px; }
+.needs-list li { padding: 14px 0; }
