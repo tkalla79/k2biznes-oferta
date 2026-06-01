@@ -35,7 +35,7 @@ body {
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
   line-height: 1.55;
-  font-size: 17px;
+  font-size: 20px;  /* Polish 2026-06-01: bylo 17px, podniesione dla czytelnosci. */
 }
 img { max-width: 100%; display: block; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
