@@ -384,7 +384,16 @@ export default async function OfferPage({ params, searchParams }: Props) {
             {variants.map((v) => {
               const selected = dto.selectedVariant === v.id;
               return (
-                <article key={v.id} className={`variant ${selected ? 'selected' : ''}`}>
+                // Klik na variant card -> scroll do sekcji akceptacji (gdzie klient
+                // moze wybrac konkretny wariant). CSS .variant:hover juz dziala.
+                // Polish 2026-06-01: bylo <article> bez onClick — klik byl no-op
+                // mimo cursor:pointer.
+                <a
+                  key={v.id}
+                  href="#akcept"
+                  className={`variant ${selected ? 'selected' : ''}`}
+                  aria-label={`${v.name} — przejdz do akceptacji oferty`}
+                >
                   <header>
                     <div className="v-id">{v.name}</div>
                     <div className="v-tag">{v.tag}</div>
@@ -420,7 +429,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
                       </div>
                     ))}
                   </div>
-                </article>
+                </a>
               );
             })}
           </div>
