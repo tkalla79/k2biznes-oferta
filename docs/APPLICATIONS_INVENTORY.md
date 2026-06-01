@@ -140,23 +140,29 @@ Wszystkie sekrety z `.env.example` muszą tam być (jak w lokalnym `.env.product
 |---|---|
 | **URL** | https://resend.com/domains |
 | **Account** | t.kalla@k2biznes.pl |
-| **Domain** | `k2biznes.pl` (verified) |
+| **Domain** | `k2biznes.pl` ✅ verified (2026-06-01, region EU) |
 | **Plan** | Free |
 | **Limity** | 3000 emails/mc, 100/dzień |
+| **Sender** | `K2Biznes <oferty@k2biznes.pl>` (env `EMAIL_FROM`) |
 
 **Do czego służy:**
-- Transactional email z `noreply@k2biznes.pl`:
-  - Reset password (Supabase Auth → Resend webhook)
-  - Magic link login (jeśli kiedyś enable)
-  - GDPR notification "Twoje dane zostały usunięte" (po request-data-deletion endpoint)
+- Transactional email z `oferty@k2biznes.pl`:
+  - Oferta wysłana do klienta (`OfferSentToClient`)
+  - Notyfikacja konsultanta po accept/reject (`OfferAcceptedConsultant`, `OfferRejectedConsultant`)
+  - Reset password (Supabase Auth → Resend)
+  - GDPR notification "Twoje dane zostały usunięte"
   - GDPR clause updates (kiedy zmienia się version)
 
-**DNS rekordy (na `k2biznes.pl` apex):**
-- DKIM: `resend._domainkey` TXT
-- SPF: TXT `v=spf1 include:_spf.resend.com ~all`
-- MX: nie wymagane (Resend tylko sendsy)
+**DNS rekordy ustawione w CreaTech panel DNS (2026-06-01):**
+| Type | Name | Content | Priority |
+|---|---|---|---|
+| TXT | `resend._domainkey` | `p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDZm0...IDAQAB` (DKIM key) | — |
+| MX | `send` | `feedback-smtp.eu-west-1.amazonses.com` | 10 |
+| TXT | `send` | `v=spf1 include:amazonses.com ~all` | — |
 
-Rekordy ustawione w **CreaTech.pl panel DNS** (sekcja 8).
+Wszystkie 3 records na subdomenie `send.k2biznes.pl` — nie kolidują z M365 SPF/MX na apex `k2biznes.pl`.
+
+**Historia:** do 2026-06-01 wszystkie maile szły z `onboarding@resend.dev` (fallback Resend sandbox) bo domena była dodana ale nie verified. Naprawione przez dodanie 3 records DNS w CreaTech panel.
 
 **Co przestaje działać jak padnie:**
 - Reset password niemożliwy
@@ -266,8 +272,9 @@ Rekordy ustawione w **CreaTech.pl panel DNS** (sekcja 8).
 - DNS rekordy apex `k2biznes.pl`:
   - `A` rekord do CMS (firmowa strona — NIE Oferta)
   - `MX` do Microsoft 365 (email)
-  - `TXT` DKIM Resend (`resend._domainkey`)
-  - `TXT` SPF (`v=spf1 include:_spf.resend.com include:spf.protection.outlook.com ~all`)
+  - `TXT` DKIM Resend (`resend._domainkey`) → patrz sekcja 4 Resend
+  - `MX` `send` (Resend bounces → `feedback-smtp.eu-west-1.amazonses.com`)
+  - `TXT` `send` (Resend SPF: `v=spf1 include:amazonses.com ~all`)
   - `CNAME` `oferta` → `cname.vercel-dns.com` (Vercel)
 - Registar (renewal co 12 mies. — set auto-renew!)
 
@@ -369,9 +376,10 @@ curl https://oferta.k2biznes.pl/api/health  # {"ok":true, "db":{"ok":true}}
 # 4. UptimeRobot zielony
 #    Sprawdz Dashboard → "oferta.k2biznes.pl" = green
 
-# 5. DKIM/SPF Resend
-dig TXT resend._domainkey.k2biznes.pl  # powinno wrócić DKIM key
-dig TXT k2biznes.pl                     # powinno wrócić SPF rekord
+# 5. DKIM/SPF Resend (3 records na subdomenie send.)
+dig TXT resend._domainkey.k2biznes.pl  # DKIM (p=MIGf...)
+dig MX  send.k2biznes.pl               # 10 feedback-smtp.eu-west-1.amazonses.com
+dig TXT send.k2biznes.pl               # v=spf1 include:amazonses.com ~all
 
 # 6. Sentry events ostatnie 7 dni
 #    Sprawdz Dashboard → Issues — nie ma nowych ze score > medium
