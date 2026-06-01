@@ -22,6 +22,7 @@ import FaqAccordion from './FaqAccordion';
 import ScopeAccordion from './ScopeAccordion';
 import ProcessTimeline from './ProcessTimeline';
 import AcceptForm from './AcceptForm';
+import PricingVariants from './PricingVariants';
 import { sanitizeRichText } from '@/lib/richtext';
 import {
   NEEDS,
@@ -380,73 +381,16 @@ export default async function OfferPage({ params, searchParams }: Props) {
             </div>
           </div>
 
-          <div className="variants">
-            {variants.map((v) => {
-              const selected = dto.selectedVariant === v.id;
-              return (
-                // Klik na variant card -> scroll do sekcji akceptacji (gdzie klient
-                // moze wybrac konkretny wariant). CSS .variant:hover juz dziala.
-                // Polish 2026-06-01: bylo <article> bez onClick — klik byl no-op
-                // mimo cursor:pointer.
-                <a
-                  key={v.id}
-                  href="#akcept"
-                  className={`variant ${selected ? 'selected' : ''}`}
-                  aria-label={`${v.name} — przejdz do akceptacji oferty`}
-                >
-                  <header>
-                    <div className="v-id">{v.name}</div>
-                    <div className="v-tag">{v.tag}</div>
-                    {selected && <div className="v-selected">✓ Wybrany</div>}
-                  </header>
-                  <div className="v-rate">
-                    <strong>{(v.sfPct * 100).toFixed(1)}%</strong>
-                    <span>wartości dofinansowania</span>
-                  </div>
-                  <div className="v-stack">
-                    <div className="v-row">
-                      <span>Opłata wstępna</span>
-                      <strong>{fmt(v.base)}</strong>
-                    </div>
-                    <div className="v-row big">
-                      <span>Wynagrodzenie wynikowe</span>
-                      <strong>{fmt(v.sfAmount)}</strong>
-                    </div>
-                    <div className="v-divider" />
-                    <div className="v-row total">
-                      <span>Razem (szacunkowo)</span>
-                      <strong>{fmt(v.total)}</strong>
-                    </div>
-                  </div>
-                  <div className="v-schedule">
-                    <div className="v-sched-label">Harmonogram płatności</div>
-                    {(v.payment ?? []).map((p, i) => (
-                      <div key={i} className="v-sched-row">
-                        <div className="v-sched-bar" style={{ width: `${p.pct}%` }} />
-                        <div className="v-sched-text">
-                          <strong>{p.pct}%</strong> <span>{p.when}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </a>
-              );
-            })}
-          </div>
-
-          {selectedVariant && (
-            <div className="exec-fee">
-              <div>
-                <div className="ef-kicker">{dto.execFee.kicker}</div>
-                <h4>{dto.execFee.title}</h4>
-                <p style={{ whiteSpace: 'pre-wrap' }}>{dto.execFee.desc}</p>
-              </div>
-              <div className="ef-price">
-                <strong>{fmt(dto.execFee.monthly ?? selectedVariant.monthly)}</strong>
-                <span>netto / miesiąc</span>
-              </div>
-            </div>
-          )}
+          <PricingVariants
+            variants={variants}
+            initialSelected={dto.selectedVariant ?? ''}
+            execFee={{
+              kicker: dto.execFee.kicker,
+              title: dto.execFee.title,
+              desc: dto.execFee.desc,
+              monthly: dto.execFee.monthly ?? null,
+            }}
+          />
 
           {/* Podsumowanie (content.footer z OfferForm) — pojawia się pod pricingiem
               jeśli konsultant wpisał. Plain text z line-breaks. */}
