@@ -69,7 +69,13 @@ export function handleError(e: unknown): NextResponse<ApiErrorBody> {
 export const Errors = {
   unauthorized: (msg = 'Brak sesji.') => new ApiError('UNAUTHORIZED', msg, 401),
   forbidden: (msg = 'Brak uprawnień.') => new ApiError('FORBIDDEN', msg, 403),
-  notFound: (msg = 'Zasób nie istnieje.') => new ApiError('OFFER_NOT_FOUND', msg, 404),
+  // H11 audit: generic 404 dla dowolnego zasobu (users, FAQ, programs, etc.).
+  // Wcześniej zwracał OFFER_NOT_FOUND dla wszystkiego → frontend sprawdzający
+  // ten kod (np. redirect do listy ofert) trafiał na false-positive z /api/admin/users.
+  notFound: (msg = 'Zasób nie istnieje.') => new ApiError('NOT_FOUND', msg, 404),
+  // Dedykowany dla ofert — public offer view + offer routes.
+  offerNotFound: (msg = 'Oferta nie istnieje lub została usunięta.') =>
+    new ApiError('OFFER_NOT_FOUND', msg, 404),
   conflictStatus: (msg = 'Niedopuszczalny status oferty.') =>
     new ApiError('OFFER_INVALID_STATUS', msg, 409),
   expired: (msg = 'Link wygasł.') => new ApiError('OFFER_EXPIRED', msg, 410),

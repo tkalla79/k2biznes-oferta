@@ -80,6 +80,29 @@ export default async function OffersListPage({
   const total = count ?? 0;
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  // H16 audit: wykryj oferty z nieudaną wysyłką emaila. Status='sent' commitowany
+  // PRZED próbą Resend — gdy Resend zwróci 5xx, offer_events ma email_sent
+  // z outcome='failed', ale admin myśli że wysłał. Tu zbieramy te oferty żeby
+  // pokazać czerwony marker „email nie dotarł".
+  const offerIds = (offers ?? []).map((o) => o.id);
+  const failedEmailOfferIds = new Set<string>();
+  if (offerIds.length > 0) {
+    const { data: emailEvents } = await sb
+      .from('offer_events')
+      .select('offer_id, payload, created_at')
+      .in('offer_id', offerIds)
+      .eq('type', 'email_sent')
+      .order('created_at', { ascending: false });
+    // Najnowszy email_sent per oferta — jeśli failed, flagujemy.
+    const seen = new Set<string>();
+    for (const ev of emailEvents ?? []) {
+      if (seen.has(ev.offer_id)) continue;
+      seen.add(ev.offer_id);
+      const outcome = (ev.payload as { outcome?: string } | null)?.outcome;
+      if (outcome === 'failed') failedEmailOfferIds.add(ev.offer_id);
+    }
+  }
+
   return (
     <main style={main}>
       <header style={topbar}>
@@ -136,6 +159,11 @@ export default async function OffersListPage({
                   <td style={td}>
                     <div style={offerNumber}>{o.offer_number}</div>
                     <div style={clientNameStyle}>{o.client_name}</div>
+                    {failedEmailOfferIds.has(o.id) && (
+                      <div style={emailFailedBadge} title="Ostatnia próba wysyłki emaila nie powiodła się. Wyślij ofertę ponownie.">
+                        ⚠ email nie dotarł
+                      </div>
+                    )}
                   </td>
                   <td style={tdMuted}>{o.program_label}</td>
                   <td style={tdRight}>{fmtPLN(Number(o.project_value))}</td>
@@ -372,6 +400,18 @@ const offerNumber: React.CSSProperties = {
   color: '#6b7a92',
 };
 const clientNameStyle: React.CSSProperties = { fontWeight: 500, marginTop: 2 };
+const emailFailedBadge: React.CSSProperties = {
+  marginTop: 4,
+  display: 'inline-block',
+  fontSize: 11,
+  fontWeight: 600,
+  color: '#A8140F',
+  background: '#FCE8E6',
+  border: '1px solid #F5C6C2',
+  borderRadius: 4,
+  padding: '1px 6px',
+  cursor: 'help',
+};
 const dateLine: React.CSSProperties = { fontSize: 12 };
 const mutedDash: React.CSSProperties = { color: '#cbd5e1' };
 

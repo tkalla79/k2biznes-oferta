@@ -30,7 +30,7 @@ export async function fetchPublicOffer(
   opts: { allowDraft?: boolean } = {},
 ): Promise<PublicOfferContext> {
   if (!token || token.length < 20) {
-    throw Errors.notFound('Niepoprawny token oferty.');
+    throw Errors.offerNotFound("Niepoprawny token oferty.");
   }
 
   const sb = createAdminClient();
@@ -41,12 +41,12 @@ export async function fetchPublicOffer(
     .maybeSingle();
 
   if (error) throw new ApiError('INTERNAL_ERROR', error.message, 500);
-  if (!data || data.deleted_at) throw Errors.notFound();
+  if (!data || data.deleted_at) throw Errors.offerNotFound();
 
   if (data.status === 'draft' && !opts.allowDraft) {
     // Konsultant jeszcze nie wysłał — token istnieje, ale link nieaktywny.
     // `allowDraft` = preview konsultanta z sesji (sprawdzane przez caller).
-    throw Errors.notFound('Oferta jeszcze nie została wysłana.');
+    throw Errors.offerNotFound('Oferta jeszcze nie została wysłana.');
   }
 
   if (data.expires_at && new Date(data.expires_at).getTime() < Date.now()) {
