@@ -7,6 +7,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { handleError, ApiError, Errors } from '@/lib/api/error';
 import { requireAdmin } from '@/lib/auth/session';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 import { ContactPersonUpdate } from '@/lib/validation/catalog';
 import type { Database } from '@k2/database/types';
 
@@ -19,7 +20,7 @@ const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,79}$/;
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireAdmin();
+    const session = await requireAdmin();
     if (!SLUG_RE.test(params.id)) {
       throw new ApiError('VALIDATION_ERROR', 'Niepoprawny slug w URL.', 422);
     }
@@ -51,6 +52,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       if (error.code === 'PGRST116') throw Errors.notFound('Osoba kontaktowa nie istnieje.');
       throw new ApiError('INTERNAL_ERROR', error.message, 500);
     }
+    await logAudit({
+      action: 'contact_person.update',
+      resourceType: 'contact_person',
+      resourceId: params.id,
+      actorId: session.userId,
+      actorEmail: session.email,
+      after: { fields: Object.keys(update) },
+    });
     return NextResponse.json({ data });
   } catch (e) {
     return handleError(e);
@@ -59,7 +68,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireAdmin();
+    const session = await requireAdmin();
     if (!SLUG_RE.test(params.id)) {
       throw new ApiError('VALIDATION_ERROR', 'Niepoprawny slug w URL.', 422);
     }
@@ -70,6 +79,14 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
       .eq('id', params.id);
     if (error) throw new ApiError('INTERNAL_ERROR', error.message, 500);
     if (!count) throw Errors.notFound('Osoba kontaktowa nie istnieje.');
+    await logAudit({
+      action: 'contact_person.delete',
+      resourceType: 'contact_person',
+      resourceId: params.id,
+      actorId: session.userId,
+      actorEmail: session.email,
+      before: { id: params.id },
+    });
     return NextResponse.json({ data: { ok: true, id: params.id } });
   } catch (e) {
     return handleError(e);

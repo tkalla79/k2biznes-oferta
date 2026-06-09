@@ -5,6 +5,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { handleError, ApiError } from '@/lib/api/error';
 import { requireAdmin } from '@/lib/auth/session';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 import { ContactPersonInput, slugify } from '@/lib/validation/catalog';
 
 export const dynamic = 'force-dynamic';
@@ -28,7 +29,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    await requireAdmin();
+    const session = await requireAdmin();
     const body = ContactPersonInput.parse(await req.json());
     const id = body.id ?? slugify(body.name);
     if (!id) throw new ApiError('VALIDATION_ERROR', 'Nie udało się wygenerować slug.', 422);
@@ -56,6 +57,14 @@ export async function POST(req: NextRequest) {
       }
       throw new ApiError('INTERNAL_ERROR', error.message, 500);
     }
+    await logAudit({
+      action: 'contact_person.create',
+      resourceType: 'contact_person',
+      resourceId: id,
+      actorId: session.userId,
+      actorEmail: session.email,
+      after: { name: data.name, role: data.role, is_active: data.is_active },
+    });
     return NextResponse.json({ data }, { status: 201 });
   } catch (e) {
     return handleError(e);

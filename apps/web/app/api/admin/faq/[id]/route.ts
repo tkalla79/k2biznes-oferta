@@ -6,6 +6,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { handleError, ApiError, Errors } from '@/lib/api/error';
 import { requireAdmin } from '@/lib/auth/session';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 import { FaqItemUpdate } from '@/lib/validation/catalog';
 import type { Database } from '@k2/database/types';
 
@@ -18,7 +19,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireAdmin();
+    const session = await requireAdmin();
     if (!UUID_RE.test(params.id)) {
       throw new ApiError('VALIDATION_ERROR', 'Niepoprawny format id (UUID).', 422);
     }
@@ -43,6 +44,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       if (error.code === 'PGRST116') throw Errors.notFound('Pytanie FAQ nie istnieje.');
       throw new ApiError('INTERNAL_ERROR', error.message, 500);
     }
+    await logAudit({
+      action: 'faq.update',
+      resourceType: 'faq_item',
+      resourceId: params.id,
+      actorId: session.userId,
+      actorEmail: session.email,
+      after: { fields: Object.keys(update) },
+    });
     return NextResponse.json({ data });
   } catch (e) {
     return handleError(e);
@@ -51,7 +60,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireAdmin();
+    const session = await requireAdmin();
     if (!UUID_RE.test(params.id)) {
       throw new ApiError('VALIDATION_ERROR', 'Niepoprawny format id (UUID).', 422);
     }
@@ -63,6 +72,14 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
       .is('deleted_at', null);
     if (error) throw new ApiError('INTERNAL_ERROR', error.message, 500);
     if (!count) throw Errors.notFound('Pytanie FAQ nie istnieje.');
+    await logAudit({
+      action: 'faq.delete',
+      resourceType: 'faq_item',
+      resourceId: params.id,
+      actorId: session.userId,
+      actorEmail: session.email,
+      before: { id: params.id },
+    });
     return NextResponse.json({ data: { ok: true, id: params.id } });
   } catch (e) {
     return handleError(e);
