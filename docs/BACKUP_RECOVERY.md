@@ -12,10 +12,20 @@ prod-DB lost, bucket storage usunięty, sekrety utracone).
 | Element | Częstotliwość | Sposób | Lokalizacja kopii |
 |---|---|---|---|
 | **Kod (repo)** | Automat. przy każdym commit | `git push origin main` | github.com/tkalla79/k2biznes-oferta |
-| **Prod DB** | Tygodniowo (Pn rano) | `bash scripts/backup-db.sh` | `~/Backups/k2biznes-oferta/db/YYYY-MM-DD.sql.gz` |
-| **Storage bucket** | Miesięcznie (1. każdego mies.) | `bash scripts/backup-storage.sh` | `~/Backups/k2biznes-oferta/storage/YYYY-MM-DD/` |
-| **Sekrety (.env.production.local)** | Po każdej zmianie | Manualnie do Bitwarden | Bitwarden Secure Note "K2Biznes Oferta prod credentials" |
+| **Prod DB** | Tygodniowo (Pn 09:00) — **automat. LaunchAgent** | `pl.k2biznes.backup-db` | `~/Backups/k2biznes-oferta/db/YYYY-MM-DD-HHMM-db.sql.gz` |
+| **Storage bucket** | Miesięcznie (1. dnia 09:00) — **automat. LaunchAgent** | `pl.k2biznes.backup-storage` | `~/Backups/k2biznes-oferta/storage/YYYY-MM-DD/` |
+| **Sekrety (.env.production.local)** | Po każdej zmianie | Manualnie do Bitwarden | Bitwarden Secure Note "env.production.local" |
 | **GDPR clauses + spec** | Wersjonowane w DB | Automat. (zachowane w `gdpr_clauses` per version) | Prod DB + GitHub (`docs/BACKEND_SPEC.md`) |
+
+**Automatyzacja backupów (C1 audit 2026-06-01):**
+DB + storage odpalają się **automatycznie przez macOS LaunchAgent** — nie zależą
+od ręcznej pamięci. Instalacja na nowym laptopie (recovery): `bash scripts/launchd/install.sh`.
+- Notyfikacja macOS po każdym backupie (✓ sukces / ❌ fail).
+- Logi: `/tmp/k2-backup-db.log` + `/tmp/k2-backup-storage.log`.
+- LaunchAgent odpala backup przy najbliższym wybudzeniu jeśli laptop spał o 09:00.
+- Test ręczny: `launchctl start pl.k2biznes.backup-db`.
+- Status: `launchctl list | grep k2biznes`.
+- Retention: DB 60 dni, storage 180 dni (auto-cleanup w skryptach).
 
 **Dodatkowo (automatycznie, bez naszej akcji):**
 - Supabase Free **daily snapshot** z retencją 7 dni (NIE PITR — tylko snapshot z północy)
@@ -155,6 +165,10 @@ git config --global user.name "Tomek Kalla"
 # 6. Smoke test
 curl https://oferta.k2biznes.pl/api/health
 # → "ok":true, "db":{"ok":true}
+
+# 7. Przywróć automatyczne backupy (LaunchAgent macOS)
+bash scripts/launchd/install.sh
+# → ładuje pl.k2biznes.backup-db (Pn 09:00) + backup-storage (1. dnia)
 ```
 
 ### Scenariusz 2: Prod-DB padła / dane utracone

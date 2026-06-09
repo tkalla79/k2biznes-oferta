@@ -11,6 +11,12 @@
 
 set -euo pipefail
 
+# C1 audit: macOS notyfikacja przy fail (trap ERR) — przy uruchomieniu przez
+# LaunchAgent (cron) widzisz że backup padł, zamiast cichej porażki.
+# `osascript` no-op jeśli niedostępny (np. uruchomienie przez SSH).
+notify() { command -v osascript >/dev/null 2>&1 && osascript -e "display notification \"$2\" with title \"$1\"" 2>/dev/null || true; }
+trap 'notify "K2Biznes Backup ❌" "DB backup padł — sprawdz /tmp/k2-backup-db.log"' ERR
+
 # Locate repo root (script lives in scripts/, repo root jest parent)
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="$REPO_ROOT/.env.production.local"
@@ -89,6 +95,8 @@ DELETED=$(find "$BACKUP_DIR" -name '*.sql.gz' -mtime +60 -print -delete 2>/dev/n
 if [[ "$DELETED" -gt 0 ]]; then
   echo "  Retention: usunięto $DELETED dump(ów) starszych niż 60 dni."
 fi
+
+notify "K2Biznes Backup ✓" "DB backup OK ($HUMAN_SIZE)"
 
 echo ""
 echo "Lista backupow w katalogu:"

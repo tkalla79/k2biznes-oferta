@@ -12,6 +12,10 @@
 
 set -euo pipefail
 
+# C1 audit: notyfikacja macOS przy fail (patrz backup-db.sh).
+notify() { command -v osascript >/dev/null 2>&1 && osascript -e "display notification \"$2\" with title \"$1\"" 2>/dev/null || true; }
+trap 'notify "K2Biznes Backup ❌" "Storage backup padł — sprawdz /tmp/k2-backup-storage.log"' ERR
+
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="$REPO_ROOT/.env.production.local"
 
@@ -101,3 +105,5 @@ DELETED=$(find "$STORAGE_ROOT" -mindepth 1 -maxdepth 1 -type d -mtime +180 -prin
 if [[ "$DELETED" -gt 0 ]]; then
   echo "  Retention: usunięto $DELETED folder(ów) storage starszych niż 180 dni."
 fi
+
+notify "K2Biznes Backup ✓" "Storage backup OK ($DOWNLOADED plików)"
