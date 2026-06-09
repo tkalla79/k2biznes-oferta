@@ -95,16 +95,27 @@ const INTENDED_API_ERROR_CODES = new Set([
   'GDPR_CLAUSE_MISMATCH',// 422 — wersja klauzuli RODO nie odpowiada
 ]);
 
+// Typowe message phrases dla intended ApiError z lib/auth + lib/api/error.
+// Match po `exc.value` to fallback gdy Sentry SDK nie populated mechanism.data.code.
+const INTENDED_MESSAGE_RE = /^(Wymagana rola|Brak sesji|Brak uprawnień|Brak dostępu|Niedopuszczalny status|Wersja klauzuli RODO|Wariant .* nie|Link wygas|Zasób nie istnieje)/u;
+
 function isIntendedApiError(event: ErrorEvent): boolean {
   const exc = event.exception?.values?.[0];
   if (!exc || exc.type !== 'ApiError') return false;
-  // ApiError ma `code` w `mechanism.data` albo w extra/contexts; sprawdzamy
-  // tez sam value (message zawiera czesto "Wymagana rola super_admin." itp.).
+
+  // 1. Sprawdz code w mechanism.data (idealny case, ale Sentry SDK Next.js
+  //    czesto NIE populated tego pola dla ErrorEvent z Server Component).
   const code = (exc.mechanism?.data as Record<string, unknown>)?.code as string | undefined;
   if (code && INTENDED_API_ERROR_CODES.has(code)) return true;
-  // Fallback: extra/contexts mogly miec code
+
+  // 2. Sprawdz extra/contexts
   const extraCode = (event.extra as Record<string, unknown> | undefined)?.code as string | undefined;
   if (extraCode && INTENDED_API_ERROR_CODES.has(extraCode)) return true;
+
+  // 3. Fallback: match po message text (exc.value). Sentry ZAWSZE populated
+  //    `value` z message stringa — to nasza ostatnia obrona.
+  if (exc.value && INTENDED_MESSAGE_RE.test(exc.value)) return true;
+
   return false;
 }
 
