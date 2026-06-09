@@ -223,7 +223,9 @@ export default async function OfferPage({ params, searchParams }: Props) {
         <section id="hero" className="hero">
           <div className="hero-bg">
             <div className="hero-rings float-1" aria-hidden>
-              <img src="/branding-v2/ring-gap.png" alt="" />
+              {/* H13 audit: ring-gap.png 184KB → webp 28KB (dekoracja opacity .18). */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/branding-v2/ring-gap.webp" alt="" width={1200} height={1168} fetchPriority="low" />
             </div>
           </div>
           <div className="hero-content">
@@ -560,10 +562,13 @@ export default async function OfferPage({ params, searchParams }: Props) {
                 </svg>
                 <div className="case-logo">
                   {dto.caseStudy?.logoBig ? (
+                    // H13 audit: loading=lazy (poniżej fold) — Supabase URL, więc
+                    // bez next/image (uniknięcie remotePatterns config). maxW/H w style.
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={dto.caseStudy.logoBig}
                       alt={dto.caseStudy.client}
+                      loading="lazy"
                       style={{ maxWidth: '160px', maxHeight: '120px', objectFit: 'contain' }}
                     />
                   ) : (
@@ -662,7 +667,9 @@ export default async function OfferPage({ params, searchParams }: Props) {
               <div className="contact-card">
                 <div className="contact-portrait">
                   {dto.contactPerson.photoUrl ? (
-                    <img src={dto.contactPerson.photoUrl} alt={dto.contactPerson.name} />
+                    // H13 audit: loading=lazy (poniżej fold). Supabase URL → bez next/image.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={dto.contactPerson.photoUrl} alt={dto.contactPerson.name} loading="lazy" />
                   ) : (
                     <div className="contact-placeholder">{dto.contactPerson.name.charAt(0)}</div>
                   )}
