@@ -4,8 +4,10 @@
  * Server component — fetch profiles przez service role, RLS już blokuje
  * non-super_admin (sekcja 4.1.1).
  */
+import { redirect } from 'next/navigation';
 import { requireSuperAdmin } from '@/lib/auth/session';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { ApiError } from '@/lib/api/error';
 import UsersTable from './UsersTable';
 import InviteForm from './InviteForm';
 
@@ -13,7 +15,19 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export default async function UsersAdminPage() {
-  const session = await requireSuperAdmin();
+  // Admin (non-super) probujacy wejsc → clean redirect zamiast unhandled throw.
+  // Wczesniej (2026-06-09): kazdy admin click na link „/admin/users" w nav
+  // wysylal email z Sentry („ApiError: Wymagana rola super_admin"). Teraz:
+  // 403 → redirect na /admin (panel dostepny dla admina), bez Sentry capture.
+  let session;
+  try {
+    session = await requireSuperAdmin();
+  } catch (e) {
+    if (e instanceof ApiError && e.code === 'FORBIDDEN') {
+      redirect('/admin');
+    }
+    throw e;
+  }
 
   const sb = createAdminClient();
   const { data: profiles } = await sb

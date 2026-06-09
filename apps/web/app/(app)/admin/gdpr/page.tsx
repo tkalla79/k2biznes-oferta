@@ -4,15 +4,25 @@
  * Tylko super_admin (sprawdzane w SQL przez RLS na `data_deletion_requests`
  * + handler API `requireSuperAdmin`).
  */
+import { redirect } from 'next/navigation';
 import { requireSuperAdmin } from '@/lib/auth/session';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { ApiError } from '@/lib/api/error';
 import GdprRequestActions from './GdprRequestActions';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export default async function GdprQueuePage() {
-  await requireSuperAdmin();
+  // Patrz /admin/users/page.tsx — clean redirect zamiast unhandled throw.
+  try {
+    await requireSuperAdmin();
+  } catch (e) {
+    if (e instanceof ApiError && e.code === 'FORBIDDEN') {
+      redirect('/admin');
+    }
+    throw e;
+  }
 
   const sb = createAdminClient();
   const { data: requests } = await sb

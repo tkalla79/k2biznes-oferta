@@ -76,7 +76,44 @@ function scrubObject(obj: Record<string, unknown> | unknown[], depth: number): v
   }
 }
 
-export function scrubEvent(event: ErrorEvent, _hint?: EventHint): ErrorEvent {
+/**
+ * ApiError codes ktore SA intended behavior (security guards, walidacja) i NIE
+ * powinny wywolac alertu w Sentry. Zwracaja 401/403/422/410 dla nie-uprawnionych
+ * userow — to nie sa bugi.
+ *
+ * Per bug 2026-06-09: admin Michal klikajacy /admin/users wysylal email
+ * z Sentry „ApiError: Wymagana rola super_admin" mimo ze to oczekiwane.
+ */
+const INTENDED_API_ERROR_CODES = new Set([
+  'FORBIDDEN',           // 403 — security guard zadziaal
+  'UNAUTHORIZED',        // 401 — wymagana sesja
+  'VALIDATION_ERROR',    // 422 — Zod refuse
+  'OFFER_NOT_FOUND',     // 404 — zasob nie istnieje
+  'OFFER_EXPIRED',       // 410 — link wygasl
+  'OFFER_INVALID_STATUS',// 409 — operacja niedozwolona dla statusu
+  'VARIANT_NOT_OFFERED', // 422 — wariant nie w offered_variants
+  'GDPR_CLAUSE_MISMATCH',// 422 — wersja klauzuli RODO nie odpowiada
+]);
+
+function isIntendedApiError(event: ErrorEvent): boolean {
+  const exc = event.exception?.values?.[0];
+  if (!exc || exc.type !== 'ApiError') return false;
+  // ApiError ma `code` w `mechanism.data` albo w extra/contexts; sprawdzamy
+  // tez sam value (message zawiera czesto "Wymagana rola super_admin." itp.).
+  const code = (exc.mechanism?.data as Record<string, unknown>)?.code as string | undefined;
+  if (code && INTENDED_API_ERROR_CODES.has(code)) return true;
+  // Fallback: extra/contexts mogly miec code
+  const extraCode = (event.extra as Record<string, unknown> | undefined)?.code as string | undefined;
+  if (extraCode && INTENDED_API_ERROR_CODES.has(extraCode)) return true;
+  return false;
+}
+
+export function scrubEvent(event: ErrorEvent, _hint?: EventHint): ErrorEvent | null {
+  // Drop "intended" ApiErrors (security guards / validation refuse) — to nie bugi.
+  if (isIntendedApiError(event)) {
+    return null as unknown as ErrorEvent; // Sentry beforeSend: null = drop
+  }
+
   // Strip request URL + headers + cookies
   if (event.request) {
     if (event.request.url) event.request.url = scrubString(event.request.url);
