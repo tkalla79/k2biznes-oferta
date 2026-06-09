@@ -57,13 +57,14 @@ export default function PricingVariants({ variants, initialSelected, execFee }: 
         {variants.map((v) => {
           const isSelected = selectedId === v.id;
           return (
+            // M17 audit: aria-current (poprawne dla <a>) zamiast aria-pressed (button/toggle).
             <a
               key={v.id}
               href="#akcept"
               className={`variant ${isSelected ? 'selected' : ''}`}
               onClick={(e) => onCardClick(e, v.id)}
               aria-label={`${v.name} — wybierz ten wariant i przejdz do akceptacji`}
-              aria-pressed={isSelected}
+              aria-current={isSelected ? 'true' : undefined}
             >
               <header>
                 <div className="v-id">{v.name}</div>
