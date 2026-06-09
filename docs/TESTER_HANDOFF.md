@@ -1,7 +1,12 @@
 # K2Biznes Oferta — instrukcja dla testera
 
-System ofertowy K2Biznes (MVP). Konsultant tworzy oferty dotacyjne dla klientów,
+System ofertowy K2Biznes. Konsultant tworzy oferty dotacyjne dla klientów,
 wysyła linkiem, klient akceptuje online.
+
+**Stan:** po PR #44 (2026-06-09). Produkcja live, 4 realne oferty, 1 zaakceptowana.
+**Środowisko testowe:** produkcja `https://oferta.k2biznes.pl` (NIE staging — staging
+URL w sekcji 1 jest historyczny). Testuj na koncie `tester@k2biznes.pl`, NIE twórz
+realnych ofert do realnych klientów.
 
 ---
 
@@ -121,6 +126,49 @@ Email: Resend (3000 maili / mc, free tier).
 5. Kliknij **"Soft-delete"** (admin only)
 6. Odśwież `/o/<token>` → powinno dać 404 (nie cachuje stale state)
 
+### Scenariusz 8: MFA (TOTP) — PR #13
+
+1. Przy pierwszym logowaniu system prosi o włączenie MFA
+2. Zeskanuj QR aplikacją (Google Authenticator / Microsoft Authenticator / Authy / 1Password)
+3. Wpisz 6-cyfrowy kod → MFA aktywne
+4. Wyloguj się i zaloguj ponownie → po haśle system prosi o kod TOTP
+5. **Brute-force test:** wpisz błędny kod 11× pod rząd → po 10. próbie HTTP 429 (rate-limit)
+6. `/admin` → profil → "Wyłącz MFA" (wymaga ponownego kodu) → unenroll działa
+
+### Scenariusz 9: Reset hasła + rate-limit — PR #28
+
+1. Wyloguj się. Na `/auth/signin` kliknij **"Zapomniałem hasła"** → `/auth/forgot-password`
+2. Wpisz `tester@k2biznes.pl` → "Wyślij link"
+3. Sprawdź skrzynkę — mail z `oferty@k2biznes.pl` (NIE onboarding@resend.dev) z linkiem resetu
+4. Kliknij link → `/auth/reset-password` → ustaw nowe hasło → zaloguj się nowym
+5. **Rate-limit test:** 6× pod rząd "Wyślij link" dla tego samego emaila → po 5. próbie HTTP 429
+   (bucket restrictive 5/24h — anti-spam)
+
+### Scenariusz 10: RODO — pełny flow usunięcia danych — PR #9
+
+1. **Klient (publiczny):** otwórz `/auth/request-data-deletion` w incognito
+2. Wpisz email + opcjonalny powód → "Wyślij żądanie"
+3. Powinieneś dostać email potwierdzający (z `oferty@k2biznes.pl`)
+4. **Admin:** zaloguj się, `/admin/gdpr` → nowe żądanie na liście (status `requested`)
+5. Kliknij "Wykonaj usunięcie" → dane zanonimizowane (offers/events/profile)
+6. Klient dostaje email "Twoje dane zostały usunięte"
+7. Sprawdź `/admin/gdpr` → żądanie status `executed` + liczby zanonimizowanych rekordów
+
+### Scenariusz 11: expires_at — edge cases — PR #33
+
+1. Stwórz ofertę, wyślij ją z polem **"Wygaśnie"** ustawionym na **za 2 tygodnie**
+2. Sprawdź email klienta — powinien mówić "link aktywny do {data}" (NIE "30 dni")
+3. Wyślij drugą ofertę **bez** ustawiania wygaśnięcia → email mówi "bez terminu ważności"
+4. **Walidacja przeszłości:** w pickerze daty spróbuj wybrać wczoraj/dziś → przeglądarka
+   blokuje (min = teraz + 1h). Link z mailem otwiera się poprawnie (nie 404).
+
+### Scenariusz 12: Email-failed marker — PR #42 (H16)
+
+1. Na liście `/admin/offers` — jeśli któraś oferta ma czerwony badge "⚠ email nie dotarł",
+   to znaczy że Resend zwrócił błąd przy wysyłce. Wyślij ofertę ponownie.
+2. (Trudne do wywołania w teście — wymaga awarii Resend. Sprawdź tylko że badge NIE
+   pojawia się przy normalnie wysłanych ofertach.)
+
 ---
 
 ## 3. Znane ograniczenia / out of scope
@@ -209,14 +257,28 @@ Screenshot: (jeśli wizualne)
 ## 8. Architektura (skrócie — dla curiosity)
 
 - **Frontend**: Next.js 14 App Router + TypeScript + React 18
-- **Backend**: Next.js API routes + Supabase (Postgres 15 + Auth + Storage)
+- **Backend**: Next.js API routes + Supabase (Postgres 17 + Auth PKCE + Storage)
 - **Pricing engine**: pure function w `apps/web/lib/pricing/index.ts` (sekcja 6 spec)
 - **Auth**: email+password, MFA TOTP wymagane dla admin/super_admin
-- **Email**: Resend (prod) / Mailpit (lokalny dev)
+- **Email**: Resend (`oferty@k2biznes.pl` verified) / Mailpit (lokalny dev)
+- **Rate-limit**: Upstash Redis (login/MFA/RODO/PDF buckets)
 - **Hosting**: Vercel (frontend + API routes serverless)
+- **Monitoring**: Sentry (EU) + UptimeRobot
 
-Spec wraz z kontraktami API: `docs/BACKEND_SPEC.md` (jeśli udostępnione).
+Spec wraz z kontraktami API: `docs/BACKEND_SPEC.md`.
 
 ---
 
-**Wersja dokumentu**: 2026-04-28 · MVP testing handoff
+## 9. Wersja dokumentu vs PR-y
+
+| Data | Stan | Pokryte funkcje |
+|---|---|---|
+| 2026-04-28 | MVP (PR #22) | Scenariusze 1-7 |
+| 2026-06-09 | po PR #44 | + Scenariusze 8-12: MFA, reset hasła+rate-limit, RODO flow, expires_at, email-failed marker |
+
+Przy dodaniu nowej funkcji (nowy PR z user-facing zmianą) — dopisz scenariusz
+w sekcji 2 i bumpnij tę tabelę.
+
+---
+
+**Wersja dokumentu**: 2026-06-09 · po PR #44
