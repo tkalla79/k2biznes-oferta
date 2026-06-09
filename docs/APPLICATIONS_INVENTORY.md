@@ -358,6 +358,18 @@ Jeśli cert wygasł albo CNAME zniknął:
 
 ---
 
+## Quota alerts (H18 audit — skonfigurowane 2026-06-09)
+
+| Service | Limit | Alert |
+|---|---|---|
+| **Supabase** | 500MB DB | Free nie ma dashboard-alertu → `scripts/backup-db.sh` sprawdza `pg_database_size` przy każdym backupie, alarmuje > 400MB (macOS notyfikacja). Aktualnie ~11MB. |
+| **Sentry** | 5000 events/mc | Spike Protection ON + email 80% quota |
+| **Upstash** | 10k cmd/dzień | Alert email 8000/dzień |
+| **Resend** | 3000/mc, 100/dzień | Usage notifications "approaching limit" |
+| **Vercel** | 100GB bandwidth | Spend management / usage notifications 80% |
+
+---
+
 ## Audyt — czy wszystko działa
 
 Raz na kwartał odpalić checklistę:

@@ -96,6 +96,22 @@ if [[ "$DELETED" -gt 0 ]]; then
   echo "  Retention: usunięto $DELETED dump(ów) starszych niż 60 dni."
 fi
 
+# H18 audit: Supabase Free nie ma usage-alertu dla rozmiaru DB (limit 500MB).
+# Sprawdzamy przy okazji backupu — alarm gdy > 400MB (80%). Best-effort.
+PSQL="${PG_DUMP%/pg_dump}/psql"
+[[ -x "$PSQL" ]] || PSQL="$(command -v psql 2>/dev/null || true)"
+if [[ -n "$PSQL" && -x "$PSQL" ]]; then
+  DB_BYTES=$("$PSQL" "$CONN_URI" -tAc "select pg_database_size('postgres')" 2>/dev/null || echo 0)
+  if [[ "$DB_BYTES" =~ ^[0-9]+$ && "$DB_BYTES" -gt 0 ]]; then
+    DB_MB=$((DB_BYTES / 1024 / 1024))
+    echo "  DB size: ${DB_MB}MB / 500MB (Supabase Free limit)"
+    if [[ "$DB_MB" -gt 400 ]]; then
+      echo "  ⚠ DB > 400MB (80% limitu Free) — rozważ upgrade Pro lub cleanup."
+      notify "K2Biznes ⚠ DB" "DB ${DB_MB}MB / 500MB — zbliżasz się do limitu Free"
+    fi
+  fi
+fi
+
 notify "K2Biznes Backup ✓" "DB backup OK ($HUMAN_SIZE)"
 
 echo ""
