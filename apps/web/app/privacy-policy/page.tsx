@@ -110,12 +110,13 @@ export default function PrivacyPolicyPage() {
           </li>
           <li>
             <strong>Prawo do sprostowania danych</strong> (art. 16) — przez kontakt z
-            konsultantem lub e-mail RODO.
+            konsultantem lub e-mail <a href="mailto:biuro@k2biznes.pl">biuro@k2biznes.pl</a>.
           </li>
           <li>
             <strong>Prawo do usunięcia danych</strong> (art. 17) — z zastrzeżeniem danych,
             które musimy przechowywać na podstawie przepisów (np. księgowych). Żądanie:{' '}
-            <a href="/auth/request-data-deletion">formularz online</a> lub e-mail RODO.
+            <a href="/auth/request-data-deletion">formularz online</a> lub e-mail{' '}
+            <a href="mailto:biuro@k2biznes.pl">biuro@k2biznes.pl</a>.
           </li>
           <li>
             <strong>Prawo do ograniczenia przetwarzania</strong> (art. 18).
