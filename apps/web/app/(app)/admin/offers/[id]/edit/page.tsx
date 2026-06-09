@@ -30,12 +30,14 @@ export default async function EditOfferPage({ params }: { params: { id: string }
     { data: programs },
     { data: caseStudies },
     { data: contactPersons },
+    { data: altProgramLibrary },
     profilesRes,
   ] = await Promise.all([
     sb.from('offers').select('*').eq('id', params.id).is('deleted_at', null).maybeSingle(),
     sb.from('programs').select('id, label, group_name').eq('is_active', true).order('display_order'),
     sb.from('case_studies').select('id, client, title').eq('is_active', true).order('display_order'),
     sb.from('contact_persons').select('id, name, role').eq('is_active', true).order('display_order'),
+    sb.from('alt_programs').select('id, name, program, nabor, desc, url').eq('is_active', true).order('display_order'),
     // assignedConsultantId select tylko dla admina; consultant nie może zmienić
     // właściciela. Pusta lista pomijana w UI.
     isAdmin
@@ -105,6 +107,7 @@ export default async function EditOfferPage({ params }: { params: { id: string }
         contactPersons={contactPersons ?? []}
         profiles={profiles}
         canAssignConsultant={isAdmin}
+        altProgramLibrary={altProgramLibrary ?? []}
       />
     </main>
   );

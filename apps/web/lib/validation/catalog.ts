@@ -62,6 +62,23 @@ export type ProgramInput = z.infer<typeof ProgramInput>;
 export const ProgramUpdate = ProgramInput.partial().omit({ id: true });
 export type ProgramUpdate = z.infer<typeof ProgramUpdate>;
 
+// Alt-programy ("Inne możliwości wsparcia") — biblioteka do wyboru w ofercie.
+// Feature #2 (spec 2026-06-09). Pola = struktura content.altPrograms.
+export const AltProgramInput = z.object({
+  id: Slug.optional(), // auto-gen z name gdy brak
+  name: z.string().min(1).max(120),
+  program: z.string().min(1).max(120),
+  nabor: z.string().max(80).optional().nullable(),
+  desc: z.string().max(2000).optional().nullable(),
+  url: z.string().url().max(500).optional().nullable().or(z.literal('')),
+  display_order: z.coerce.number().int().min(0).max(9999).default(100),
+  is_active: z.boolean().default(true),
+});
+export type AltProgramInput = z.infer<typeof AltProgramInput>;
+
+export const AltProgramUpdate = AltProgramInput.partial().omit({ id: true });
+export type AltProgramUpdate = z.infer<typeof AltProgramUpdate>;
+
 // =============================================================================
 // case_studies
 // =============================================================================

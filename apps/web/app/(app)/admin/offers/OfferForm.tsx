@@ -72,6 +72,16 @@ type AltProgramUI = {
   url: string;
 };
 
+// Feature #2: pozycja biblioteki alt-programów (do szybkiego dodania do listy).
+type AltProgramOpt = {
+  id: string;
+  name: string;
+  program: string;
+  nabor: string | null;
+  desc: string | null;
+  url: string | null;
+};
+
 type FormState = {
   // Klient
   clientName: string;
@@ -273,6 +283,7 @@ type Props =
       contactPersons: ContactPersonOpt[];
       profiles: ProfileOpt[];
       canAssignConsultant: boolean;
+      altProgramLibrary?: AltProgramOpt[];
     }
   | {
       mode: 'edit';
@@ -282,6 +293,7 @@ type Props =
       contactPersons: ContactPersonOpt[];
       profiles: ProfileOpt[];
       canAssignConsultant: boolean;
+      altProgramLibrary?: AltProgramOpt[];
     };
 
 export default function OfferForm({
@@ -292,6 +304,7 @@ export default function OfferForm({
   contactPersons,
   profiles,
   canAssignConsultant,
+  altProgramLibrary = [],
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -1023,6 +1036,56 @@ export default function OfferForm({
           Lista programów, które pojawią się pod opisem rekomendowanego — jako backup lub
           uzupełnienie. Pusta lista = pokazuje domyślne 4 programy z szablonu.
         </p>
+
+        {/* Feature #2: szybkie dodanie z biblioteki. Klik → kopia do listy poniżej
+            (edytowalna/usuwalna jak ad-hoc). Zarządzanie biblioteką: /admin/alt-programs. */}
+        {altProgramLibrary.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 13, color: '#3a4254', marginBottom: 6 }}>
+              Dodaj z biblioteki:
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {altProgramLibrary.map((lib) => {
+                const already = form.altPrograms.some(
+                  (p) => p.name === lib.name && p.program === lib.program,
+                );
+                return (
+                  <button
+                    key={lib.id}
+                    type="button"
+                    disabled={already}
+                    onClick={() =>
+                      update('altPrograms', [
+                        ...form.altPrograms,
+                        {
+                          name: lib.name,
+                          program: lib.program,
+                          nabor: lib.nabor ?? '',
+                          desc: lib.desc ?? '',
+                          url: lib.url ?? '',
+                        },
+                      ])
+                    }
+                    style={{
+                      padding: '5px 12px',
+                      fontSize: 13,
+                      borderRadius: 999,
+                      border: '1px solid #d4dae6',
+                      background: already ? '#eef1f6' : '#fff',
+                      color: already ? '#9aa3b2' : '#3a4254',
+                      cursor: already ? 'default' : 'pointer',
+                    }}
+                    title={already ? 'Już dodany' : `Dodaj: ${lib.program}`}
+                  >
+                    {already ? '✓ ' : '+ '}
+                    {lib.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {form.altPrograms.map((p, idx) => (
           <div key={idx} style={altCardStyle}>
             <div style={altCardHead}>
