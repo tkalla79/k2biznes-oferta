@@ -26,11 +26,32 @@ export type AuditAction =
   | 'gdpr.request.created'
   | 'gdpr.request.approved'
   | 'gdpr.request.rejected'
-  | 'gdpr.request.executed';
+  | 'gdpr.request.executed'
+  // H12 audit: lookup mutations. Wcześniej super_admin mógł usunąć/zmienić
+  // program, case study, osobę kontaktową czy FAQ bez śladu w audit_log.
+  | 'program.create'
+  | 'program.update'
+  | 'program.delete'
+  | 'case_study.create'
+  | 'case_study.update'
+  | 'case_study.delete'
+  | 'contact_person.create'
+  | 'contact_person.update'
+  | 'contact_person.delete'
+  | 'faq.create'
+  | 'faq.update'
+  | 'faq.delete';
 
 export type AuditEntry = {
   action: AuditAction;
-  resourceType: 'offer' | 'profile' | 'data_deletion_request';
+  resourceType:
+    | 'offer'
+    | 'profile'
+    | 'data_deletion_request'
+    | 'program'
+    | 'case_study'
+    | 'contact_person'
+    | 'faq_item';
   resourceId: string;
   actorId: string | null;
   actorEmail: string | null;
