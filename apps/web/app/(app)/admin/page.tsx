@@ -48,6 +48,9 @@ export default async function AdminDashboard() {
         <Link href="/admin/alt-programs" style={{ color: '#6b7a92', textDecoration: 'none' }}>
           Inne możliwości wsparcia
         </Link>
+        <Link href="/admin/templates" style={{ color: '#6b7a92', textDecoration: 'none' }}>
+          Szablony ofert
+        </Link>
         <Link href="/admin/faq" style={{ color: '#6b7a92', textDecoration: 'none' }}>
           FAQ
         </Link>
