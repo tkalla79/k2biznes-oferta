@@ -16,6 +16,10 @@ import { processBatch } from '@/lib/webhooks/dispatch';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+// H9 audit: maxDuration honorowane tylko na Vercel Pro (Hobby = 10s hard).
+// Ten endpoint i tak nie jest jeszcze wywoływany — brak skonfigurowanego crona
+// (H8). batch processuje webhook_jobs porcjami, więc 10s wystarczy przy małej
+// kolejce. Wartość 60 zostaje na wypadek Pro + dużej kolejki.
 export const maxDuration = 60;
 
 function safeEqualStr(a: string, b: string): boolean {

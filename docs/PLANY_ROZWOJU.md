@@ -120,6 +120,42 @@ trochę droższym UX.
 
 ---
 
+## 3. PDF generation wymaga Vercel Pro (known limitation)
+
+**Dodane:** 2026-06-09 (audyt H9)
+**Status:** 💡 pomysł / known limitation
+**Priorytet:** niski (PDF nie jest w UI klienta)
+
+### Kontekst
+
+`GET /api/public/offers/[token]/pdf` renderuje ofertę przez puppeteer (~17s CPU).
+Vercel **Hobby** ma hard limit **10s** na funkcję → render ZAWSZE timeoutuje
+(prod zwraca graceful 503 "Generowanie PDF tymczasowo niedostępne").
+`export const maxDuration = 30` jest honorowane TYLKO na Pro.
+
+Obecnie PDF **nie jest linkowany w UI klienta** (`/o/[token]/page.tsx` nie ma
+przycisku "Pobierz PDF") — więc limitacja nie boli. Endpoint istnieje (cache-or-
+render gotowy), tylko render nie zmieści się na Hobby.
+
+### Opcje gdy PDF będzie potrzebny
+
+1. **Upgrade Vercel Pro ($20/mc)** — maxDuration do 300s, render się zmieści.
+   Daje też: cron (H8 webhook dispatcher), security headers, większy bandwidth.
+   Rekomendowane gdy aplikacja staje się core asset / klienci proszą o PDF.
+2. **External PDF service** — np. render przez osobny worker (Railway/Render)
+   albo API typu Browserless/PDFShift. Bez upgrade Vercel.
+3. **Client-side** — wygenerować PDF w przeglądarce klienta (jsPDF/print-to-pdf
+   z `@media print` które już mamy, H15). Najtańsze, ale gorsza jakość.
+
+### Decyzja "kiedy"
+
+Trigger: klient prosi o PDF do podpisu/archiwum, albo decyzja o Pro z innych
+powodów (cron dla CRM webhooks — H8). Do tego czasu: klient ma pełną ofertę
+w `/o/[token]` + może wydrukować przez przeglądarkę (Ctrl+P, `@media print`
+zoptymalizowane).
+
+---
+
 ## (template — następne pomysły dopisuj poniżej)
 
 <!--
