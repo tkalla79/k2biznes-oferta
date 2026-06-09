@@ -52,7 +52,13 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
       .eq('version', body.gdprClauseVersion)
       .maybeSingle();
 
-    if (clauseErr) throw new ApiError('INTERNAL_ERROR', clauseErr.message, 500);
+    if (clauseErr) {
+      // Q5 audit: nie leakujemy surowego DB error (nazwy kolumn/constraintów)
+      // anonimowemu klientowi. Szczegóły → console (Sentry je złapie), klient
+      // widzi generic message.
+      console.error('[accept] gdpr_clauses query failed:', clauseErr.message);
+      throw new ApiError('INTERNAL_ERROR', 'Operacja nie powiodła się. Spróbuj ponownie.', 500);
+    }
     if (!clause || !clause.is_current) {
       throw new ApiError(
         'GDPR_CLAUSE_MISMATCH',
@@ -101,7 +107,11 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
       .select()
       .maybeSingle();
 
-    if (upErr) throw new ApiError('INTERNAL_ERROR', `accept update failed: ${upErr.message}`, 500);
+    if (upErr) {
+      // Q5 audit: generic message dla klienta, szczegóły do logów.
+      console.error('[accept] offer update failed:', upErr.message);
+      throw new ApiError('INTERNAL_ERROR', 'Operacja nie powiodła się. Spróbuj ponownie.', 500);
+    }
     if (!updated) {
       // Optimistic lock failed — ktoś inny zaakceptował/odrzucił równolegle.
       throw Errors.conflictStatus('Status oferty zmienił się podczas operacji.');

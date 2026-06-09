@@ -44,7 +44,11 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
       .select()
       .maybeSingle();
 
-    if (upErr) throw new ApiError('INTERNAL_ERROR', `reject update failed: ${upErr.message}`, 500);
+    if (upErr) {
+      // Q5 audit: generic message dla klienta, szczegóły do logów (patrz accept).
+      console.error('[reject] offer update failed:', upErr.message);
+      throw new ApiError('INTERNAL_ERROR', 'Operacja nie powiodła się. Spróbuj ponownie.', 500);
+    }
     if (!updated) {
       throw Errors.conflictStatus('Status oferty zmienił się podczas operacji.');
     }

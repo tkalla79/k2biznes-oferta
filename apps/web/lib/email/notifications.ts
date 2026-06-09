@@ -124,6 +124,9 @@ export async function notifyClientOfferSent(args: {
   const { html, text } = await renderEmail(createElement(OfferSentToClient, props));
   const result = await sendEmail({
     to: recipientEmail,
+    // Q3 audit: Reply-To = konsultant prowadzący, nie generic kontakt@.
+    // Klient odpowiadając na ofertę trafia bezpośrednio do osoby prowadzącej.
+    replyTo: consultant?.email ?? undefined,
     subject: `Oferta K2Biznes dla ${offer.client_name} — ${offer.program_label}`,
     html,
     text,

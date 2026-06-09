@@ -64,15 +64,32 @@ echo "  Pooler: aws-1-eu-central-1.pooler.supabase.com:5432 (session)"
   --if-exists \
   --verbose 2>/tmp/pg_dump_stderr.log | gzip > "$OUTPUT_FILE"
 
-# Verify size > 0
+# Q8 audit: verify size — prod DB ma 14 tabel z danymi, realny dump > 30KB.
+# Próg 1KB był za niski (pusty/truncated dump przechodził).
 SIZE=$(stat -f%z "$OUTPUT_FILE" 2>/dev/null || stat -c%s "$OUTPUT_FILE")
-if [[ "$SIZE" -lt 1024 ]]; then
-  echo "ERROR: backup file < 1KB ($SIZE bytes). Sprawdz /tmp/pg_dump_stderr.log"
+if [[ "$SIZE" -lt 30720 ]]; then
+  echo "ERROR: backup file < 30KB ($SIZE bytes) — prawdopodobnie truncated/pusty."
+  echo "Sprawdz /tmp/pg_dump_stderr.log"
+  exit 1
+fi
+
+# Q8 audit: gzip integrity check — wykrywa truncated/corrupted gzip (np. gdy
+# pg_dump padł w połowie a pipe do gzip dostał niepełny strumień).
+if ! gunzip -t "$OUTPUT_FILE" 2>/dev/null; then
+  echo "ERROR: gzip integrity check FAILED — backup jest uszkodzony."
+  echo "Sprawdz /tmp/pg_dump_stderr.log. Plik: $OUTPUT_FILE"
   exit 1
 fi
 
 HUMAN_SIZE=$(du -h "$OUTPUT_FILE" | cut -f1)
-echo "✓ Backup OK: $OUTPUT_FILE ($HUMAN_SIZE)"
+echo "✓ Backup OK: $OUTPUT_FILE ($HUMAN_SIZE, gzip integrity ✓)"
+
+# Q9 audit: retention — usuń DB dumps starsze niż 60 dni (unbounded growth).
+DELETED=$(find "$BACKUP_DIR" -name '*.sql.gz' -mtime +60 -print -delete 2>/dev/null | wc -l | tr -d ' ')
+if [[ "$DELETED" -gt 0 ]]; then
+  echo "  Retention: usunięto $DELETED dump(ów) starszych niż 60 dni."
+fi
+
 echo ""
 echo "Lista backupow w katalogu:"
 ls -lah "$BACKUP_DIR" | tail -5

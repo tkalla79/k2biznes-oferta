@@ -46,10 +46,23 @@ export async function GET() {
   );
 }
 
+const CHECK_TIMEOUT_MS = 3000;
+
+/** Race fn() przeciw timeout — Q7 audit: slow Storage/DB nie blokuje całego
+ *  health checka (UptimeRobot dostaje 503 zamiast wisieć do Vercel 10s limitu). */
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<never>((_, rej) =>
+      setTimeout(() => rej(new Error(`${label} timeout after ${ms}ms`)), ms),
+    ),
+  ]);
+}
+
 async function ping(fn: () => Promise<void>): Promise<Check> {
   const t0 = Date.now();
   try {
-    await fn();
+    await withTimeout(fn(), CHECK_TIMEOUT_MS, 'check');
     return { ok: true, latency_ms: Date.now() - t0 };
   } catch (e) {
     return { ok: false, latency_ms: Date.now() - t0, error: (e as Error).message };
