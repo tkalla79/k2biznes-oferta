@@ -34,7 +34,7 @@ async function fetchOfferOrThrow(id: string): Promise<OfferRow> {
   const sb = createAdminClient();
   const { data, error } = await sb.from('offers').select('*').eq('id', id).maybeSingle();
   if (error) throw new ApiError('INTERNAL_ERROR', error.message, 500);
-  if (!data || data.deleted_at) throw Errors.notFound('Oferta nie istnieje lub została usunięta.');
+  if (!data || data.deleted_at) throw Errors.offerNotFound();
   return data;
 }
 

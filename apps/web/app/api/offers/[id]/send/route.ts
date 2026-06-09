@@ -39,7 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       .maybeSingle();
 
     if (e0) throw new ApiError('INTERNAL_ERROR', e0.message, 500);
-    if (!offer || offer.deleted_at) throw Errors.notFound();
+    if (!offer || offer.deleted_at) throw Errors.offerNotFound();
 
     // Ownership (admin może wszystko)
     const isOwner =

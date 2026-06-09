@@ -88,7 +88,8 @@ const INTENDED_API_ERROR_CODES = new Set([
   'FORBIDDEN',           // 403 — security guard zadziaal
   'UNAUTHORIZED',        // 401 — wymagana sesja
   'VALIDATION_ERROR',    // 422 — Zod refuse
-  'OFFER_NOT_FOUND',     // 404 — zasob nie istnieje
+  'NOT_FOUND',           // 404 — generic zasob nie istnieje
+  'OFFER_NOT_FOUND',     // 404 — oferta nie istnieje
   'OFFER_EXPIRED',       // 410 — link wygasl
   'OFFER_INVALID_STATUS',// 409 — operacja niedozwolona dla statusu
   'VARIANT_NOT_OFFERED', // 422 — wariant nie w offered_variants

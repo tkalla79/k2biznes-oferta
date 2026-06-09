@@ -36,7 +36,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
       .eq('id', params.id)
       .maybeSingle();
     if (e0) throw new ApiError('INTERNAL_ERROR', e0.message, 500);
-    if (!before || before.deleted_at) throw Errors.notFound();
+    if (!before || before.deleted_at) throw Errors.offerNotFound();
 
     // Konsultant tylko swoje + tylko draft/sent
     if (session.role === 'consultant') {
