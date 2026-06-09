@@ -36,6 +36,19 @@ html, body { margin: 0; padding: 0; }
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* M13 audit: focus-visible dla keyboard nav (WCAG 2.4.7 AA). Mysz nie pokazuje
+   ringa (:focus-visible), klawiatura/tab — tak. Czerwony ring spójny z brandem. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 body {
   font-family: var(--sans);
   color: var(--ink);

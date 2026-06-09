@@ -28,6 +28,18 @@ export default function CookieConsent() {
     setDecided(stored !== null);
   }, []);
 
+  // M18 audit: fixed-bottom banner zasłaniał ostatnie ~88px strony (w tym
+  // przycisk akceptacji oferty). Gdy banner widoczny — dodaj padding-bottom
+  // do body, cleanup po decyzji/unmount.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const visible = decided === false;
+    document.body.style.paddingBottom = visible ? '96px' : '';
+    return () => {
+      document.body.style.paddingBottom = '';
+    };
+  }, [decided]);
+
   if (decided === null || decided === true) return null;
 
   function save(analytics: boolean) {
