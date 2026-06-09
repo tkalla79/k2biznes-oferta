@@ -45,6 +45,9 @@ export default async function AdminDashboard() {
         <Link href="/admin/contact-persons" style={{ color: '#6b7a92', textDecoration: 'none' }}>
           Osoby kontaktowe
         </Link>
+        <Link href="/admin/alt-programs" style={{ color: '#6b7a92', textDecoration: 'none' }}>
+          Inne możliwości wsparcia
+        </Link>
         <Link href="/admin/faq" style={{ color: '#6b7a92', textDecoration: 'none' }}>
           FAQ
         </Link>

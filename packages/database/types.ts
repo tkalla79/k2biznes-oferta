@@ -39,6 +39,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      alt_programs: {
+        Row: {
+          created_at: string
+          desc: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          nabor: string | null
+          name: string
+          program: string
+          url: string | null
+        }
+        Insert: {
+          created_at?: string
+          desc?: string | null
+          display_order?: number
+          id: string
+          is_active?: boolean
+          nabor?: string | null
+          name: string
+          program: string
+          url?: string | null
+        }
+        Update: {
+          created_at?: string
+          desc?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          nabor?: string | null
+          name?: string
+          program?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           action: string

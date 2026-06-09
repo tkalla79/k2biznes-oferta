@@ -40,7 +40,10 @@ export type AuditAction =
   | 'contact_person.delete'
   | 'faq.create'
   | 'faq.update'
-  | 'faq.delete';
+  | 'faq.delete'
+  | 'alt_program.create'
+  | 'alt_program.update'
+  | 'alt_program.delete';
 
 export type AuditEntry = {
   action: AuditAction;
@@ -51,7 +54,8 @@ export type AuditEntry = {
     | 'program'
     | 'case_study'
     | 'contact_person'
-    | 'faq_item';
+    | 'faq_item'
+    | 'alt_program';
   resourceId: string;
   actorId: string | null;
   actorEmail: string | null;
