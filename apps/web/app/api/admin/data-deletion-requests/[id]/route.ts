@@ -126,32 +126,35 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     if (upErr) throw new ApiError('INTERNAL_ERROR', upErr.message, 500);
 
-    // Email post-execute (best-effort)
-    notifyDeletionExecuted({
-      email: before.email,
-      requestId: params.id,
-      offersAnonymized: result.offers_anonymized,
-      eventsAnonymized: result.events_anonymized,
-      profileAnonymized: result.profile_anonymized,
-      executedAt: now,
-    }).catch((e) =>
-      console.error('[gdpr] notify executed failed:', (e as Error).message),
-    );
-
-    await logAudit({
-      action: 'gdpr.request.executed',
-      resourceType: 'data_deletion_request',
-      resourceId: params.id,
-      actorId: session.userId,
-      actorEmail: session.email,
-      before: { status: before.status },
-      after: {
-        status: 'executed',
-        offers_anonymized: result.offers_anonymized,
-        events_anonymized: result.events_anonymized,
-        profile_anonymized: result.profile_anonymized,
-      },
-    });
+    // Email post-execute + audit — H1 audit: notify awaited przed return.
+    // RODO „dane usunięte" to email-dowód prawny — Vercel zabija async po
+    // response. Oba w Promise.allSettled (patrz request-data-deletion).
+    await Promise.allSettled([
+      notifyDeletionExecuted({
+        email: before.email,
+        requestId: params.id,
+        offersAnonymized: result.offers_anonymized,
+        eventsAnonymized: result.events_anonymized,
+        profileAnonymized: result.profile_anonymized,
+        executedAt: now,
+      }).catch((e: Error) =>
+        console.error('[gdpr] notify executed failed:', e.message),
+      ),
+      logAudit({
+        action: 'gdpr.request.executed',
+        resourceType: 'data_deletion_request',
+        resourceId: params.id,
+        actorId: session.userId,
+        actorEmail: session.email,
+        before: { status: before.status },
+        after: {
+          status: 'executed',
+          offers_anonymized: result.offers_anonymized,
+          events_anonymized: result.events_anonymized,
+          profile_anonymized: result.profile_anonymized,
+        },
+      }),
+    ]);
 
     return NextResponse.json({ data: { request: updated, anonymization: result } });
   } catch (e) {
