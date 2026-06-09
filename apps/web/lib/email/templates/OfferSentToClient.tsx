@@ -25,6 +25,12 @@ export type OfferSentToClientProps = {
   consultantPhone: string | null;
   offerUrl: string;
   customMessage?: string;
+  /**
+   * Sformatowana data wygaśnięcia (np. "15 lipca 2026") lub null gdy oferta
+   * bezterminowa. H6 audit: wcześniej hardkodowane "30 dni" mimo że expires_at
+   * może być 1h-365d lub null — klient z krótszym terminem klikał za późno (410).
+   */
+  expiresLabel?: string | null;
 };
 
 export default function OfferSentToClient(p: OfferSentToClientProps) {
@@ -80,7 +86,10 @@ export default function OfferSentToClient(p: OfferSentToClientProps) {
           <Text style={paragraph}>
             W ofercie znajdą Państwo szczegółowy opis programu, trzy warianty
             wynagrodzenia oraz nasze referencje. Można ją przeglądać w wygodnej
-            chwili — link jest aktywny przez 30 dni.
+            chwili
+            {p.expiresLabel
+              ? ` — link jest aktywny do ${p.expiresLabel}.`
+              : ' — link nie ma terminu ważności.'}
           </Text>
 
           <Hr style={hr} />

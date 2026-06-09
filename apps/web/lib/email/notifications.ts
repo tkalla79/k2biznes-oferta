@@ -108,6 +108,15 @@ export async function notifyClientOfferSent(args: {
 
   const variant = snapshot.variants.find((v) => v.id === offer.selected_variant);
 
+  // H6 audit: dynamiczny tekst wygaśnięcia zamiast hardkodowanego "30 dni".
+  const expiresLabel = offer.expires_at
+    ? new Date(offer.expires_at).toLocaleDateString('pl-PL', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+    : null;
+
   const props: OfferSentToClientProps = {
     clientName: offer.client_name,
     programLabel: offer.program_label,
@@ -119,6 +128,7 @@ export async function notifyClientOfferSent(args: {
     consultantPhone: consultant?.phone ?? null,
     offerUrl: offerUrl(offer.client_token),
     customMessage,
+    expiresLabel,
   };
 
   const { html, text } = await renderEmail(createElement(OfferSentToClient, props));
