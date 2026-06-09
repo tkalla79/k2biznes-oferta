@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  LaunchAgent: tygodniowy backup prod-DB (Poniedziałek 09:00).
+  Instalacja: bash scripts/launchd/install.sh
+  __HOME__ i __REPO__ podmieniane przez install.sh.
+  Per docs/BACKUP_RECOVERY.md sekcja 2.2 + AUDIT_2026-06-01 C1.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>pl.k2biznes.backup-db</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__REPO__/scripts/backup-db.sh</string>
+  </array>
+
+  <!-- Poniedziałek (Weekday=1; 0=niedziela) o 09:00. launchd odpala przy
+       najbliższym wybudzeniu jeśli laptop spał o tej godzinie. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Weekday</key>
+    <integer>1</integer>
+    <key>Hour</key>
+    <integer>9</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+
+  <!-- PATH z libpq (pg_dump) — LaunchAgent ma minimalny env, bez tego
+       skrypt nie znajdzie pg_dump. -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/opt/libpq/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/k2-backup-db.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/k2-backup-db.log</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>

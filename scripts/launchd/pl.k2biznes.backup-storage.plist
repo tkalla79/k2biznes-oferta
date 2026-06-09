@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  LaunchAgent: miesięczny backup storage bucket (1. dzień miesiąca 09:00).
+  Instalacja: bash scripts/launchd/install.sh
+  __HOME__ i __REPO__ podmieniane przez install.sh.
+  Per docs/BACKUP_RECOVERY.md sekcja 2.3 + AUDIT_2026-06-01 C1.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>pl.k2biznes.backup-storage</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__REPO__/scripts/backup-storage.sh</string>
+  </array>
+
+  <!-- 1. dzień miesiąca o 09:00. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Day</key>
+    <integer>1</integer>
+    <key>Hour</key>
+    <integer>9</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/opt/libpq/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/k2-backup-storage.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/k2-backup-storage.log</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>
