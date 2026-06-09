@@ -22,7 +22,7 @@ Staging zostaje na `k2biznes-oferta-web.vercel.app` jako sandbox.
 1. https://supabase.com/dashboard → **New project**
 2. Nazwa: `k2biznes-oferta-prod`
 3. Region: **eu-central-1** (Frankfurt — najblizej PL, ten sam co staging)
-4. DB password: wygeneruj losowe ~32 znaki, **zapisz w bezpiecznym miejscu** (np. 1Password)
+4. DB password: wygeneruj losowe ~32 znaki, **zapisz w Bitwarden** (Secure Note "env.production.local", folder "K2Biznes Oferta prod")
 5. Plan: **Free** (decyzja: bez PITR)
 6. Kliknij **Create**, czekaj 1-2 min az project bedzie ready
 7. **Skopiuj do mnie:**

@@ -101,7 +101,7 @@ Direct connection `db.<ref>.supabase.co:5432` dostępny jak nie ma IPv6 (potrzeb
 
 | Pole | Wartość |
 |---|---|
-| **URL** | https://vercel.com/k2biznes/k2biznes-oferta-web |
+| **URL** | https://vercel.com/tomeks-projects-544a4978/k2biznes-oferta-web |
 | **Project** | `k2biznes-oferta-web` |
 | **Team/scope** | `k2biznes` (Hobby — nie team plan) |
 | **Plan** | Hobby |
@@ -351,9 +351,9 @@ Jeśli cert wygasł albo CNAME zniknął:
 |---|---|
 | Zobaczyć błąd w prod | https://k2biznes.sentry.io/issues |
 | Sprawdzić uptime | https://uptimerobot.com/dashboard |
-| Zobaczyć logi Vercel | https://vercel.com/k2biznes/k2biznes-oferta-web/logs |
+| Zobaczyć logi Vercel | https://vercel.com/tomeks-projects-544a4978/k2biznes-oferta-web/logs |
 | Zobaczyć logi Supabase | https://supabase.com/dashboard/project/yuyyejwnryuynbosqwwa/logs |
-| Dodać/zmienić env var | https://vercel.com/k2biznes/k2biznes-oferta-web/settings/environment-variables |
+| Dodać/zmienić env var | https://vercel.com/tomeks-projects-544a4978/k2biznes-oferta-web/settings/environment-variables |
 | Resztę | patrz tabela w odpowiedniej sekcji wyżej |
 
 ---

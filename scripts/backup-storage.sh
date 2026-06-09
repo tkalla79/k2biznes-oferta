@@ -93,3 +93,11 @@ done
 echo ""
 echo "✓ Backup OK: $DOWNLOADED plikow, total $(echo "scale=2; $TOTAL_SIZE / 1024 / 1024" | bc 2>/dev/null || echo "$((TOTAL_SIZE / 1024)) KB") MB"
 echo "  Lokalizacja: $BACKUP_DIR"
+
+# Q9 audit: retention — usuń foldery storage starsze niż 180 dni (6 mies.).
+# Storage zmienia się rzadko (logo/photo), 6 mies. historii wystarczy.
+STORAGE_ROOT="$HOME/Backups/k2biznes-oferta/storage"
+DELETED=$(find "$STORAGE_ROOT" -mindepth 1 -maxdepth 1 -type d -mtime +180 -print -exec rm -rf {} + 2>/dev/null | wc -l | tr -d ' ')
+if [[ "$DELETED" -gt 0 ]]; then
+  echo "  Retention: usunięto $DELETED folder(ów) storage starszych niż 180 dni."
+fi

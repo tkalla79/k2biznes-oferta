@@ -11,10 +11,23 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+/**
+ * Walidacja `next` param — TYLKO relatywne ścieżki w obrębie aplikacji.
+ * Blokuje open redirect: `?next=https://evil.com` lub `?next=//evil.com`
+ * (protocol-relative) phishing po magic-link. Musi zaczynać się od pojedynczego
+ * `/` i NIE od `//` ani `/\`. Inaczej fallback do `/admin`.
+ */
+function safeNext(raw: string | null): string {
+  if (!raw) return '/admin';
+  if (!raw.startsWith('/')) return '/admin'; // absolute URL / inny scheme
+  if (raw.startsWith('//') || raw.startsWith('/\\')) return '/admin'; // protocol-relative
+  return raw;
+}
+
 export async function GET(req: NextRequest) {
   const url = req.nextUrl;
   const code = url.searchParams.get('code');
-  const next = url.searchParams.get('next') ?? '/admin';
+  const next = safeNext(url.searchParams.get('next'));
   const error = url.searchParams.get('error');
   const errorDescription = url.searchParams.get('error_description');
 
