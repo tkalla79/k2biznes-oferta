@@ -190,7 +190,7 @@ export async function notifyConsultantOfferAccepted(offer: OfferRow): Promise<vo
   const { html, text } = await renderEmail(createElement(OfferAcceptedConsultant, props));
   const result = await sendEmail({
     to: consultant.email,
-    subject: `✅ Oferta ${offer.offer_number} zaakceptowana — ${offer.client_name}, wariant ${props.acceptedVariant}`,
+    subject: `Oferta ${offer.offer_number} zaakceptowana — ${offer.client_name}, wariant ${props.acceptedVariant}`,
     html,
     text,
     tags: [

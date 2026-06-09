@@ -5,6 +5,7 @@
  */
 import { z } from 'zod';
 import { PricingOverrideSchema } from '@/lib/pricing/override';
+import { expiresAtSchema } from './shared';
 
 // =============================================================================
 // Wspólne
@@ -91,22 +92,8 @@ export const UpdateOfferInput = z.object({
 
   // PATCH-only
   status: OfferStatus.optional(),
-  // expiresAt musi byc przyszloscia (min. 1h od teraz, max 365 dni). null = wyczysc.
-  // Patrz lib/validation/send.ts dla pelnego rationale (bug 2026-05-29).
-  expiresAt: z
-    .string()
-    .datetime()
-    .refine(
-      (iso) => {
-        const t = new Date(iso).getTime();
-        const minMs = Date.now() + 60 * 60 * 1000;
-        const maxMs = Date.now() + 365 * 24 * 60 * 60 * 1000;
-        return t >= minMs && t <= maxMs;
-      },
-      { message: 'expiresAt musi byc w przyszlosci (min. 1h, max 365 dni od teraz)' },
-    )
-    .optional()
-    .nullable(),
+  // M9 audit: walidacja expiresAt w lib/validation/shared.ts (współdzielona z send).
+  expiresAt: expiresAtSchema,
 });
 
 export type UpdateOfferInput = z.infer<typeof UpdateOfferInput>;
