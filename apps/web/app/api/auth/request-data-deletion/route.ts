@@ -37,23 +37,26 @@ export async function POST(req: NextRequest) {
       throw new ApiError('INTERNAL_ERROR', `request insert failed: ${error?.message}`, 500);
     }
 
-    // Email confirmation (best-effort).
-    notifyDeletionRequested({
-      email: body.email,
-      requestId: inserted.id,
-      reason: body.reason ?? null,
-    }).catch((e) =>
-      console.error('[gdpr] notify request failed:', (e as Error).message),
-    );
-
-    await logAudit({
-      action: 'gdpr.request.created',
-      resourceType: 'data_deletion_request',
-      resourceId: inserted.id,
-      actorId: null,
-      actorEmail: body.email,
-      after: { status: 'requested', email: body.email },
-    });
+    // Email confirmation + audit — H1 audit: notify MUSI być awaited przed
+    // return. RODO confirmation to email-dowód prawny — Vercel zabija async po
+    // response, fire-and-forget mógł go zgubić. Oba w Promise.allSettled.
+    await Promise.allSettled([
+      notifyDeletionRequested({
+        email: body.email,
+        requestId: inserted.id,
+        reason: body.reason ?? null,
+      }).catch((e: Error) =>
+        console.error('[gdpr] notify request failed:', e.message),
+      ),
+      logAudit({
+        action: 'gdpr.request.created',
+        resourceType: 'data_deletion_request',
+        resourceId: inserted.id,
+        actorId: null,
+        actorEmail: body.email,
+        after: { status: 'requested', email: body.email },
+      }),
+    ]);
 
     // Świadomie nie zwracamy `id` — uniemożliwia atakującemu wniesienie żądania
     // i potem przeglądanie statusu (wymaga maila z linkiem-tokenem do follow-up).

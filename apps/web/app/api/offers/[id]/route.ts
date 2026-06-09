@@ -129,8 +129,22 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (patch.status !== undefined) update.status = patch.status;
     if (patch.expiresAt !== undefined) update.expires_at = patch.expiresAt;
 
-    // Re-kalkulacja snapshotu jeśli zmiana wpływa na pricing
+    // Re-kalkulacja snapshotu jeśli zmiana wpływa na pricing.
     if (shouldRecalcSnapshot(patch)) {
+      // H2 audit: pricing_snapshot jest IMMUTABLE po wysłaniu (BACKEND_SPEC 3.2.3).
+      // Wcześniej zmiana projectValue/fundingRate na ofercie status='sent'
+      // przeliczała snapshot po cichu → klient po refresh magic-linka widział
+      // INNĄ cenę niż w mailu (kontraktowo niebezpieczne). Teraz: tylko draft
+      // może auto-przeliczać. Dla sent/viewed/accepted/rejected → 409 + wskazanie
+      // świadomego POST /recalculate (osobny audit entry z old/new).
+      if (before.status !== 'draft') {
+        throw new ApiError(
+          'OFFER_INVALID_STATUS',
+          `Wartości finansowe oferty są zamrożone po wysłaniu (status "${before.status}"). ` +
+            `Użyj POST /api/offers/${params.id}/recalculate jeśli świadomie chcesz przeliczyć snapshot.`,
+          409,
+        );
+      }
       const { segments, config } = await loadPricing();
       update.pricing_snapshot = calcPricing(
         {

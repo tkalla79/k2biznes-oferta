@@ -83,12 +83,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       // Nie throw — status = sent już zapisany. Konsultant może retry przez UI.
     }
 
-    // CRM webhook 'offer.sent' — best-effort (sekcja 10)
-    enqueueOfferWebhook({ event: 'offer.sent', offer: updated }).catch((e) =>
-      console.error('[send] enqueue webhook failed:', e.message),
-    );
-
-    // Event 'sent' + audit
+    // Event 'sent' + audit + CRM webhook — H1 audit: webhook MUSI być awaited
+    // przed return (Vercel zabija async po response). Wcześniej fire-and-forget
+    // `.catch()` po enqueue dawał szansę tylko bo allSettled poniżej trochę czekał
+    // — niedeterministyczne. Teraz webhook jest w samym allSettled.
     await Promise.allSettled([
       sb.from('offer_events').insert({
         offer_id: updated.id,
@@ -106,6 +104,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         before: { status: offer.status },
         after: { status: 'sent', recipientEmail: body.recipientEmail },
       }),
+      enqueueOfferWebhook({ event: 'offer.sent', offer: updated }).catch((e: Error) =>
+        console.error('[send] enqueue webhook failed:', e.message),
+      ),
     ]);
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';

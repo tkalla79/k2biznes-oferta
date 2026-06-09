@@ -30,6 +30,12 @@
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 html, body { margin: 0; padding: 0; }
+
+/* H7 audit: shimmer dla loading.tsx skeleton. */
+@keyframes k2-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 body {
   font-family: var(--sans);
   color: var(--ink);
@@ -1593,3 +1599,51 @@ main { display: block; }
 .case-wrap { margin-bottom: 48px; }
 .program-top { margin-bottom: 14px; }
 .needs-list li { padding: 14px 0; }
+
+/* ============================================================
+   H15 audit: @media print — PDF (puppeteer page.pdf emuluje print).
+   Ukrywa elementy interaktywne/chrome które w PDF wyglądają źle:
+   nav, scroll-hint, fixed banner statusu, CTA, CookieConsent (role=dialog
+   z root layout), progressbar. Hero bez 100vh (pusta pierwsza strona).
+   Sekcje/karty nie łamią się w połowie.
+   ============================================================ */
+@media print {
+  .topnav,
+  .hero-scroll,
+  .fixed-banner,
+  .cta-mini,
+  .progressbar,
+  .pdf-download,
+  [role="dialog"] {
+    display: none !important;
+  }
+
+  .hero {
+    min-height: auto !important;
+    padding-top: 40px !important;
+    padding-bottom: 40px !important;
+  }
+
+  .section {
+    padding-top: 32px !important;
+    padding-bottom: 32px !important;
+    page-break-inside: avoid;
+  }
+
+  .variant,
+  .alt-card,
+  .case-wrap,
+  .faq-item,
+  .exec-fee {
+    page-break-inside: avoid;
+  }
+
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+
+  body {
+    font-size: 12pt;
+  }
+}
