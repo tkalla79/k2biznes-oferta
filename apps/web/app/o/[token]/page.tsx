@@ -8,6 +8,7 @@
  * Server-side rendering. Małe interaktywne komponenty client-side:
  * CountUp, FaqAccordion, ScopeAccordion, ProcessTimeline, AcceptForm.
  */
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
@@ -41,6 +42,38 @@ type Props = {
   params: { token: string };
   searchParams: { print?: string; __preview?: string };
 };
+
+/**
+ * H14 audit: OG/Twitter metadata dla unfurl na Slack/Teams/email preview.
+ * Klient wkleja link żeby skonsultować z zarządem → preview pokazuje nazwę
+ * klienta + program zamiast gołego URL. `robots: noindex` — oferty nie do
+ * indeksowania (token unguessable, ale prewencyjnie). Fetch jest cheap (1 query)
+ * i Next dedupuje go z renderem page przez React cache.
+ */
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const base = { robots: { index: false, follow: false } };
+  try {
+    const ctx = await fetchPublicOffer(params.token);
+    const title = `Oferta K2Biznes — ${ctx.offer.client_name}`;
+    const description = `Oferta doradcza: ${ctx.offer.program_label}. ${ctx.offer.offer_number}.`;
+    return {
+      title,
+      description,
+      ...base,
+      openGraph: {
+        title,
+        description,
+        type: 'website',
+        locale: 'pl_PL',
+        siteName: 'K2Biznes',
+      },
+      twitter: { card: 'summary', title, description },
+    };
+  } catch {
+    // Token nieprawidłowy/wygasły — generic metadata, page-level obsłuży 404/410.
+    return { title: 'Oferta K2Biznes', ...base };
+  }
+}
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('pl-PL', {

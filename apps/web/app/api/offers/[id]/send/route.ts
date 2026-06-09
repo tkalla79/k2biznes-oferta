@@ -54,6 +54,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       throw Errors.conflictStatus(`Wysyłka niedozwolona dla statusu ${offer.status}.`);
     }
 
+    // H5 audit: anti-double-click idempotency. Admin double-klika „Wyślij" przy
+    // slow network → 2 requesty → 2 emaile do klienta + 2 offer_events. Re-send
+    // jest intencjonalny (po jakimś czasie OK), ale 2 wysyłki w 60s to przypadek.
+    if (offer.status === 'sent' && offer.sent_at) {
+      const sinceLastSend = Date.now() - new Date(offer.sent_at).getTime();
+      if (sinceLastSend < 60_000) {
+        throw Errors.conflictStatus(
+          'Oferta została właśnie wysłana. Odczekaj chwilę przed ponowną wysyłką.',
+        );
+      }
+    }
+
     const now = new Date().toISOString();
     const { data: updated, error: upErr } = await sb
       .from('offers')
