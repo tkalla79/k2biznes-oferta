@@ -24,7 +24,12 @@ import type { Json } from '@k2/database/types';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-export const maxDuration = 30; // sek; Vercel Pro limit
+// H9 audit: maxDuration honorowane TYLKO na Vercel Pro. Na obecnym Hobby plan
+// hard limit = 10s → render puppeteer (~17s) ZAWSZE timeoutuje (prod: 503).
+// PDF jest dlatego known limitation: NIE linkowany w UI klienta (page.tsx),
+// endpoint zwraca graceful 503. Wartość 30 zostaje na wypadek upgrade Pro.
+// Patrz docs/PLANY_ROZWOJU.md "PDF generation wymaga Vercel Pro".
+export const maxDuration = 30;
 
 export async function GET(req: NextRequest, { params }: { params: { token: string } }) {
   try {
