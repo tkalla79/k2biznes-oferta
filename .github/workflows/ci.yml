@@ -1,0 +1,41 @@
+name: CI
+
+# H4 audit: testy/typecheck/lint nigdy nie odpalały się automatycznie.
+# Z 40 PR realna szansa że któryś złamał test bez wykrycia.
+# Required check na main → regresja wychwycona przed merge, nie przez klienta.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Anuluj poprzedni run gdy nowy push do tego samego PR/brancha.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Workspaces — instaluje root + apps/web + packages/*
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
