@@ -43,7 +43,9 @@ export type AuditAction =
   | 'faq.delete'
   | 'alt_program.create'
   | 'alt_program.update'
-  | 'alt_program.delete';
+  | 'alt_program.delete'
+  | 'offer_template.create'
+  | 'offer_template.delete';
 
 export type AuditEntry = {
   action: AuditAction;
@@ -55,7 +57,8 @@ export type AuditEntry = {
     | 'case_study'
     | 'contact_person'
     | 'faq_item'
-    | 'alt_program';
+    | 'alt_program'
+    | 'offer_template';
   resourceId: string;
   actorId: string | null;
   actorEmail: string | null;

@@ -23,6 +23,7 @@ export default async function NewOfferPage() {
     { data: caseStudies },
     { data: contactPersons },
     { data: altProgramLibrary },
+    { data: templates },
     profilesRes,
   ] = await Promise.all([
     sb.from('programs').select('id, label, group_name').eq('is_active', true).order('display_order'),
@@ -37,6 +38,7 @@ export default async function NewOfferPage() {
       .select('id, name, program, nabor, desc, url')
       .eq('is_active', true)
       .order('display_order'),
+    sb.from('offer_templates').select('id, name').order('created_at', { ascending: false }),
     isAdmin
       ? sb
           .from('profiles')
@@ -64,6 +66,7 @@ export default async function NewOfferPage() {
         profiles={profilesRes.data ?? []}
         canAssignConsultant={isAdmin}
         altProgramLibrary={altProgramLibrary ?? []}
+        templates={templates ?? []}
       />
     </main>
   );

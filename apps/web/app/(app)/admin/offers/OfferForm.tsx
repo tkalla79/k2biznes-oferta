@@ -9,6 +9,7 @@ import {
   type VariantOverride,
 } from '@/lib/pricing/override';
 import type { PaymentMilestone } from '@/lib/pricing/types';
+import { extractTemplate, applyTemplate } from '@/lib/offers/template';
 import RichTextEditor from '@/components/RichTextEditor';
 
 type ProgramOpt = { id: string; label: string; group_name: string };
@@ -80,6 +81,12 @@ type AltProgramOpt = {
   nabor: string | null;
   desc: string | null;
   url: string | null;
+};
+
+// Feature #1: pozycja listy szablonów (lekka — pełne dane przez GET [id]).
+type TemplateOpt = {
+  id: string;
+  name: string;
 };
 
 type FormState = {
@@ -284,6 +291,7 @@ type Props =
       profiles: ProfileOpt[];
       canAssignConsultant: boolean;
       altProgramLibrary?: AltProgramOpt[];
+      templates?: TemplateOpt[];
     }
   | {
       mode: 'edit';
@@ -294,6 +302,7 @@ type Props =
       profiles: ProfileOpt[];
       canAssignConsultant: boolean;
       altProgramLibrary?: AltProgramOpt[];
+      templates?: TemplateOpt[];
     };
 
 export default function OfferForm({
@@ -305,6 +314,7 @@ export default function OfferForm({
   profiles,
   canAssignConsultant,
   altProgramLibrary = [],
+  templates = [],
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -319,6 +329,52 @@ export default function OfferForm({
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  // Feature #1: pre-fill z szablonu (tryb create). Pobiera pełny template_data
+  // (lista jest lekka) i nakłada na blank — pola klienta zostają puste.
+  const [tplLoading, setTplLoading] = useState(false);
+  async function applyTemplateById(id: string) {
+    if (!id) return;
+    setTplLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/offer-templates/${id}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error?.message ?? 'Nie udało się wczytać szablonu.');
+      const data = (json.data?.template_data ?? {}) as Record<string, unknown>;
+      setForm((f) => applyTemplate(blankInitial(), { ...extractTemplate(f), ...data }) as FormState);
+      setSuccess('Szablon wczytany — uzupełnij dane klienta.');
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setTplLoading(false);
+    }
+  }
+
+  // Feature #1: zapis obecnego formularza jako szablon (bez danych klienta).
+  async function saveAsTemplate() {
+    const name = window.prompt('Nazwa szablonu (np. „FENG SMART — produkcja"):');
+    if (!name || !name.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/offer-templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          template_data: extractTemplate(form as unknown as Record<string, unknown>),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error?.message ?? 'Zapis szablonu nie powiódł się.');
+      setSuccess(`Szablon „${name.trim()}" zapisany.`);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   // Auto-fill program label gdy wybierze się program z select'a.
@@ -584,6 +640,28 @@ export default function OfferForm({
         <div style={warnBox}>
           <strong>Uwaga:</strong> oferta ma status <code>{offer!.status}</code>. Zmiany finansów
           spowodują rekalkulację snapshotu i unieważnienie cache PDF.
+        </div>
+      )}
+
+      {/* Feature #1: wybór szablonu (tylko nowa oferta). Pre-fill wszystkich pól
+          oprócz danych klienta. */}
+      {mode === 'create' && templates.length > 0 && (
+        <div style={{ marginBottom: 20, padding: 14, background: '#f2f5fa', border: '1px solid #e4e9f2', borderRadius: 10 }}>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#3a4254', marginBottom: 6 }}>
+            Zacznij od szablonu (opcjonalnie)
+          </label>
+          <select
+            defaultValue=""
+            disabled={tplLoading}
+            onChange={(e) => applyTemplateById(e.target.value)}
+            style={{ width: '100%', maxWidth: 420, padding: '8px 10px', border: '1px solid #d4dae6', borderRadius: 6, fontSize: 14 }}
+          >
+            <option value="">— bez szablonu (pusty formularz) —</option>
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+          {tplLoading && <span style={{ marginLeft: 10, fontSize: 13, color: '#6b7a92' }}>wczytuję…</span>}
         </div>
       )}
 
@@ -1274,6 +1352,11 @@ export default function OfferForm({
         <button type="submit" disabled={busy || pending} style={btnPrimary}>
           {busy ? 'Zapisuję…' : mode === 'create' ? 'Stwórz ofertę' : 'Zapisz zmiany'}
         </button>
+        {/* Feature #1: zapis rozpiski jako szablon (bez danych klienta). */}
+        <button type="button" onClick={saveAsTemplate} disabled={busy} style={btnSecondaryAction}
+          title="Zapisz obecne ustawienia (program, warianty, treści) jako szablon — bez danych klienta">
+          Zapisz jako szablon
+        </button>
         {error && <div style={errorBox}>{error}</div>}
         {success && <div style={successBox}>{success}</div>}
       </div>
@@ -1404,6 +1487,16 @@ const btnPrimary: React.CSSProperties = {
   border: 'none',
   borderRadius: 6,
   fontSize: 15,
+  fontWeight: 600,
+  cursor: 'pointer',
+};
+const btnSecondaryAction: React.CSSProperties = {
+  padding: '12px 20px',
+  background: 'transparent',
+  color: '#3a4254',
+  border: '1px solid #d4dae6',
+  borderRadius: 6,
+  fontSize: 14,
   fontWeight: 600,
   cursor: 'pointer',
 };
