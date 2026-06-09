@@ -241,9 +241,15 @@ export default function AcceptForm({
         type="submit"
         className="accept-btn"
         disabled={previewOnly ? false : !gdpr || submitting || !name || !email}
+        aria-busy={submitting}
       >
-        {previewOnly ? 'Akceptacja w trybie klienta' : `Akceptuję ofertę · Wariant ${variant}`}
-        <em>→</em>
+        {/* M14 audit: loading state — klient widzi że trwa, nie klika ponownie. */}
+        {previewOnly
+          ? 'Akceptacja w trybie klienta'
+          : submitting
+            ? 'Wysyłanie…'
+            : `Akceptuję ofertę · Wariant ${variant}`}
+        {!submitting && <em>→</em>}
       </button>
 
       <p className="accept-note">
