@@ -1740,3 +1740,18 @@ main { display: block; }
 @media (max-width: 720px) {
   .calc-readonly { grid-template-columns: 1fr; }
 }
+
+/* Uwaga (12.06, follow-up): logo case study NIE na granatowym kole — loga
+   klientów (przezroczyste/kolorowe tła) źle na nim wyglądały. Zamiast koła:
+   czysta jasna prostokątna karta z delikatnym borderem. */
+.case-frame {
+  max-width: 100%;
+  aspect-ratio: 16 / 10;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.case-img-overlay { display: none; }
+.case-logo { color: var(--ink); }
+.case-logo-big { color: var(--ink); }
+.case-logo-sm { color: var(--mute); opacity: 1; }
