@@ -489,9 +489,9 @@ export default async function OfferPage({ params, searchParams }: Props) {
               <div className="stat-lbl">skutecznie zrealizowanych projektów</div>
             </div>
             <div className="stat">
-              <div className="stat-num">
-                <CountUp to={15} immediate={isPrint} />+ lat
-              </div>
+              {/* Uwaga (drugi plik): spójnie z hero „od 2015" — wcześniej „15+ lat"
+                  kłóciło się z rokiem założenia. */}
+              <div className="stat-num">od 2015</div>
               <div className="stat-lbl">doświadczenia w pozyskiwaniu środków UE</div>
             </div>
           </div>
