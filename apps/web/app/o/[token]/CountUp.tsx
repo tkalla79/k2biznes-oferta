@@ -10,24 +10,29 @@ export default function CountUp({
   to,
   duration = 1400,
   decimals = 0,
+  immediate = false,
 }: {
   to: number;
   duration?: number;
   decimals?: number;
+  /** Uwaga PDF (12.06): w wydruku puppeteer IntersectionObserver + animacja
+   *  nie odpalają → licznik zostawał na 0. immediate (=isPrint) renderuje od
+   *  razu wartość końcową bez animacji. */
+  immediate?: boolean;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
-  const [n, setN] = useState(0);
+  const [n, setN] = useState(immediate ? to : 0);
   const [inView, setInView] = useState(false);
 
   useEffect(() => {
-    if (!ref.current) return;
+    if (immediate || !ref.current) return;
     const io = new IntersectionObserver(
       ([e]) => e.isIntersecting && setInView(true),
       { threshold: 0.25 },
     );
     io.observe(ref.current);
     return () => io.disconnect();
-  }, []);
+  }, [immediate]);
 
   useEffect(() => {
     if (!inView) return;
