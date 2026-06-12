@@ -478,19 +478,19 @@ export default async function OfferPage({ params, searchParams }: Props) {
           <div className="stats">
             <div className="stat">
               <div className="stat-num">
-                <CountUp to={475} /> mln zł
+                <CountUp to={475} immediate={isPrint} /> mln zł
               </div>
               <div className="stat-lbl">pozyskanego dofinansowania dla klientów</div>
             </div>
             <div className="stat">
               <div className="stat-num">
-                ponad <CountUp to={288} />
+                ponad <CountUp to={288} immediate={isPrint} />
               </div>
               <div className="stat-lbl">skutecznie zrealizowanych projektów</div>
             </div>
             <div className="stat">
               <div className="stat-num">
-                <CountUp to={15} />+ lat
+                <CountUp to={15} immediate={isPrint} />+ lat
               </div>
               <div className="stat-lbl">doświadczenia w pozyskiwaniu środków UE</div>
             </div>
@@ -523,13 +523,16 @@ export default async function OfferPage({ params, searchParams }: Props) {
                   {dto.caseStudy.paragraph1 && <p>{dto.caseStudy.paragraph1}</p>}
                   {dto.caseStudy.paragraph2 && <p>{dto.caseStudy.paragraph2}</p>}
                   {dto.caseStudy.industries.length > 0 && (
-                    <div className="case-stats">
-                      {dto.caseStudy.industries.map((ind, i) => (
-                        <div key={i}>
-                          <strong>{ind}</strong>
-                          <span>branża</span>
-                        </div>
-                      ))}
+                    /* Uwaga PDF (12.06): label „branża" raz, nie pod każdą pozycją. */
+                    <div className="case-industries">
+                      <span className="case-industries-label">
+                        {dto.caseStudy.industries.length > 1 ? 'Branże' : 'Branża'}
+                      </span>
+                      <div className="case-industries-list">
+                        {dto.caseStudy.industries.map((ind, i) => (
+                          <span key={i} className="case-industry-tag">{ind}</span>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </>
@@ -546,20 +549,8 @@ export default async function OfferPage({ params, searchParams }: Props) {
             <div className="case-visual">
               <div className="case-frame">
                 <div className="case-img-overlay" />
-                <svg className="case-rings" viewBox="0 0 400 400" aria-hidden>
-                  <defs>
-                    <mask id="crgap">
-                      <rect width="400" height="400" fill="white" />
-                      <rect x="195" y="0" width="10" height="200" fill="black" />
-                    </mask>
-                  </defs>
-                  <g mask="url(#crgap)">
-                    <circle cx="200" cy="200" r="180" fill="none" stroke="currentColor" strokeWidth="20" />
-                  </g>
-                  <g mask="url(#crgap)" transform="translate(50 50)">
-                    <circle cx="150" cy="150" r="120" fill="none" stroke="currentColor" strokeWidth="14" opacity=".55" />
-                  </g>
-                </svg>
+                {/* Uwaga PDF (12.06): "Do usunięcia te koła w tle" — dekoracyjne
+                    pierścienie usunięte. */}
                 <div className="case-logo">
                   {dto.caseStudy?.logoBig ? (
                     // H13 audit: loading=lazy (poniżej fold) — Supabase URL, więc

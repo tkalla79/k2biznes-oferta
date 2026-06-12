@@ -1660,3 +1660,83 @@ main { display: block; }
     font-size: 12pt;
   }
 }
+
+/* ============================================================
+   UWAGI PDF (12.06.2026) + global spacing/wyrównanie bloków.
+   Override na końcu — wygrywa nad wcześniejszymi regułami.
+   ============================================================ */
+
+/* GLOBAL: zmniejszone odstępy + ciaśniejsze bloki ("za rozciągnięte"). */
+.section { padding-top: 56px; padding-bottom: 40px; }
+.section.intro { padding-top: 56px; }
+.section-head { margin-bottom: 28px; }
+.hero { padding-top: 96px; padding-bottom: 48px; }
+.hero-foot { margin-top: 56px; padding-top: 36px; gap: 40px; }
+
+/* Uwaga 2: heading intro za duży — mniejszy (bliżej tekstu poniżej). */
+.intro .section-head h2 {
+  font-size: clamp(30px, 3.4vw, 46px);
+}
+
+/* Uwaga 6a: wartości oferty poziomo (były pionowo rozciągnięte). */
+.calc-readonly {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+.cr-item {
+  padding: 16px 18px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.cr-label {
+  font-size: 13px;
+  color: var(--mute);
+  margin-bottom: 6px;
+}
+.cr-val {
+  font-family: var(--serif);
+  font-size: 22px;
+  color: var(--ink);
+  letter-spacing: -.01em;
+}
+
+/* Uwaga 9b: branże — jeden label „Branże" + tagi inline (nie „branża" 3×). */
+.case-industries {
+  margin-top: 20px;
+}
+.case-industries-label {
+  display: block;
+  font-size: 12px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--mute);
+  margin-bottom: 8px;
+}
+.case-industries-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.case-industry-tag {
+  font-family: var(--serif);
+  font-size: 18px;
+  color: var(--ink);
+  letter-spacing: -.01em;
+  padding: 2px 0;
+}
+.case-industry-tag:not(:last-child)::after {
+  content: '·';
+  margin-left: 8px;
+  color: var(--line);
+}
+
+/* Uwaga 10: zdjęcia osób kontaktowych źle się kadrowały — pozycja na twarz. */
+.contact-portrait img {
+  object-position: 50% 25%;
+}
+
+@media (max-width: 720px) {
+  .calc-readonly { grid-template-columns: 1fr; }
+}
