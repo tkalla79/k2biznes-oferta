@@ -2,7 +2,7 @@
 
 SaaS do ofert handlowych dla klientów dotacyjnych (FENG / FEPW / KPO / FELU).
 
-> **Stan:** Produkcja https://oferta.k2biznes.pl (PR #1-#29 zmergowane). 3 rundy code review, 4 admin userzy, RODO/GDPR v2 + privacy policy live. Stack: Next.js 14 + Supabase Cloud + Vercel + Resend + Sentry + UptimeRobot.
+> **Stan:** Produkcja https://oferta.k2biznes.pl (PR #1–#57 zmergowane). 3 rundy code review, 4 admin userzy, RODO/GDPR v2 + privacy policy live. **Etap 2 (edytowalność)** wdrożony: biblioteka alt-programów, szablony oferty, globalne statystyki firmowe (`/admin/ustawienia`), edytowalne treści per-oferta, fix rozwijania komponentów w PDF. Stack: Next.js 14 + Supabase Cloud + Vercel + Resend + Sentry + UptimeRobot.
 
 ## Lokalizacja
 
@@ -13,7 +13,7 @@ SaaS do ofert handlowych dla klientów dotacyjnych (FENG / FEPW / KPO / FELU).
 
 Zacznij od **[docs/TECH_ADMIN_MANUAL.md](docs/TECH_ADMIN_MANUAL.md)** — masterdoc spinający wszystko.
 
-- **[docs/BACKEND_SPEC.md](docs/BACKEND_SPEC.md)** — pełna specyfikacja techniczna (v1.1.1, ~1660 linii)
+- **[docs/BACKEND_SPEC.md](docs/BACKEND_SPEC.md)** — pełna specyfikacja techniczna (v1.2.0, etap 2)
 - **[docs/APPLICATIONS_INVENTORY.md](docs/APPLICATIONS_INVENTORY.md)** — inwentarz 10 external services
 - **[docs/BACKUP_RECOVERY.md](docs/BACKUP_RECOVERY.md)** — procedury backup + recovery scenarios
 - **[docs/PROD_SETUP.md](docs/PROD_SETUP.md)** — setup produkcji (1-time)

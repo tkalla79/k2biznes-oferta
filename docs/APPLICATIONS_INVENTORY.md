@@ -4,7 +4,7 @@ Pełna lista zewnętrznych usług które tworzą produkcję `oferta.k2biznes.pl`
 Dla każdej: do czego służy, jak się zalogować, gdzie szukać w razie awarii,
 co przestaje działać jak padnie, jak rotować klucze.
 
-**Aktualizacja:** 2026-05-29
+**Aktualizacja:** 2026-06-14 (zweryfikowany po etapie 2 — usługi zewnętrzne bez zmian)
 **Audience:** tech-admin (Tomek + przyszli devs)
 
 ---
