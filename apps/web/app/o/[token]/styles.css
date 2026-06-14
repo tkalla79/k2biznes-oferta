@@ -1755,3 +1755,18 @@ main { display: block; }
 .case-logo { color: var(--ink); }
 .case-logo-big { color: var(--ink); }
 .case-logo-sm { color: var(--mute); opacity: 1; }
+
+/* Uwaga 6b: box „uwagi/rabat" w sekcji wynagrodzenia — wyróżniony (red accent). */
+.cennik-notes {
+  margin: 24px 0;
+  padding: 16px 20px;
+  background: var(--red-soft);
+  border-left: 3px solid var(--red);
+  border-radius: 0 10px 10px 0;
+}
+.cennik-notes p {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink);
+  line-height: 1.5;
+}
