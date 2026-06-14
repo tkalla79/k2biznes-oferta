@@ -7,9 +7,27 @@ type Step = { t: string; d: string };
 /**
  * Klikalna oś czasu procesu — dot'y na rail'u + szczegół wybranego kroku.
  */
-export default function ProcessTimeline({ steps }: { steps: Step[] }) {
+export default function ProcessTimeline({ steps, print = false }: { steps: Step[]; print?: boolean }) {
   const [active, setActive] = useState<number>(0);
   const last = steps.length - 1;
+
+  // Tryb PDF/print: wszystkie kroki rozwinięte (oś interaktywna pokazałaby tylko
+  // aktywny krok + przyciski nawigacji, których w PDF kliknąć nie można).
+  if (print) {
+    return (
+      <ol className="process-print">
+        {steps.map((s, i) => (
+          <li key={i} className="process-print-step">
+            <span className="pp-num">{String(i + 1).padStart(2, '0')}</span>
+            <div className="pp-body">
+              <h3>{s.t}</h3>
+              <p>{s.d}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    );
+  }
 
   return (
     <>
