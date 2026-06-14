@@ -60,6 +60,9 @@ export default async function AdminDashboard() {
         <Link href="/admin/gdpr" style={{ color: '#6b7a92', textDecoration: 'none' }}>
           RODO
         </Link>
+        <Link href="/admin/ustawienia" style={{ color: '#6b7a92', textDecoration: 'none' }}>
+          Ustawienia
+        </Link>
       </nav>
 
       {/* KPI cards */}
