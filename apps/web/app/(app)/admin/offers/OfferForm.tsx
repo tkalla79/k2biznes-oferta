@@ -117,6 +117,10 @@ type FormState = {
   // PR-D: edytowalne sekcje oferty
   programDescription: string; // HTML z Tiptapa
   altPrograms: AltProgramUI[]; // alternatywne programy (per oferta)
+  // Etap 2: edytowalność per-oferta (uwagi PDF #3, #4, #6b)
+  needs: { k: string; v: string }[]; // potrzeby klienta (sekcja intro)
+  programReason: string; // uzasadnienie wyboru naboru (sekcja program)
+  contentNotes: string; // uwagi/rabat (sekcja wynagrodzenia)
   // Ownership (admin only)
   assignedConsultantId: string;
   // Pricing override (sekcja 6.5 spec / PR #29)
@@ -211,6 +215,9 @@ function initialFromOffer(offer: OfferDto): FormState {
         footer?: unknown;
         programDescription?: unknown;
         altPrograms?: unknown;
+        needs?: unknown;
+        programReason?: unknown;
+        notes?: unknown;
       }
     | null;
   const altPrograms = Array.isArray(c?.altPrograms)
@@ -222,6 +229,14 @@ function initialFromOffer(offer: OfferDto): FormState {
           nabor: typeof p.nabor === 'string' ? p.nabor : '',
           desc: typeof p.desc === 'string' ? p.desc : '',
           url: typeof p.url === 'string' ? p.url : '',
+        }))
+    : [];
+  const needs = Array.isArray(c?.needs)
+    ? (c!.needs as unknown[])
+        .filter((n): n is Record<string, unknown> => typeof n === 'object' && n !== null)
+        .map((n) => ({
+          k: typeof n.k === 'string' ? n.k : '',
+          v: typeof n.v === 'string' ? n.v : '',
         }))
     : [];
   return {
@@ -245,6 +260,9 @@ function initialFromOffer(offer: OfferDto): FormState {
     contentFooter: typeof c?.footer === 'string' ? c.footer : '',
     programDescription: typeof c?.programDescription === 'string' ? c.programDescription : '',
     altPrograms,
+    needs,
+    programReason: typeof c?.programReason === 'string' ? c.programReason : '',
+    contentNotes: typeof c?.notes === 'string' ? c.notes : '',
     assignedConsultantId: offer.assignedConsultantId ?? '',
     pricingMode: pricingModeFromOffer(offer),
     overrides: overridesFromOffer(offer),
@@ -274,6 +292,9 @@ function blankInitial(): FormState {
     contentFooter: '',
     programDescription: '',
     altPrograms: [],
+    needs: [],
+    programReason: '',
+    contentNotes: '',
     assignedConsultantId: '',
     pricingMode: 'auto',
     overrides: emptyOverrides(),
@@ -566,6 +587,15 @@ export default function OfferForm({
       (p) => p.name.trim() !== '' || p.desc.trim() !== '' || p.program.trim() !== '',
     );
     if (cleanAlts.length > 0) content.altPrograms = cleanAlts;
+
+    // Etap 2: needs/programReason/notes — zapisujemy tylko gdy wypełnione
+    // (pusta wartość = render używa fallbacku do staticContent).
+    const cleanNeeds = form.needs.filter((n) => n.k.trim() !== '' || n.v.trim() !== '');
+    if (cleanNeeds.length > 0) {
+      content.needs = cleanNeeds.map((n) => ({ k: n.k.trim(), v: n.v.trim() }));
+    }
+    if (form.programReason.trim()) content.programReason = form.programReason.trim();
+    if (form.contentNotes.trim()) content.notes = form.contentNotes.trim();
 
     const body = {
       clientName: form.clientName.trim(),
@@ -1287,6 +1317,85 @@ export default function OfferForm({
             maxLength={2000}
             placeholder="Np. Pełen zakres usług, harmonogram pracy i warunki płatności znajdziesz w załączonym PDF."
           />
+        </Field>
+
+        {/* Etap 2 — uwaga PDF #6b: uwagi/rabat w sekcji wynagrodzenia */}
+        <Field label="Uwagi do wyceny (np. rabat) — wyróżniony box w sekcji wynagrodzenia">
+          <textarea
+            value={form.contentNotes}
+            onChange={(e) => update('contentNotes', e.target.value)}
+            style={textarea}
+            rows={2}
+            maxLength={1000}
+            placeholder="Np. Oferta zawiera rabat 15% — cena standardowa opłaty wstępnej to 18 000 zł."
+          />
+        </Field>
+
+        {/* Etap 2 — uwaga PDF #4: uzasadnienie wyboru naboru (sekcja program) */}
+        <Field label="Dlaczego ten nabór (sekcja Rekomendujemy) — puste = tekst domyślny">
+          <textarea
+            value={form.programReason}
+            onChange={(e) => update('programReason', e.target.value)}
+            style={textarea}
+            rows={2}
+            maxLength={600}
+            placeholder="Nabór jest najbardziej odpowiedni ze względu na charakter inwestycji…"
+          />
+        </Field>
+
+        {/* Etap 2 — uwaga PDF #3: edytowalne potrzeby klienta (sekcja intro) */}
+        <Field label="Potrzeby klienta (sekcja 01 Wprowadzenie) — puste = lista domyślna">
+          <p style={hint}>
+            Lista potrzeb pokazywana po prawej w sekcji wprowadzenia. Zostaw pustą, by użyć
+            domyślnych 4 pozycji.
+          </p>
+          {form.needs.map((n, idx) => (
+            <div key={idx} style={altCardStyle}>
+              <div style={altCardHead}>
+                Potrzeba #{idx + 1}
+                <button
+                  type="button"
+                  onClick={() => update('needs', form.needs.filter((_, i) => i !== idx))}
+                  style={btnSmallGhost}
+                >
+                  Usuń
+                </button>
+              </div>
+              <Field label="Tytuł">
+                <input
+                  type="text"
+                  maxLength={120}
+                  value={n.k}
+                  onChange={(e) => {
+                    const next = [...form.needs];
+                    next[idx] = { ...next[idx], k: e.target.value };
+                    update('needs', next);
+                  }}
+                  style={input}
+                />
+              </Field>
+              <Field label="Opis">
+                <textarea
+                  rows={2}
+                  maxLength={600}
+                  value={n.v}
+                  onChange={(e) => {
+                    const next = [...form.needs];
+                    next[idx] = { ...next[idx], v: e.target.value };
+                    update('needs', next);
+                  }}
+                  style={textarea}
+                />
+              </Field>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => update('needs', [...form.needs, { k: '', v: '' }])}
+            style={btnSmallGhost}
+          >
+            + Dodaj potrzebę
+          </button>
         </Field>
       </Section>
 

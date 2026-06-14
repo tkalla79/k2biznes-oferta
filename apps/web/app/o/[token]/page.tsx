@@ -161,12 +161,23 @@ export default async function OfferPage({ params, searchParams }: Props) {
     footer?: string;
     programDescription?: string;
     altPrograms?: Array<{ name: string; program: string; nabor: string; desc: string; url: string }>;
+    // Etap 2 (edytowalność per-oferta): needs/programReason/notes — fallback do staticContent.
+    needs?: Array<{ k: string; v: string }>;
+    programReason?: string;
+    notes?: string;
   };
   const programDescriptionHtml = sanitizeRichText(content.programDescription);
   const altPrograms =
     Array.isArray(content.altPrograms) && content.altPrograms.length > 0
       ? content.altPrograms
       : ALT_PROGRAMS;
+  // Edytowalne potrzeby klienta (sekcja intro) — fallback do domyślnych NEEDS.
+  const needs =
+    Array.isArray(content.needs) && content.needs.length > 0 ? content.needs : NEEDS;
+  // Edytowalne uzasadnienie wyboru naboru (sekcja program) — fallback do domyślnego.
+  const programReason =
+    content.programReason?.trim() ||
+    'Nabór jest najbardziej odpowiedni ze względu na charakter inwestycji, dopasowanie do kryteriów formalnych i merytorycznych oraz strategiczne cele firmy.';
 
   // Status / preview banners
   const previewBanner = isPreview ? (
@@ -297,7 +308,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
               {/* Kafelek "Klient + numer oferty" usunięty — duplikuje info z hero (PR #27 feedback) */}
             </div>
             <ul className="needs-list">
-              {NEEDS.map((n, i) => (
+              {needs.map((n, i) => (
                 <li key={i} style={{ ['--i' as string]: i } as React.CSSProperties}>
                   <div className="need-num">{String(i + 1).padStart(2, '0')}</div>
                   <div className="need-body">
@@ -321,10 +332,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
           </div>
           <div className="program-hero">
             <div className="program-top">
-              <p className="program-reason">
-                Nabór jest najbardziej odpowiedni ze względu na charakter inwestycji, dopasowanie do
-                kryteriów formalnych i merytorycznych oraz strategiczne cele firmy.
-              </p>
+              <p className="program-reason">{programReason}</p>
             </div>
             <div className="program-separator" />
             {programDescriptionHtml ? (
@@ -426,6 +434,13 @@ export default async function OfferPage({ params, searchParams }: Props) {
               monthly: dto.execFee.monthly ?? null,
             }}
           />
+
+          {/* Uwaga 6b: pole „uwagi" (np. rabat) — wyróżniony box nad podsumowaniem. */}
+          {content.notes && (
+            <div className="cennik-notes">
+              <p style={{ whiteSpace: 'pre-wrap' }}>{content.notes}</p>
+            </div>
+          )}
 
           {/* Podsumowanie (content.footer z OfferForm) — pojawia się pod pricingiem
               jeśli konsultant wpisał. Plain text z line-breaks. */}
