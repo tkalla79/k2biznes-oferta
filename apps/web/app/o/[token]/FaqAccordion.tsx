@@ -4,12 +4,13 @@ import { useState } from 'react';
 
 type Item = { q: string; a: string };
 
-export default function FaqAccordion({ items }: { items: Item[] }) {
+export default function FaqAccordion({ items, print = false }: { items: Item[]; print?: boolean }) {
   const [open, setOpen] = useState<number>(0);
+  // Tryb PDF/print: wszystkie odpowiedzi rozwinięte (klient dostaje pełen FAQ).
   return (
-    <ul className="faq-list">
+    <ul className={print ? 'faq-list is-print' : 'faq-list'}>
       {items.map((f, i) => (
-        <li key={i} className={open === i ? 'open' : ''}>
+        <li key={i} className={print || open === i ? 'open' : ''}>
           <button
             type="button"
             className="faq-q"

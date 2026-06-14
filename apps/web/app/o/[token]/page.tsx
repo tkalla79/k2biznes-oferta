@@ -391,7 +391,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
               Co dokładnie robimy <em>dla Państwa projektu</em>
             </h2>
           </div>
-          <ScopeAccordion prep={SCOPE_PREP} exec={SCOPE_EXEC} />
+          <ScopeAccordion prep={SCOPE_PREP} exec={SCOPE_EXEC} print={isPrint} />
         </section>
 
         {/* ==================== 05. CENNIK ==================== */}
@@ -471,7 +471,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
               Przejrzysty proces współpracy — od pierwszego kontaktu po podpisanie umowy.
             </p>
           </div>
-          <ProcessTimeline steps={PROCESS} />
+          <ProcessTimeline steps={PROCESS} print={isPrint} />
         </section>
 
         {/* ==================== 07. ONAS ==================== */}
@@ -606,6 +606,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
                 ? faqRows.map((f) => ({ q: f.question, a: f.answer }))
                 : FAQ_ITEMS
             }
+            print={isPrint}
           />
         </section>
 

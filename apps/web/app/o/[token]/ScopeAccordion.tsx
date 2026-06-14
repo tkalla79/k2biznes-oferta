@@ -11,13 +11,47 @@ type ScopeItem = { t: string; d: string };
 export default function ScopeAccordion({
   prep,
   exec,
+  print = false,
 }: {
   prep: ScopeItem[];
   exec: ScopeItem[];
+  print?: boolean;
 }) {
   const [tab, setTab] = useState<'prep' | 'exec'>('prep');
   const [open, setOpen] = useState<number>(0);
   const list = tab === 'prep' ? prep : exec;
+
+  // Tryb PDF/print: oba zakresy (przygotowanie + obsługa) w całości rozwinięte —
+  // klikalne taby/akordeon renderowałyby w DOM tylko aktywny tab.
+  if (print) {
+    return (
+      <div className="scope-print">
+        {[
+          { title: 'Przygotowanie dokumentacji', tag: 'w cenie oferty', items: prep },
+          { title: 'Obsługa i rozliczanie projektu', tag: 'opcjonalne', items: exec },
+        ].map((block) => (
+          <div className="scope-print-block" key={block.title}>
+            <h3 className="scope-print-h">
+              {block.title} <span className="tab-tag">{block.tag}</span>
+            </h3>
+            <ul className="scope-list is-print">
+              {block.items.map((s, i) => (
+                <li key={i} className="open">
+                  <div className="scope-head">
+                    <span className="scope-num">{String(i + 1).padStart(2, '0')}</span>
+                    <span className="scope-title">{s.t}</span>
+                  </div>
+                  <div className="scope-body">
+                    <p>{s.d}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <>
