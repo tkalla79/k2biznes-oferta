@@ -3,7 +3,7 @@
 Masterdoc dla osoby utrzymującej i rozwijającej aplikację (Tomek + przyszli devs).
 Spina rozproszone runbooks w jedną nawigowalną dokumentację.
 
-**Aktualizacja:** 2026-05-28
+**Aktualizacja:** 2026-06-14 (etap 2: edytowalność — `/admin/ustawienia`, alt-programy, szablony, print-fix PDF)
 
 ---
 
@@ -79,6 +79,9 @@ Spina rozproszone runbooks w jedną nawigowalną dokumentację.
 - `offer_events` — audit log (sent/viewed/accepted/rejected/pdf_downloaded)
 - `webhook_jobs` — kolejka outbound webhooks (CRM integration)
 - `ip_hash_salts` — rotowane salty dla IP hashing
+- `alt_programs` — biblioteka programów alternatywnych (etap 2, `/admin/alt-programs`)
+- `offer_templates` — szablony startowe oferty (etap 2, `/admin/templates`)
+- `app_settings` — globalne ustawienia firmowe; klucz `company_stats` (etap 2, `/admin/ustawienia`)
 
 ### Kluczowe routes
 
@@ -96,6 +99,9 @@ Spina rozproszone runbooks w jedną nawigowalną dokumentację.
 | `/admin/case-studies` | Katalog case studies | admin+ |
 | `/admin/contact-persons` | Osoby kontaktowe | admin+ |
 | `/admin/faq` | Globalne FAQ | admin+ |
+| `/admin/alt-programs` | Biblioteka alt-programów (etap 2) | admin+ |
+| `/admin/templates` | Szablony oferty (etap 2) | admin+ |
+| `/admin/ustawienia` | Statystyki firmowe `company_stats` (etap 2) | super_admin |
 | `/admin/users` | Lista userów + role | super_admin |
 | `/admin/gdpr` | Wnioski o usunięcie danych | admin+ |
 | `/o/[token]` | Publiczna oferta (klient) | brak (token = auth) |
@@ -202,13 +208,39 @@ touch supabase/migrations/$(date +%Y%m%d%H%M%S)_opis_zmiany.sql
 npm run db:reset  # apply na lokalnym Postgres
 npm run dev       # smoke test
 
-# 3. Apply do prod (wymaga supabase access tokena + DB password)
+# 3a. Apply do prod — wariant CLI (wymaga supabase access tokena + DB password)
 SUPABASE_ACCESS_TOKEN=sbp_xxx SUPABASE_DB_PASSWORD='...' \
   supabase db push --linked
 
 # 4. Verify w Supabase Studio SQL Editor
 # https://supabase.com/dashboard/project/yuyyejwnryuynbosqwwa/sql/new
 ```
+
+**Wariant psql w transakcji (używany przy etapie 2 — pełna kontrola + atomowość).**
+Gdy chcesz wykonać migrację + wpis śledzenia w jednej transakcji (np. DDL +
+seed + ręczny insert do `supabase_migrations.schema_migrations`):
+
+```bash
+# ZAWSZE backup PRZED migracją
+bash scripts/backup-db.sh
+
+# psql z libpq (Homebrew); pooler session (5432), URI-format omija problem SCRAM
+PSQL=/opt/homebrew/opt/libpq/bin/psql
+DB_PASS=$(grep '^SUPABASE_DB_PASSWORD=' .env.production.local | cut -d= -f2-)
+REF=$(grep '^SUPABASE_PROJECT_REF=' .env.production.local | cut -d= -f2-)
+CONN="postgresql://postgres.$REF:$DB_PASS@aws-1-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require"
+
+"$PSQL" "$CONN" -v ON_ERROR_STOP=1 <<'SQL'
+begin;
+  -- ... DDL z pliku migracji ...
+  insert into supabase_migrations.schema_migrations (version, name, statements)
+  values ('<YYYYMMDDHHMMSS>', '<opis>', array['-- applied via psql']);
+commit;
+SQL
+```
+
+> Auto-mode (Claude Code) blokuje DDL na prod bez wyraźnej zgody usera — to
+> celowe zabezpieczenie. Przy ręcznej migracji potwierdź operację świadomie.
 
 **Pamiętaj** (od 30.10.2026): nowe tabele wymagają explicit `GRANT` per role (anon/authenticated/service_role). Template w `RUNBOOK_MIGRATION_ROLLBACK.md`.
 
@@ -281,6 +313,23 @@ Przekaż tymczasowe hasło out-of-band (Signal/Telegram), user zmieni przez `/au
 ### Dodanie/edycja programu / case study / osoby kontaktowej
 
 Przez UI: `/admin/programs`, `/admin/case-studies`, `/admin/contact-persons`. Każda strona ma CRUD z formularzem.
+
+### Edycja statystyk firmowych (etap 2)
+
+`/admin/ustawienia` (super_admin) — kwota pozyskanego dofinansowania, liczba
+projektów, „od kiedy". Zapisywane do `app_settings.company_stats`, render w
+hero każdej oferty + sekcji „Dlaczego K2Biznes". **Zmiana propaguje na WSZYSTKIE
+oferty** (dane firmowe, nie per-klient) bez redeployu. Edycja loguje audit
+`settings.update`. Treści per-oferta (potrzeby, „dlaczego ten nabór", uwagi,
+alt-programy) edytujesz w formularzu oferty (`/admin/offers/*`, sekcja „Treść
+w ofercie"), nie tutaj.
+
+### Biblioteka alt-programów i szablony oferty (etap 2)
+
+- `/admin/alt-programs` — wspólna lista „innych możliwości wsparcia"; oferta
+  może ją nadpisać per-rekord (`content.altPrograms`).
+- `/admin/templates` — zapisane zestawy treści/ustawień do szybkiego startu
+  nowej oferty.
 
 ### Regeneracja sekretów (rotacja co 90 dni)
 

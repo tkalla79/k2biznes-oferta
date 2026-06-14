@@ -5,7 +5,8 @@
 > wyłącznie do edycji wspólnej. Po zatwierdzeniu zmian — commit do repo.
 > Repo zawsze wygrywa nad OneDrive.
 
-**Wersja:** 1.1.1 · **Data:** 2026-04-26 · **Status:** gotowe do wdrożenia (wymaga uzupełnienia Appendix C przez biznes); migracje zweryfikowane na realnym `supabase db reset`
+**Wersja:** 1.2.0 · **Data:** 2026-06-14 · **Status:** NA PRODUKCJI (`oferta.k2biznes.pl`). Etap 2 (edytowalność) wdrożony — patrz sekcje 3.2.11–3.2.13, 4.4.1, 9.1.3.
+**Changelog 1.2.0 (etap 2):** tabele `alt_programs` (PR #50), `offer_templates` (PR #51), `app_settings` (PR #56); edytowalne pola `offers.content` (needs/programReason/notes/altPrograms); audit `settings.update`; rozwijanie komponentów w trybie print (PR #57); ujednolicenie statystyk firmowych w `/admin/ustawienia`.
 **Stan startowy:** `OFERTA_INTERAKTYWNA/` (statyczny vanilla-JS template — `index.html` + `js/app.js` + `css/styles.css`); szczegóły w Appendix A.
 **Target:** Supabase (Postgres + Auth + Storage + Edge Functions) + Next.js 14 App Router + TypeScript strict + Zod
 **Deployment:** Vercel **Pro** (cron co minutę) lub Supabase `pg_cron` + Edge Functions (sekcja 10.4)
@@ -219,7 +220,7 @@ create table offers (
 
   -- CASE STUDY & CONTENT
   case_study_id text references case_studies(id),
-  content jsonb not null default '{}',         -- pola edytowalne w ofercie (intro.lead, itp.)
+  content jsonb not null default '{}',         -- pola edytowalne w ofercie (patrz niżej)
 
   -- CLIENT RESPONSE
   accepted_variant pricing_variant,
@@ -251,6 +252,15 @@ create index idx_offers_created_at on offers(created_at desc);
 ```
 
 **Uwaga o `pricing_snapshot`**: backend NIE oblicza pricingu w locie przy każdym odczycie — snapshot jest zamrażany w momencie utworzenia lub edycji przez konsultanta. Dzięki temu oferta wysłana klientowi zawsze pokazuje dokładnie to samo, nawet jeśli zmienimy model cenowy w przyszłości. Re-kalkulacja tylko na żądanie (endpoint `POST /api/offers/:id/recalculate`).
+
+**Pola `content` (jsonb, etap 2)**: luźny `z.record`, więc nowe pola nie wymagają migracji. Każde pole nadpisuje treść domyślną z `apps/web/app/o/[token]/staticContent.ts` (fallback, gdy puste). Obecnie obsługiwane:
+- `intro.lead` — akapit wprowadzenia
+- `needs[]` — lista zidentyfikowanych potrzeb (sekcja 01); fallback: `NEEDS`
+- `programReason` — uzasadnienie „Dlaczego ten nabór" (sekcja 02 „Rekomendujemy")
+- `notes` — box uwag/rabatu w sekcji wynagrodzenia (`.cennik-notes`)
+- `altPrograms[]` — nadpisanie biblioteki alt-programów per-oferta; fallback: `alt_programs` (active) lub `ALT_PROGRAMS`
+
+Edytowane w `OfferForm.tsx` (sekcja „Treść w ofercie"). Statystyki firmowe (hero + „Dlaczego K2") NIE są w `content` — to globalny `app_settings.company_stats` (sekcja 3.2.13).
 
 #### 3.2.4 `offer_events` (tracking aktywności)
 
@@ -417,6 +427,61 @@ create table data_deletion_requests (
 );
 ```
 
+#### 3.2.11 `alt_programs` (biblioteka programów alternatywnych — etap 2, PR #50)
+
+Wspólna biblioteka „innych możliwości wsparcia" pokazywanych w ofercie (sekcja
+02). Wcześniej alternatywy były hardkodowane w `staticContent.ts`; teraz
+edytowalne w `/admin/alt-programs`, a oferta nadpisuje je per-rekord przez
+`content.altPrograms`.
+
+```sql
+create table alt_programs (
+  id text primary key,                         -- slug, np. 'feng-sciezka-smart'
+  label text not null,                         -- nagłówek programu (np. 'FENG 2021–2027')
+  name text not null,                          -- nazwa działania
+  intake text,                                 -- nabór (np. 'IV kw. 2026', 'nabór ciągły')
+  description text not null,
+  sort_order integer not null default 0,
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+```
+
+#### 3.2.12 `offer_templates` (szablony oferty — etap 2, PR #51)
+
+Zapisane zestawy treści/ustawień oferty do szybkiego startu nowej oferty
+(`/admin/templates`). Pole `payload` to ten sam kształt co `offers.content`
++ wybrane pola formularza.
+
+```sql
+create table offer_templates (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  description text,
+  payload jsonb not null default '{}',
+  created_by uuid references profiles(id),
+  created_at timestamptz not null default now()
+);
+```
+
+#### 3.2.13 `app_settings` (globalne ustawienia firmowe — etap 2, PR #56)
+
+Generyczny key/value (jsonb) na ustawienia firmowe wspólne dla WSZYSTKICH
+ofert (nie per-klient). Na start klucz `company_stats` — statystyki w hero
+oferty + sekcji „Dlaczego K2Biznes" (kwota dofinansowania, liczba projektów,
+od kiedy). Edytowalne w `/admin/ustawienia`; `o/[token]/page.tsx` czyta klucz
+z fallbackiem do wartości domyślnych (oferta działa nawet bez wiersza).
+
+```sql
+create table app_settings (
+  key         text primary key,                -- 'company_stats'
+  value       jsonb not null,
+  updated_at  timestamptz not null default now()
+);
+-- seed: company_stats = {"funding":"475 mln zł","projects":"288","since":"od 2015"}
+```
+
 ### 3.3 Diagram (tekstowy ERD)
 
 ```
@@ -433,6 +498,10 @@ pricing_segments + pricing_config ──(referenced by offer pricing_snapshot)
 webhook_jobs (standalone queue)
 audit_log (cross-cutting)
 data_deletion_requests (RODO)
+
+alt_programs      (biblioteka — referenced by offers.content.altPrograms)
+offer_templates   (szablony startowe oferty)
+app_settings      (globalne ustawienia firmowe, np. company_stats)
 ```
 
 ### 3.4 Seed data
@@ -604,6 +673,24 @@ create policy "super_admin writes programs" on programs
 -- (analogicznie dla case_studies, contact_persons, pricing_segments, pricing_config)
 ```
 
+#### 4.4.1 Tabele etapu 2 (`alt_programs`, `offer_templates`, `app_settings`)
+
+Ten sam wzorzec co tabele słownikowe — read=authenticated, write=super_admin:
+
+```sql
+-- alt_programs / offer_templates: read authenticated, write super_admin
+create policy "read alt_programs" on alt_programs for select using (auth.role() = 'authenticated');
+create policy "super_admin writes alt_programs" on alt_programs for all using (public.is_super_admin());
+
+-- app_settings: read authenticated, write super_admin
+create policy "read app_settings" on app_settings for select using (auth.role() = 'authenticated');
+create policy "super_admin writes app_settings" on app_settings for all using (public.is_super_admin());
+```
+
+Uwaga: oferta publiczna (`/o/[token]`) czyta `app_settings`/`alt_programs`
+przez service role (jak pozostałe `/api/public/*`), więc polityka read dla
+`authenticated` służy panelowi admina, nie ścieżce klienta.
+
 ### 4.5 `audit_log`, `webhook_jobs`, `data_deletion_requests`
 
 Zapis tylko z service role (via Edge Functions). Odczyt: admin i super_admin.
@@ -727,6 +814,10 @@ ADMIN
   POST   /api/admin/users/invite              – zaproś użytkownika
   PATCH  /api/admin/users/:id/role            – zmień rolę
   GET    /api/admin/audit-log
+  *      /api/admin/alt-programs              – CRUD biblioteki alt-programów (etap 2)
+  *      /api/admin/templates                 – CRUD szablonów oferty (etap 2)
+  GET    /api/admin/settings/company-stats    – odczyt statystyk firmowych (etap 2)
+  PUT    /api/admin/settings/company-stats    – zapis statystyk (super_admin, audit settings.update)
 
 WEBHOOKS (wewnętrzne, wywoływane przez cron)
   POST   /api/internal/process-webhook-jobs
@@ -1205,6 +1296,30 @@ export function pricingSnapshotHash(snapshot: object, content: object): string {
 ```
 
 Klucz cache: `${offerNumber}_${pricingSnapshotHash}.pdf`.
+
+### 9.1.3 Tryb `print` — rozwijanie komponentów interaktywnych
+
+Strona `/o/[token]` jest interaktywna (akordeony, klikalna oś procesu). W PDF
+nie da się kliknąć, więc przy `?print=true` (`isPrint` w `page.tsx`) komponenty
+renderują pełną, rozwiniętą treść — inaczej PDF gubiłby większość zawartości:
+
+- **`ScopeAccordion`** — renderuje oba zakresy (przygotowanie + obsługa) w całości, bez tabów.
+- **`ProcessTimeline`** — pionowa lista wszystkich kroków zamiast jednego aktywnego + nawigacji.
+- **`FaqAccordion`** — wszystkie odpowiedzi rozwinięte, bez chevronów.
+- **`CountUp`** — `immediate={isPrint}` (IntersectionObserver nie odpala w puppeteer; bez tego liczniki pokazywały 0). W bieżącej wersji statystyki to wartości statyczne z `app_settings`, nie CountUp.
+
+`isPrint` wyłącza też `ViewTracker`, `RevealOnScroll`, nawigację i CTA.
+
+### 9.1.4 Stan rzeczywisty (Vercel Hobby)
+
+Implementacja produkcyjna: serverless route `apps/web/app/api/public/offers/[token]/pdf/route.ts`
+(puppeteer-core + `@sparticuz/chromium`), nie Edge Function. **Ograniczenie:**
+Vercel Hobby ma twardy limit 10s na funkcję, a render puppeteer trwa ~17s →
+endpoint na prod zawsze zwraca graceful `503`. Dlatego **PDF nie jest linkowany
+w UI klienta** (znane ograniczenie — patrz `docs/PLANY_ROZWOJU.md`). PDF da się
+wygenerować lokalnie (`LOCAL_CHROME_PATH`) lub po upgrade do Vercel Pro
+(`maxDuration=30`). Ad-hoc render na podgląd: lokalny puppeteer celujący w URL
+deploymentu (preview/prod) z `?print=true`.
 
 ### 9.2 Alternatywa (jeśli Chromium na Edge będzie problemem)
 
