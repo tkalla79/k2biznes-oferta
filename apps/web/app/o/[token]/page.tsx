@@ -6,7 +6,7 @@
  * (zawiera logos), case, faq, akcept. Topnav + footer.
  *
  * Server-side rendering. Małe interaktywne komponenty client-side:
- * CountUp, FaqAccordion, ScopeAccordion, ProcessTimeline, AcceptForm.
+ * FaqAccordion, ScopeAccordion, ProcessTimeline, AcceptForm.
  */
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
@@ -18,7 +18,6 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { ApiError } from '@/lib/api/error';
 import RevealOnScroll from './RevealOnScroll';
 import ViewTracker from './ViewTracker';
-import CountUp from './CountUp';
 import FaqAccordion from './FaqAccordion';
 import ScopeAccordion from './ScopeAccordion';
 import ProcessTimeline from './ProcessTimeline';
@@ -127,7 +126,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
   }
 
   const sb = createAdminClient();
-  const [contactRes, caseRes, gdprRes, faqRes] = await Promise.all([
+  const [contactRes, caseRes, gdprRes, faqRes, statsRes] = await Promise.all([
     offer.contact_person_id
       ? sb.from('contact_persons').select('*').eq('id', offer.contact_person_id).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
@@ -141,7 +140,17 @@ export default async function OfferPage({ params, searchParams }: Props) {
       .is('deleted_at', null)
       .eq('is_active', true)
       .order('display_order'),
+    // Uwaga PDF #1: globalne staty firmowe (edytowalne w /admin/ustawienia).
+    sb.from('app_settings').select('value').eq('key', 'company_stats').maybeSingle(),
   ]);
+
+  // Staty firmowe z settings, fallback do obecnych wartości.
+  const cs = (statsRes.data?.value ?? {}) as { funding?: string; projects?: string; since?: string };
+  const companyStats = {
+    funding: cs.funding || '475 mln zł',
+    projects: cs.projects || '288',
+    since: cs.since || 'od 2015',
+  };
 
   const dto = toPublicOfferDto(offer, contactRes.data ?? null, caseRes.data ?? null);
   const faqRows = (faqRes.data ?? []) as Array<{ id: string; question: string; answer: string }>;
@@ -259,17 +268,17 @@ export default async function OfferPage({ params, searchParams }: Props) {
             </div>
             <div className="hero-foot">
               <div className="hero-foot-item">
-                <strong>475 mln zł</strong>
+                <strong>{companyStats.funding}</strong>
                 <span>pozyskanego dofinansowania</span>
               </div>
               <div className="divider" />
               <div className="hero-foot-item">
-                <strong>288</strong>
+                <strong>{companyStats.projects}</strong>
                 <span>zrealizowanych projektów</span>
               </div>
               <div className="divider" />
               <div className="hero-foot-item">
-                <strong>od 2015</strong>
+                <strong>{companyStats.since}</strong>
                 <span>doradztwo i projekty UE</span>
               </div>
             </div>
@@ -491,22 +500,19 @@ export default async function OfferPage({ params, searchParams }: Props) {
             </div>
           </div>
           <div className="stats">
+            {/* Uwaga PDF #1: staty z globalnych settings (app_settings company_stats),
+                edytowalne w /admin/ustawienia. Statyczne wartości — spójne z hero +
+                poprawne w PDF (CountUp animacja nie odpalała się w wydruku). */}
             <div className="stat">
-              <div className="stat-num">
-                <CountUp to={475} immediate={isPrint} /> mln zł
-              </div>
+              <div className="stat-num">{companyStats.funding}</div>
               <div className="stat-lbl">pozyskanego dofinansowania dla klientów</div>
             </div>
             <div className="stat">
-              <div className="stat-num">
-                ponad <CountUp to={288} immediate={isPrint} />
-              </div>
+              <div className="stat-num">ponad {companyStats.projects}</div>
               <div className="stat-lbl">skutecznie zrealizowanych projektów</div>
             </div>
             <div className="stat">
-              {/* Uwaga (drugi plik): spójnie z hero „od 2015" — wcześniej „15+ lat"
-                  kłóciło się z rokiem założenia. */}
-              <div className="stat-num">od 2015</div>
+              <div className="stat-num">{companyStats.since}</div>
               <div className="stat-lbl">doświadczenia w pozyskiwaniu środków UE</div>
             </div>
           </div>
