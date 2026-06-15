@@ -60,6 +60,10 @@ export default function PricingVariants({ variants, initialSelected, execFee }: 
               key={v.id}
               type="button"
               className={`variant ${isSelected ? 'selected' : ''}`}
+              // preventDefault na mousedown blokuje focus-scroll (przeglądarka
+              // dosuwała wysoką kartę do widoku przy kliku). Klik nadal podświetla;
+              // dostępność klawiaturą (Tab + Enter/Space) zachowana.
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => setSelectedId(v.id)}
               aria-label={`${v.name} — podświetl ten wariant`}
               aria-pressed={isSelected}
