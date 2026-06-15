@@ -12,12 +12,16 @@
  * Teraz: useState lokalny dla aktualnie podswietlonego wariantu. Klik =>
  * - zmienia ktora karta ma '.selected' i badge 'Wybrany'
  * - exec-fee box pod kartami aktualizuje monthly value
- * - smooth scroll do #akcept (klient widzi formularz wyboru)
+ *
+ * Bug raport Tomka 2026-06-14: klik w wariant 2/3 OD RAZU przenosil do sekcji
+ * 09 (akceptacja). Przyczyna: karta byla <a href="#akcept"> (natywny skok).
+ * Naprawione: karta to <button type="button"> — klik tylko podswietla, bez
+ * nawigacji. Klient sam scrolluje do akceptacji gdy gotowy.
  *
  * Wybor klienta nadal finalizowany w AcceptForm (osobny komponent, wlasny state).
  * Tu jest tylko visual feedback "ktory rozwazam".
  */
-import { useState, type MouseEvent } from 'react';
+import { useState } from 'react';
 import type { PricingVariant } from '@/lib/pricing';
 
 type Props = {
@@ -44,27 +48,25 @@ export default function PricingVariants({ variants, initialSelected, execFee }: 
   );
   const selected = variants.find((v) => v.id === selectedId) ?? variants[0] ?? null;
 
-  function onCardClick(e: MouseEvent<HTMLAnchorElement>, id: string) {
-    // Zmieniamy stan PRZED defaultem (scroll do #akcept). Stan tu jest tylko
-    // visual — wybor klienta finalizuje sie w AcceptForm.
-    setSelectedId(id);
-    // pozwalamy <a href="#akcept"> obsluzyc scroll natywnie (smooth via CSS)
-  }
-
   return (
     <>
       <div className="variants">
         {variants.map((v) => {
           const isSelected = selectedId === v.id;
           return (
-            // M17 audit: aria-current (poprawne dla <a>) zamiast aria-pressed (button/toggle).
-            <a
+            // <button> jako selectable option — klik tylko podswietla (visual
+            // feedback), NIE nawiguje do akceptacji. aria-pressed = stan toggle.
+            <button
               key={v.id}
-              href="#akcept"
+              type="button"
               className={`variant ${isSelected ? 'selected' : ''}`}
-              onClick={(e) => onCardClick(e, v.id)}
-              aria-label={`${v.name} — wybierz ten wariant i przejdz do akceptacji`}
-              aria-current={isSelected ? 'true' : undefined}
+              // preventDefault na mousedown blokuje focus-scroll (przeglądarka
+              // dosuwała wysoką kartę do widoku przy kliku). Klik nadal podświetla;
+              // dostępność klawiaturą (Tab + Enter/Space) zachowana.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setSelectedId(v.id)}
+              aria-label={`${v.name} — podświetl ten wariant`}
+              aria-pressed={isSelected}
             >
               <header>
                 <div className="v-id">{v.name}</div>
@@ -101,7 +103,7 @@ export default function PricingVariants({ variants, initialSelected, execFee }: 
                   </div>
                 ))}
               </div>
-            </a>
+            </button>
           );
         })}
       </div>

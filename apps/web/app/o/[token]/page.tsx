@@ -266,22 +266,6 @@ export default async function OfferPage({ params, searchParams }: Props) {
               <span>Program:</span>
               <strong>{dto.programLabel}</strong>
             </div>
-            <div className="hero-foot">
-              <div className="hero-foot-item">
-                <strong>{companyStats.funding}</strong>
-                <span>pozyskanego dofinansowania</span>
-              </div>
-              <div className="divider" />
-              <div className="hero-foot-item">
-                <strong>{companyStats.projects}</strong>
-                <span>zrealizowanych projektów</span>
-              </div>
-              <div className="divider" />
-              <div className="hero-foot-item">
-                <strong>{companyStats.since}</strong>
-                <span>doradztwo i projekty UE</span>
-              </div>
-            </div>
             {!isPrint && (
               <a href="#intro" className="hero-scroll">
                 <span>Przewiń ofertę</span>
@@ -484,9 +468,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
             </h2>
           </div>
           <div className="onas-quote">
-            <span className="q-open" aria-hidden>„</span>
             <p>Pomagając tworzyć i rozwijając Twój biznes, doskonalimy siebie.</p>
-            <span className="q-close" aria-hidden>”</span>
           </div>
           <div className="energies">
             <div className="energy e-navy">
