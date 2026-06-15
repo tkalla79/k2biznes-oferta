@@ -249,6 +249,12 @@ export default async function OfferPage({ params, searchParams }: Props) {
             </div>
           </div>
           <div className="hero-content">
+            {/* Logo firmy na stronie tytułowej PDF (uwaga 7 — w UI topnav ma logo,
+                ale topnav jest ukryty w print). Tylko w trybie print. */}
+            {isPrint && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src="/branding-v2/k2-logo.png" alt="K2 Biznes" className="hero-print-logo" />
+            )}
             <div className="hero-eyebrow">
               <span className="dot" /> {dto.offerNumber} ·{' '}
               {fmtDate(offer.sent_at ?? offer.created_at)}

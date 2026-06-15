@@ -88,7 +88,10 @@ export async function renderOfferPdf(opts: RenderOptions): Promise<Uint8Array> {
     const bytes = await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '20mm', right: '16mm', bottom: '20mm', left: '16mm' },
+      // Marginesy zsynchronizowane z layoutem print w styles.css (kompaktowanie
+      // PDF, uwagi 2026-06-15). Zmiana wpływa na paginację — sekcje są dostrojone
+      // pod te wartości.
+      margin: { top: '14mm', right: '12mm', bottom: '14mm', left: '12mm' },
     });
     return new Uint8Array(bytes);
   } finally {
