@@ -845,6 +845,9 @@ main { display: block; }
   cursor: pointer; transition: all .25s;
   display: flex; flex-direction: column;
   position: relative;
+  /* element to <button> — reset domyślnych stylów przycisku */
+  width: 100%; text-align: left; font: inherit; color: inherit;
+  -webkit-appearance: none; appearance: none;
 }
 .variant:hover { border-color: rgba(217,30,24,.4); transform: translateY(-2px); box-shadow: var(--shadow); }
 .variant.selected {
