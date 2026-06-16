@@ -3,11 +3,12 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function ResetPasswordForm() {
+export default function ResetPasswordForm({ mfaFactorId }: { mfaFactorId: string | null }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [code, setCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,13 +25,19 @@ export default function ResetPasswordForm() {
       setError('Hasła nie są identyczne.');
       return;
     }
+    if (mfaFactorId && !/^\d{6,8}$/.test(code)) {
+      setError('Wpisz 6-cyfrowy kod TOTP z aplikacji authenticator.');
+      return;
+    }
 
     setSubmitting(true);
     try {
       const res = await fetch('/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify(
+          mfaFactorId ? { password, factorId: mfaFactorId, code } : { password },
+        ),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -89,6 +96,23 @@ export default function ResetPasswordForm() {
           autoComplete="new-password"
         />
       </label>
+
+      {mfaFactorId && (
+        <label style={{ display: 'block' }}>
+          <div style={labelText}>Kod TOTP (konto ma włączone MFA)</div>
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern="\d{6,8}"
+            maxLength={8}
+            placeholder="123456"
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+            style={input}
+          />
+        </label>
+      )}
 
       <button type="submit" disabled={submitting || pending} style={btn}>
         {submitting ? 'Zmieniam…' : 'Zmień hasło'}
