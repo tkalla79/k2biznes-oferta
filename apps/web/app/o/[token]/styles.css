@@ -459,14 +459,14 @@ main { display: block; }
   z-index: 1;
 }
 .program-reason {
-  color: rgba(255, 255, 255, 0.75);
+  /* Uwaga 2026-06-15: wyróżniony czerwony bold zastąpiony zwykłą czcionką
+     jak tekst punktów poniżej — jednolite formatowanie sekcji 02. */
+  color: var(--ink);
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.5;
   width: 100%;
   margin: 0;
-  font-weight: 700;
-  color: #CC0000;
-  line-height: 1;
+  font-weight: 400;
 }
 .program-stat-label {
   font-size: 11px;
@@ -1568,7 +1568,9 @@ main { display: block; }
   font-size: 16px;
   line-height: 1.6;
   color: var(--ink-2);
-  max-width: 760px;
+  /* Uwaga 2026-06-15: podsumowanie na pełną szerokość + wyjustowane. */
+  max-width: none;
+  text-align: justify;
 }
 
 /* PDF download w topnav (PR #27) */
