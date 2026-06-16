@@ -35,5 +35,9 @@ export type ForgotPasswordInput = z.infer<typeof ForgotPasswordInput>;
 
 export const ResetPasswordInput = z.object({
   password: z.string().min(8).max(200),
+  // Konta z MFA: sesja recovery jest AAL1, a updateUser({password}) wymaga AAL2.
+  // Opcjonalny kod TOTP + factorId do upgrade'u sesji do AAL2 przed zmianą hasła.
+  factorId: z.string().uuid().optional(),
+  code: z.string().regex(/^\d{6,8}$/, 'Kod TOTP musi mieć 6-8 cyfr.').optional(),
 });
 export type ResetPasswordInput = z.infer<typeof ResetPasswordInput>;
