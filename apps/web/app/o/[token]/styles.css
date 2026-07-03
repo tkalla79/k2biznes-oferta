@@ -1803,6 +1803,31 @@ main { display: block; }
 }
 
 /* ============================================================
+   AUDYT 2026-07: termin ważności oferty + jednoznaczność cen (VAT).
+   ============================================================ */
+.hero-validity {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 8px 14px;
+  background: var(--red-soft);
+  border: 1px solid rgba(217, 30, 24, .25);
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--ink);
+}
+.hero-validity strong { color: var(--red); }
+
+.vat-note {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+  color: var(--mute);
+  line-height: 1.5;
+}
+.accept-card .vat-note { margin-top: 10px; }
+
+/* ============================================================
    PDF PRINT LAYOUT (uwagi 2026-06-15) — autorytatywny blok print.
    Na końcu pliku, więc wygrywa nad @media(max-width:960px), który
    w renderze A4 (~643px) zwijał grids do 1 kolumny.
@@ -1841,6 +1866,8 @@ main { display: block; }
   .hero-for { margin-top: 18px !important; font-size: 12pt !important; }
   .hero-client { font-size: 18pt !important; }
   .hero-program { margin-top: 16px !important; }
+  .hero-validity { font-size: 10pt !important; margin-top: 14px !important; }
+  .vat-note { font-size: 9pt !important; font-family: var(--sans) !important; }
 
   /* STR.2 — WPROWADZENIE (4 punkty) — większe, spójne, wyjustowane */
   .intro-grid { display: block !important; }
