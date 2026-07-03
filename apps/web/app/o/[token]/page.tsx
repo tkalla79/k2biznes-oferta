@@ -272,6 +272,13 @@ export default async function OfferPage({ params, searchParams }: Props) {
               <span>Program:</span>
               <strong>{dto.programLabel}</strong>
             </div>
+            {/* Termin związania ofertą (audyt 2026-07: wymóg formalny + pilność).
+                expires_at jest opcjonalne — bez daty nie renderujemy. */}
+            {offer.expires_at && (
+              <div className="hero-validity">
+                Oferta ważna do <strong>{fmtDate(offer.expires_at)}</strong>
+              </div>
+            )}
             {!isPrint && (
               <a href="#intro" className="hero-scroll">
                 <span>Przewiń ofertę</span>
@@ -619,6 +626,9 @@ export default async function OfferPage({ params, searchParams }: Props) {
                   : isPreview
                     ? 'Podsumowanie wybranego wariantu. W trybie klienta będzie tu formularz akceptacji.'
                     : `Status: ${dto.status}. Akceptacja niedostępna.`}
+                {isActive && offer.expires_at && (
+                  <> Oferta ważna do <strong>{fmtDate(offer.expires_at)}</strong>.</>
+                )}
               </p>
             </div>
 

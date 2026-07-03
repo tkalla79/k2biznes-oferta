@@ -166,6 +166,8 @@ export default function AcceptForm({
             <dd>{fmt(currentVariant?.total ?? 0)}</dd>
           </div>
         </dl>
+        {/* Audyt 2026-07: jednoznaczność cen (kwoty netto + VAT). */}
+        <p className="vat-note">Kwoty netto — zostanie doliczony podatek VAT (23%).</p>
       </div>
       <form className="accept-form" onSubmit={submit}>
         <h3>{previewOnly ? 'Formularz (podgląd)' : 'Twoje dane'}</h3>

@@ -108,6 +108,12 @@ export default function PricingVariants({ variants, initialSelected, execFee }: 
         })}
       </div>
 
+      {/* Audyt 2026-07: jednoznaczność cen — wszystkie kwoty netto (wymóg
+          formalny oferty handlowej; wcześniej "netto" tylko przy 2 z ~10 kwot). */}
+      <p className="vat-note">
+        Wszystkie kwoty są kwotami netto — do faktur zostanie doliczony podatek VAT (23%).
+      </p>
+
       {selected && (
         <div className="exec-fee">
           <div>
