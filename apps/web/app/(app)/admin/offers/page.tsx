@@ -186,6 +186,9 @@ export default async function OffersListPage({
                     )}
                   </td>
                   <td style={tdRight}>
+                    <Link href={`/admin/offers/${o.id}/activity`} style={btnEdit}>
+                      Aktywność
+                    </Link>
                     <Link href={`/admin/offers/${o.id}/edit`} style={btnEdit}>
                       Edytuj
                     </Link>
