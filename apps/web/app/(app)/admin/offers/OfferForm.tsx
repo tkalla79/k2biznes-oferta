@@ -96,6 +96,9 @@ type FormState = {
   clientIndustry: string;
   clientCompanySize: string;
   clientVoivodeship: string;
+  /** Ważność oferty (YYYY-MM-DD, puste = bezterminowo). Zapis tylko w edit —
+      CreateOfferInput nie przyjmuje expiresAt. Audyt 2026-07 pkt 1. */
+  expiresAt: string;
   // Program
   programId: string;
   programLabel: string;
@@ -245,6 +248,8 @@ function initialFromOffer(offer: OfferDto): FormState {
     clientIndustry: offer.clientIndustry ?? '',
     clientCompanySize: offer.clientCompanySize ?? '',
     clientVoivodeship: offer.clientVoivodeship ?? '',
+    // toLocaleDateString('sv-SE') = YYYY-MM-DD w lokalnej strefie (format input[date])
+    expiresAt: offer.expiresAt ? new Date(offer.expiresAt).toLocaleDateString('sv-SE') : '',
     programId: offer.programId ?? '',
     programLabel: offer.programLabel,
     programCustomName: offer.programCustomName ?? '',
@@ -277,6 +282,7 @@ function blankInitial(): FormState {
     clientIndustry: '',
     clientCompanySize: '',
     clientVoivodeship: '',
+    expiresAt: '',
     programId: '',
     programLabel: '',
     programCustomName: '',
@@ -599,6 +605,15 @@ export default function OfferForm({
 
     const body = {
       clientName: form.clientName.trim(),
+      // Ważność: tylko edit (create nie przyjmuje). Koniec dnia lokalnie → ISO;
+      // walidacja backendu wymaga min +1h / max +365 dni. null = bezterminowo.
+      ...(mode === 'edit'
+        ? {
+            expiresAt: form.expiresAt
+              ? new Date(`${form.expiresAt}T23:59:00`).toISOString()
+              : null,
+          }
+        : {}),
       clientNip: form.clientNip.trim() || undefined,
       clientIndustry: form.clientIndustry.trim() || undefined,
       clientCompanySize: form.clientCompanySize || undefined,
@@ -755,6 +770,23 @@ export default function OfferForm({
             </select>
           </Field>
         </Grid2>
+        {/* Audyt 2026-07 pkt 1: badge "Oferta ważna do" na ofercie/PDF czyta
+            expires_at — dotąd nie było pola w UI (tylko API). Create nie
+            przyjmuje expiresAt, stąd pole dopiero w edycji. */}
+        {mode === 'edit' && (
+          <Field label="Ważność oferty (do kiedy) — puste = bezterminowo, bez badge na ofercie">
+            <input
+              type="date"
+              value={form.expiresAt}
+              onChange={(e) => update('expiresAt', e.target.value)}
+              style={input}
+            />
+            <p style={hint}>
+              Klient zobaczy „Oferta ważna do {'{data}'}” w nagłówku oferty i na okładce PDF.
+              Po tej dacie link wygasa (410).
+            </p>
+          </Field>
+        )}
       </Section>
 
       {/* SECTION 2: Program */}
