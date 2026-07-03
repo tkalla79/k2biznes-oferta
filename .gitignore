@@ -34,3 +34,5 @@ Thumbs.db
 # test artifacts
 coverage/
 *.log
+.vercel
+.env*
