@@ -33,6 +33,12 @@ type Props = {
     desc: string;
     monthly: number | null;
   };
+  /**
+   * Token oferty do trackingu zainteresowania wariantami (audyt 2026-07 pkt 6).
+   * Podany tylko dla realnego klienta (nie preview/print) — undefined = brak
+   * eventów variant_hovered / variant_selected.
+   */
+  trackToken?: string;
 };
 
 const fmt = (n: number) =>
@@ -42,11 +48,31 @@ const fmt = (n: number) =>
     maximumFractionDigits: 0,
   }).format(Math.round(n));
 
-export default function PricingVariants({ variants, initialSelected, execFee }: Props) {
+export default function PricingVariants({ variants, initialSelected, execFee, trackToken }: Props) {
   const [selectedId, setSelectedId] = useState<string>(
     initialSelected || variants[0]?.id || '',
   );
   const selected = variants.find((v) => v.id === selectedId) ?? variants[0] ?? null;
+
+  // Tracking zainteresowania wariantami — dedup per (typ, wariant) na sesję,
+  // fire-and-forget (UX nie zależy od trackingu). Backend przyjmuje te typy
+  // od MVP; frontend dotąd ich nie emitował.
+  function track(type: 'variant_hovered' | 'variant_selected', variant: string) {
+    if (!trackToken) return;
+    const key = `k2_${type}_${trackToken}_${variant}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, '1');
+    } catch {
+      /* tryb prywatny — wysyłamy bez dedupu */
+    }
+    fetch(`/api/public/offers/${encodeURIComponent(trackToken)}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, payload: { variant } }),
+      keepalive: true,
+    }).catch(() => {});
+  }
 
   return (
     <>
@@ -64,7 +90,11 @@ export default function PricingVariants({ variants, initialSelected, execFee }: 
               // dosuwała wysoką kartę do widoku przy kliku). Klik nadal podświetla;
               // dostępność klawiaturą (Tab + Enter/Space) zachowana.
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => setSelectedId(v.id)}
+              onMouseEnter={() => track('variant_hovered', v.id)}
+              onClick={() => {
+                setSelectedId(v.id);
+                track('variant_selected', v.id);
+              }}
               aria-label={`${v.name} — podświetl ten wariant`}
               aria-pressed={isSelected}
             >

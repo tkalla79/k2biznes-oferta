@@ -18,6 +18,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { ApiError } from '@/lib/api/error';
 import RevealOnScroll from './RevealOnScroll';
 import ViewTracker from './ViewTracker';
+import EngagementTracker from './EngagementTracker';
 import FaqAccordion from './FaqAccordion';
 import ScopeAccordion from './ScopeAccordion';
 import ProcessTimeline from './ProcessTimeline';
@@ -207,6 +208,8 @@ export default async function OfferPage({ params, searchParams }: Props) {
   return (
     <>
       {!isPrint && !isPreview && isActive && <ViewTracker token={params.token} />}
+      {/* Audyt 2026-07 pkt 6: scroll_depth per sekcja → dashboard aktywności. */}
+      {!isPrint && !isPreview && isActive && <EngagementTracker token={params.token} />}
       {!isPrint && <RevealOnScroll />}
       {previewBanner}
       {statusBanner}
@@ -432,6 +435,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
               desc: dto.execFee.desc,
               monthly: dto.execFee.monthly ?? null,
             }}
+            trackToken={!isPrint && !isPreview && isActive ? params.token : undefined}
           />
 
           {/* Uwaga 6b: pole „uwagi" (np. rabat) — wyróżniony box nad podsumowaniem. */}
