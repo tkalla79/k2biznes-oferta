@@ -6,12 +6,13 @@ import Link from 'next/link';
 import { requireSuperAdmin } from '@/lib/auth/session';
 import { createAdminClient } from '@/lib/supabase/admin';
 import CompanyStatsForm from './CompanyStatsForm';
+import TestEmailForm from './TestEmailForm';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export default async function SettingsPage() {
-  await requireSuperAdmin();
+  const session = await requireSuperAdmin();
 
   const sb = createAdminClient();
   const { data } = await sb
@@ -38,6 +39,7 @@ export default async function SettingsPage() {
         Zmiana propaguje na wszystkie oferty — to dane firmowe, nie per-klient.
       </p>
       <CompanyStatsForm initial={initial} />
+      <TestEmailForm defaultTo={session.email ?? ''} />
     </main>
   );
 }

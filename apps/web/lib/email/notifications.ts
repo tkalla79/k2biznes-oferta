@@ -8,7 +8,7 @@
 import { createElement } from 'react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { renderEmail } from '@/lib/email/render';
-import { sendEmail } from '@/lib/email/send';
+import { sendEmail, type SendResult } from '@/lib/email/send';
 import OfferSentToClient, {
   type OfferSentToClientProps,
 } from '@/lib/email/templates/OfferSentToClient';
@@ -69,7 +69,10 @@ export async function notifyClientOfferSent(args: {
   offer: OfferRow;
   recipientEmail: string;
   customMessage?: string;
-}): Promise<void> {
+  // Email-reliability 2026-07: zwracamy wynik wysyłki — send route przekazuje
+  // go do UI, żeby konsultant OD RAZU widział "email nie dotarł" (wcześniej
+  // fail był połykany i widoczny dopiero markerem na liście).
+}): Promise<SendResult> {
   const { offer, recipientEmail, customMessage } = args;
   const sb = createAdminClient();
 
@@ -89,7 +92,7 @@ export async function notifyClientOfferSent(args: {
       to: recipientEmail,
       reason: 'invalid_pricing_snapshot',
     });
-    return;
+    return { ok: false, error: 'invalid pricing_snapshot — email nie został wysłany' };
   }
   const snapshot = snapshotRaw as unknown as PricingResult;
 
@@ -152,6 +155,7 @@ export async function notifyClientOfferSent(args: {
     to: recipientEmail,
     result,
   });
+  return result;
 }
 
 // =============================================================================

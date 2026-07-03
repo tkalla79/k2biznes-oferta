@@ -98,6 +98,7 @@ export async function sendEmail(msg: EmailMessage): Promise<SendResult> {
     } catch (e) {
       const m = e instanceof Error ? e.message : String(e);
       console.error('[email] smtp failed:', m);
+      reportEmailFailure(m, msg.subject);
       return { ok: false, error: m };
     }
   }
@@ -124,7 +125,26 @@ export async function sendEmail(msg: EmailMessage): Promise<SendResult> {
 
   if (error) {
     console.error('[email] resend failed:', error.message);
+    reportEmailFailure(error.message, msg.subject);
     return { ok: false, error: error.message };
   }
   return { ok: true, id: data?.id ?? 'unknown', mode: 'live' };
+}
+
+/**
+ * Email-reliability 2026-07: każda nieudana wysyłka trafia do Sentry — awarię
+ * kanału email (np. sandbox-owy klucz Resend na prodzie) widać w alertach,
+ * a nie dopiero gdy klient nie odpisuje. Bez PII: tylko treść błędu + temat.
+ */
+function reportEmailFailure(errorMessage: string, subject: string): void {
+  try {
+    // Dynamic require — moduł ładowany tylko gdy Sentry skonfigurowane.
+    const Sentry = require('@sentry/nextjs') as typeof import('@sentry/nextjs');
+    Sentry.captureMessage(`[email] send failed: ${errorMessage}`, {
+      level: 'error',
+      extra: { subject },
+    });
+  } catch {
+    // Sentry niedostępne (dev/test) — cichy no-op, console.error już zalogował.
+  }
 }

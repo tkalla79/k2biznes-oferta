@@ -149,9 +149,18 @@ export default function OfferActions({
           clientName={clientName}
           isReSend={status === 'sent' || status === 'viewed'}
           onClose={() => setSendOpen(false)}
-          onSent={() => {
+          onSent={(email) => {
             setSendOpen(false);
-            setMsg({ kind: 'ok', text: 'Oferta wysłana.' });
+            // Email-reliability 2026-07: awaria wysyłki widoczna OD RAZU, nie
+            // dopiero markerem na liście. Status oferty = sent mimo faila.
+            setMsg(
+              email.delivered
+                ? { kind: 'ok', text: 'Oferta wysłana — email dostarczony do wysyłki.' }
+                : {
+                    kind: 'err',
+                    text: `Oferta oznaczona jako wysłana, ale EMAIL NIE DOTARŁ: ${email.error ?? 'nieznany błąd'}. Sprawdź konfigurację (Ustawienia → Test wysyłki email) i wyślij ponownie.`,
+                  },
+            );
             startTransition(() => router.refresh());
           }}
         />
@@ -177,7 +186,7 @@ function SendDialog({
   clientName: string;
   isReSend: boolean;
   onClose: () => void;
-  onSent: () => void;
+  onSent: (email: { delivered: boolean; error?: string }) => void;
 }) {
   const [recipientEmail, setRecipientEmail] = useState('');
   const [recipientName, setRecipientName] = useState('');
@@ -222,7 +231,10 @@ function SendDialog({
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error?.message ?? 'Send failed');
-      onSent();
+      onSent({
+        delivered: json?.data?.emailDelivered !== false,
+        error: json?.data?.emailError,
+      });
     } catch (e) {
       setError((e as Error).message);
     } finally {
