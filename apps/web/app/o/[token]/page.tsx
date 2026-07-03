@@ -603,6 +603,11 @@ export default async function OfferPage({ params, searchParams }: Props) {
         {/* ==================== 11. AKCEPT ==================== */}
         {selectedVariant && (
           <section id="akcept" className="section akcept reveal">
+            {/* Sekcja 09 (nagłówek + formularz/podsumowanie) pomijana w PDF —
+                w druku nie znamy wyboru klienta; zostaje tylko karta kontaktowa
+                jako zakończenie oferty (uwaga 2026-06-15). */}
+            {!isPrint && (
+            <>
             <div className="section-head">
               <div className="section-kicker">09 · Akceptacja oferty</div>
               <h2>
@@ -664,8 +669,10 @@ export default async function OfferPage({ params, searchParams }: Props) {
                 </div>
               )}
             </div>
+            </>
+            )}
 
-            {/* Contact card pod akcept-grid */}
+            {/* Karta kontaktowa — zostaje też w PDF (zakończenie oferty) */}
             {dto.contactPerson && (
               <div className="contact-card">
                 <div className="contact-portrait">
