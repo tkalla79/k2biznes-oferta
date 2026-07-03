@@ -465,10 +465,44 @@ Quick list (login + URL panel):
 
 ### 11. Email do klienta nie dochodzi — „You can only send testing emails to your own email address"
 
-**Symptom (case 2026-07-03):** oferta ma status `sent`, na liście marker „⚠ email nie dotarł"; od tego czasu też czerwony komunikat od razu przy wysyłce. W `offer_events` (`type=email_sent`) payload zawiera błąd Resend jw.
-**Przyczyna:** `RESEND_API_KEY` na Vercel pochodzi z konta Resend **bez zweryfikowanej domeny** (tryb sandbox — wysyłka tylko na adres właściciela konta). DNS domeny może być OK — liczy się konto, do którego należy klucz.
-**Diagnoza:** `/admin/ustawienia` → „Test wysyłki email" na adres inny niż właściciel konta; pokaże surowy błąd Resend. DNS: `dig +short TXT resend._domainkey.k2biznes.pl` (musi zwrócić klucz DKIM).
-**Fix:** Vercel → Settings → Environment Variables → `RESEND_API_KEY` (Production) → wklej klucz z konta ze zweryfikowaną domeną (`.env.production.local` trzyma właściwy) → Redeploy → test przyciskiem jw. → wyślij ofertę ponownie (marker zniknie po udanej wysyłce).
+**Symptom (case 2026-07-03, ROZWIĄZANY):** oferta ma status `sent`, na liście marker „⚠ email nie dotarł"; czerwony komunikat od razu przy wysyłce. W `offer_events` (`type=email_sent`) payload zawiera błąd Resend jw.
+
+**Przyczyny (były DWIE naraz — sprawdź obie):**
+1. **`RESEND_API_KEY`** na Vercel — pusty albo z konta Resend **bez zweryfikowanej domeny** (sandbox — wysyłka tylko na adres właściciela konta). DNS domeny może być OK; liczy się konto, do którego należy klucz.
+2. **`EMAIL_FROM`** na Vercel = `K2Biznes Oferty <onboarding@resend.dev>` — adres nadawcy na **sandboxowej domenie Resend**. Nawet z dobrym kluczem `from` na `resend.dev` daje ten sam błąd. Poprawnie: `oferty@k2biznes.pl` (zweryfikowana domena) albo **usuń zmienną** — kod ma default `K2Biznes <oferty@k2biznes.pl>` (`lib/email/send.ts`).
+
+**PUŁAPKA w diagnozie:** zmienne typu **Sensitive w Vercelu są write-only** — `vercel env pull` / API **NIE odczytują ich wartości** (zwracają puste, `len 0`). „Pusty" w pull ≠ pusty na serwerze. Jedyny pewny test wartości klucza to **realna wysyłka**, nie odczyt env. (`EMAIL_FROM` nie jest Sensitive → pull go pokazuje.)
+
+**Diagnoza:**
+- Realny wynik ostatniej wysyłki (najlepsze źródło prawdy):
+  ```sql
+  select e.created_at, e.payload->>'outcome', e.payload->'result'->>'mode', e.payload->'result'->>'error'
+  from offer_events e join offers o on o.id=e.offer_id
+  where o.client_token='<token>' and e.type='email_sent' order by e.created_at desc limit 3;
+  ```
+  `outcome=sent, mode=live` → OK. `mode=dev_log` → klucz pusty. `failed` → zły klucz/from.
+- Klucz z pliku sprawdzisz bezpośrednio w Resend (na adres ≠ właściciel konta):
+  ```bash
+  KEY=$(grep '^RESEND_API_KEY=' .env.production.local | cut -d= -f2- | tr -d '"'"'"'\n')
+  curl -s -X POST https://api.resend.com/emails -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+    -d '{"from":"K2Biznes <oferty@k2biznes.pl>","to":["test@innadomena.pl"],"subject":"t","text":"t"}'
+  # {"id":...} = klucz dobry (domena zweryfikowana); błąd sandbox = zły
+  ```
+
+**Fix (przez Vercel CLI — pewniejszy niż dashboard; wymaga `vercel login` + `vercel link`):**
+```bash
+cd ~/Code/k2biznes-oferta
+npx --yes vercel@latest env rm RESEND_API_KEY production -y
+npx --yes vercel@latest env rm EMAIL_FROM production -y            # usuń sandbox-owy from
+# WAŻNE: plik z kluczem MUSI kończyć się znakiem nowej linii — env add czyta linię.
+grep '^RESEND_API_KEY=' .env.production.local | cut -d= -f2- | tr -d '"' | tr -d "'" | tr -d '\n' > /tmp/rk.txt; echo >> /tmp/rk.txt
+npx --yes vercel@latest env add RESEND_API_KEY production < /tmp/rk.txt; rm -f /tmp/rk.txt
+npx --yes vercel@latest --prod --yes                               # redeploy — env wchodzi dopiero z nowym deployem
+```
+Gotowe gdy `env ls` pokazuje `RESEND_API_KEY … Encrypted` i **brak** `EMAIL_FROM`. Weryfikacja = wyślij ofertę i sprawdź `mode=live` w SQL jw.
+
+**Gotchy, które nas spowolniły:** (a) `... | npx vercel@latest env add` przy pierwszym uruchomieniu — prompt instalacji npx **zjada wklejaną wartość ze stdin** (użyj `npx --yes` i redirectu z pliku, nie pipe'a); (b) plik bez `\n` na końcu → `env add` zapisuje pustą wartość; (c) edycja **złego projektu/konta** w dashboardzie (upewnij się, że to projekt obsługujący `oferta.k2biznes.pl`).
+
 **Monitoring:** każda nieudana wysyłka trafia do Sentry (`[email] send failed: …`).
 
 ---
