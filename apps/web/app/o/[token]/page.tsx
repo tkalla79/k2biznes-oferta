@@ -564,11 +564,13 @@ export default async function OfferPage({ params, searchParams }: Props) {
                   {dto.caseStudy?.logoBig ? (
                     // H13 audit: loading=lazy (poniżej fold) — Supabase URL, więc
                     // bez next/image (uniknięcie remotePatterns config). maxW/H w style.
+                    // W PDF (isPrint) eager — puppeteer nie scrolluje, więc lazy
+                    // obrazki poniżej folda nigdy się nie ładują (pusta ramka).
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={dto.caseStudy.logoBig}
                       alt={dto.caseStudy.client}
-                      loading="lazy"
+                      loading={isPrint ? 'eager' : 'lazy'}
                       style={{ maxWidth: '160px', maxHeight: '120px', objectFit: 'contain' }}
                     />
                   ) : (
@@ -669,8 +671,13 @@ export default async function OfferPage({ params, searchParams }: Props) {
                 <div className="contact-portrait">
                   {dto.contactPerson.photoUrl ? (
                     // H13 audit: loading=lazy (poniżej fold). Supabase URL → bez next/image.
+                    // W PDF (isPrint) eager — inaczej lazy obrazek się nie ładuje (pusty krążek).
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={dto.contactPerson.photoUrl} alt={dto.contactPerson.name} loading="lazy" />
+                    <img
+                      src={dto.contactPerson.photoUrl}
+                      alt={dto.contactPerson.name}
+                      loading={isPrint ? 'eager' : 'lazy'}
+                    />
                   ) : (
                     <div className="contact-placeholder">{dto.contactPerson.name.charAt(0)}</div>
                   )}
