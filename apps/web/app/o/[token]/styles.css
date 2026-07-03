@@ -1701,7 +1701,9 @@ main { display: block; }
 
 /* Uwaga 10: zdjęcia osób kontaktowych źle się kadrowały — pozycja na twarz. */
 .contact-portrait img {
-  object-position: 50% 25%;
+  /* Uwaga 2026-06-15: 25% obcinało górę głowy — 15% pokazuje więcej czoła.
+     Dotyczy wszystkich zdjęć osób kontaktowych. */
+  object-position: 50% 15%;
 }
 
 @media (max-width: 720px) {
