@@ -44,6 +44,36 @@ export async function POST(req: NextRequest) {
       throw new ApiError('UNAUTHORIZED', 'Sesja recovery wygasła. Spróbuj ponownie.', 401);
     }
 
+    // Konta z MFA: sesja recovery to AAL1, a updateUser({password}) wymaga AAL2
+    // ("AAL2 session is required to update email or password when MFA is enabled").
+    // Najpierw challenge→verify kodem TOTP, żeby podnieść sesję do AAL2.
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    const needsMfa = aal?.currentLevel === 'aal1' && aal?.nextLevel === 'aal2';
+    if (needsMfa) {
+      if (!body.factorId || !body.code) {
+        throw new ApiError(
+          'MFA_REQUIRED',
+          'To konto ma włączone MFA — podaj kod TOTP, aby ustawić nowe hasło.',
+          401,
+          { mfaRequired: true },
+        );
+      }
+      const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({
+        factorId: body.factorId,
+      });
+      if (chErr || !ch) {
+        throw new ApiError('VALIDATION_ERROR', `MFA challenge failed: ${chErr?.message}`, 400);
+      }
+      const { error: vErr } = await supabase.auth.mfa.verify({
+        factorId: body.factorId,
+        challengeId: ch.id,
+        code: body.code,
+      });
+      if (vErr) {
+        throw new ApiError('VALIDATION_ERROR', 'Niepoprawny kod TOTP.', 400);
+      }
+    }
+
     const { error } = await supabase.auth.updateUser({ password: body.password });
     if (error) {
       throw new ApiError('VALIDATION_ERROR', error.message, 422);
