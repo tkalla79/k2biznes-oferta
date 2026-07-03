@@ -463,6 +463,14 @@ Quick list (login + URL panel):
 **Przyczyny:** 1) User za NAT-em z innymi userami (office IP), 2) ten sam IP wyczerpał bucket dla innego endpointa (cross-endpoint share — fixed w PR #29).
 **Fix:** Sprawdz `lib/rate-limit.ts` config bucketów. Dla legit lockout — manualnie wyzeruj key w Upstash console.
 
+### 11. Email do klienta nie dochodzi — „You can only send testing emails to your own email address"
+
+**Symptom (case 2026-07-03):** oferta ma status `sent`, na liście marker „⚠ email nie dotarł"; od tego czasu też czerwony komunikat od razu przy wysyłce. W `offer_events` (`type=email_sent`) payload zawiera błąd Resend jw.
+**Przyczyna:** `RESEND_API_KEY` na Vercel pochodzi z konta Resend **bez zweryfikowanej domeny** (tryb sandbox — wysyłka tylko na adres właściciela konta). DNS domeny może być OK — liczy się konto, do którego należy klucz.
+**Diagnoza:** `/admin/ustawienia` → „Test wysyłki email" na adres inny niż właściciel konta; pokaże surowy błąd Resend. DNS: `dig +short TXT resend._domainkey.k2biznes.pl` (musi zwrócić klucz DKIM).
+**Fix:** Vercel → Settings → Environment Variables → `RESEND_API_KEY` (Production) → wklej klucz z konta ze zweryfikowaną domeną (`.env.production.local` trzyma właściwy) → Redeploy → test przyciskiem jw. → wyślij ofertę ponownie (marker zniknie po udanej wysyłce).
+**Monitoring:** każda nieudana wysyłka trafia do Sentry (`[email] send failed: …`).
+
 ---
 
 ## 11. Eskalacja

@@ -83,9 +83,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     // Wyślij email (best-effort: log + nie cofa update). Wewnątrz `notifyClientOfferSent`
-    // robimy `offer_events.email_sent` insert.
+    // robimy `offer_events.email_sent` insert. Email-reliability 2026-07: wynik
+    // wraca w response — konsultant widzi OD RAZU "email nie dotarł" zamiast
+    // cichego sukcesu i markera na liście dopiero po fakcie.
+    let emailResult: { ok: boolean; error?: string };
     try {
-      await notifyClientOfferSent({
+      emailResult = await notifyClientOfferSent({
         offer: updated,
         recipientEmail: body.recipientEmail,
         customMessage: body.message,
@@ -93,6 +96,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     } catch (e) {
       console.error('[offers.send] email failed:', (e as Error).message);
       // Nie throw — status = sent już zapisany. Konsultant może retry przez UI.
+      emailResult = { ok: false, error: (e as Error).message };
     }
 
     // Event 'sent' + audit + CRM webhook — H1 audit: webhook MUSI być awaited
@@ -122,7 +126,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     ]);
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
-    return NextResponse.json({ data: toOfferDto(updated, appUrl) });
+    return NextResponse.json({
+      data: {
+        ...toOfferDto(updated, appUrl),
+        emailDelivered: emailResult.ok,
+        ...(emailResult.ok ? {} : { emailError: emailResult.error }),
+      },
+    });
   } catch (e) {
     return handleError(e);
   }
