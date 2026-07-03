@@ -1812,50 +1812,83 @@ main { display: block; }
   .topnav, .hero-scroll, .fixed-banner, .cta-mini, .progressbar,
   .pdf-download, [role="dialog"] { display: none !important; }
 
-  /* (pkt 8) globalna kompaktacja */
-  html, body { font-size: 10pt !important; }
+  /* ===== TYPOGRAFIA (round 2): serif TYLKO nagłówki sekcji, cała treść =
+     Inter, spójne rozmiary, wyjustowana. Baza 11pt. ===== */
+  html, body { font-size: 11pt !important; }
   .app { padding: 0 !important; }
-  .section {
-    padding: 16px 0 !important; margin: 0 !important;
-    page-break-before: always;            /* każda sekcja od nowej strony */
+  .lead, .section-lead, .need-body p, .program-reason, .program-description,
+  .program-description p, .program-description li, .scope-body p, .faq-a p,
+  .alt-desc, .process-print-step p, .pp-body p, .case-story p, .e-desc,
+  .cennik-footer p, .cennik-notes p, .intro-copy > p {
+    font-family: var(--sans) !important;
+    text-align: justify;
   }
-  .section-head { margin-bottom: 12px !important; page-break-after: avoid; }
-  .section-head h2 { font-size: 21pt !important; margin: 0 !important; line-height: 1.1 !important; }
+
+  .section { padding: 18px 0 !important; margin: 0 !important; page-break-before: always; }
+  .section-head { margin-bottom: 14px !important; page-break-after: avoid; page-break-inside: avoid; }
+  .section-head h2 { font-size: 22pt !important; margin: 0 !important; line-height: 1.1 !important; }
   .section-head h2[style] { margin-top: 6px !important; }
-  .section-kicker { font-size: 8pt !important; margin-bottom: 6px !important; }
-  .section-lead { font-size: 10pt !important; margin-bottom: 10px !important; }
+  .section-kicker { font-size: 8.5pt !important; margin-bottom: 6px !important; }
+  .section-lead { font-size: 11pt !important; margin-bottom: 12px !important; }
   h2, h3 { page-break-after: avoid; }
 
-  /* (pkt 1 + 7) STRONA TYTUŁOWA — logo + wyśrodkowanie; sekcja 01 i tak
-     ma page-break-before, więc okładka zostaje sama na str. 1 */
-  .hero {
-    min-height: 0 !important;
-    padding: 70mm 0 0 0 !important;
-  }
-  .hero-print-logo { display: block; height: 52px; width: auto; margin-bottom: 30px; }
+  /* OKŁADKA (str.1) */
+  .hero { min-height: 0 !important; padding: 68mm 0 0 0 !important; }
+  .hero-print-logo { display: block; height: 54px; width: auto; margin-bottom: 30px; }
   .hero-title { font-size: 34pt !important; line-height: 1.12 !important; }
-  .hero-for { margin-top: 18px !important; font-size: 11pt !important; }
+  .hero-for { margin-top: 18px !important; font-size: 12pt !important; }
   .hero-client { font-size: 18pt !important; }
   .hero-program { margin-top: 16px !important; }
 
-  /* (pkt 3) ALT-PROGRAMY na osobnej stronie, wszystkie na 1 (2 kolumny) */
-  .alt-header { page-break-before: always; margin-bottom: 14px !important; }
-  .alt-header h3 { font-size: 21pt !important; }
-  .alt-grid {
-    display: grid !important; grid-template-columns: 1fr 1fr !important;
-    gap: 12px !important; page-break-inside: avoid;
-  }
-  .alt-card { padding: 14px !important; break-inside: avoid; }
-  .alt-card h4 { font-size: 12.5pt !important; margin: 4px 0 !important; }
-  .alt-program { font-size: 7.5pt !important; }
-  .alt-nabor, .alt-desc, .alt-link { font-size: 9pt !important; }
+  /* STR.2 — WPROWADZENIE (4 punkty) — większe, spójne, wyjustowane */
+  .intro-grid { display: block !important; }
+  .lead { font-size: 12pt !important; margin-bottom: 14px !important; }
+  .intro-copy > p { font-size: 11pt !important; }
+  .needs-list li { padding: 9px 0 !important; }
+  .need-num { font-size: 18pt !important; }
+  .need-body h4 { font-size: 13pt !important; margin: 0 0 4px !important; }
+  .need-body p { font-size: 10.5pt !important; line-height: 1.5 !important; }
+
+  /* STR.3 — REKOMENDUJEMY + opis z szablonu — większe, wyjustowane, 1 strona */
+  #program { page-break-inside: avoid; }
+  .program-hero { margin-bottom: 0 !important; padding: 6px 0 6px 24px !important; }
+  .program-reason { font-size: 13pt !important; line-height: 1.55 !important; margin-bottom: 18px !important; }
+  .program-separator { margin: 18px 0 !important; }
+  .program-description, .program-description p { font-size: 12pt !important; line-height: 1.7 !important; }
+  .program-description p { margin: 0 0 12px !important; }
+  .program-points { gap: 12px 24px !important; }
+  .bullet .text { font-size: 11pt !important; }
+
+  /* STR.4 — ALT-PROGRAMY na osobnej stronie, 2 kolumny */
+  .alt-header { page-break-before: always; margin-bottom: 16px !important; }
+  .alt-header h3 { font-size: 22pt !important; }
+  .alt-header p { font-size: 10.5pt !important; }
+  .alt-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 14px !important; page-break-inside: avoid; }
+  .alt-card { padding: 16px !important; break-inside: avoid; }
+  .alt-card h4 { font-size: 13pt !important; margin: 4px 0 !important; }
+  .alt-program { font-size: 8pt !important; }
+  .alt-nabor, .alt-desc, .alt-link { font-size: 10pt !important; }
   .alt-desc { margin: 6px 0 !important; }
 
-  /* (pkt 4) WARIANTY poziomo na 1 stronie */
-  .variants {
-    display: grid !important; grid-template-columns: 1fr 1fr 1fr !important;
-    gap: 8px !important; page-break-inside: avoid; margin-bottom: 16px !important;
-  }
+  /* STR.5-6 — ZAKRES: większa czcionka, każdy blok (7 / 8 poz.) na 1 stronie */
+  .scope-print-block { margin-bottom: 0 !important; page-break-inside: avoid; }
+  .scope-print-block + .scope-print-block { page-break-before: always; }
+  .scope-print-h { font-size: 13pt !important; margin-bottom: 7px !important; }
+  .scope-list.is-print li { padding: 4.5px 0 !important; break-inside: avoid; }
+  .scope-list.is-print .scope-body { padding-top: 2px !important; }
+  .scope-head { margin-bottom: 2px !important; }
+  .scope-num { font-size: 14pt !important; }
+  .scope-title { font-size: 11pt !important; }
+  .scope-body p { font-size: 9.5pt !important; line-height: 1.38 !important; margin: 0 !important; }
+
+  /* STR.7 — ZAŁOŻENIA (Wartości przyjęte) — większa czcionka, 2 kolumny */
+  .calc-readonly { grid-template-columns: 1fr 1fr !important; gap: 14px !important; }
+  .cr-item { padding: 18px 20px !important; }
+  .cr-label { font-size: 11pt !important; }
+  .cr-val { font-size: 20pt !important; }
+
+  /* STR.8 — WARIANTY poziomo (od nowej strony, po założeniach) */
+  .variants { display: grid !important; grid-template-columns: 1fr 1fr 1fr !important; gap: 8px !important; page-break-before: always; page-break-inside: avoid; margin-bottom: 16px !important; }
   .variant { padding: 12px !important; break-inside: avoid; }
   .variant.selected { padding: 11px !important; }
   .v-id { font-size: 14pt !important; }
@@ -1868,60 +1901,52 @@ main { display: block; }
   .v-sched-label { font-size: 7pt !important; }
   .v-sched-row { font-size: 8pt !important; }
   .v-selected { font-size: 7.5pt !important; }
-  /* założenia oferty — 2 kolumny zamiast pionowej kolumny */
-  .calc-readonly { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
-  .exec-fee { page-break-inside: avoid; padding: 18px !important; }
+  .exec-fee { page-break-inside: avoid; padding: 20px !important; }
+  /* STR.9 — podsumowanie/notatka cennika na OSOBNĄ stronę (poniżej boxu rozliczenia) */
+  .cennik-footer, .cennik-notes { page-break-before: always; page-break-inside: avoid; }
+  .cennik-footer p, .cennik-notes p { font-size: 12pt !important; line-height: 1.7 !important; }
 
-  /* (pkt 5) SEKCJA 6 (Dlaczego K2) na 1 stronie */
-  #onas { page-break-inside: avoid; }
-  .onas-quote { margin: 10px 0 16px !important; }
-  .onas-quote p { font-size: 15pt !important; }
-  .energies {
-    display: grid !important; grid-template-columns: 1fr auto 1fr !important;
-    gap: 14px !important; margin-bottom: 18px !important;
-  }
-  .energy { padding: 18px !important; min-height: 0 !important; }
-  .energy-plus { display: block !important; font-size: 30px !important; align-self: center; }
-  .e-label { font-size: 20pt !important; }
+  /* STR.10 — PROCES (05) + DLACZEGO K2 (06) RAZEM na 1 stronie */
+  #onas { page-break-before: avoid !important; page-break-inside: avoid; padding-top: 10px !important; }
+  #proces .section-head, #onas .section-head { margin-bottom: 10px !important; }
+  .process-print { margin-top: 10px !important; }
+  .process-print-step { padding-bottom: 10px !important; break-inside: avoid; }
+  .process-print-step h3 { font-size: 12pt !important; }
+  .process-print-step p, .pp-body p { font-size: 10pt !important; }
+  .pp-num { font-size: 20pt !important; }
+  .onas-quote { margin: 8px 0 12px !important; }
+  .onas-quote p { font-size: 14pt !important; }
+  .energies { display: grid !important; grid-template-columns: 1fr auto 1fr !important; gap: 12px !important; margin-bottom: 14px !important; }
+  .energy { padding: 14px !important; min-height: 0 !important; }
+  .energy-plus { display: block !important; font-size: 26px !important; align-self: center; }
+  .e-label { font-size: 17pt !important; }
   .e-desc { font-size: 9pt !important; }
-  .stats {
-    display: grid !important; grid-template-columns: repeat(3, 1fr) !important;
-    padding: 16px 0 !important; margin: 0 !important; gap: 12px !important;
-  }
-  .stat-num { font-size: 20pt !important; margin-bottom: 4px !important; }
+  .stats { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; padding: 12px 0 !important; margin: 0 !important; gap: 12px !important; }
+  .stat-num { font-size: 18pt !important; margin-bottom: 4px !important; }
   .stat-lbl { font-size: 9pt !important; }
 
-  /* (pkt 6) CASE STUDY — nagłówek + opis razem na 1 stronie, kompaktowa ramka */
+  /* STR.11 — CASE STUDY — lepszy układ, logo większe i wyśrodkowane */
   #case { page-break-inside: avoid; }
-  .case-wrap {
-    display: grid !important; grid-template-columns: 1.7fr 1fr !important;
-    gap: 24px !important; align-items: start !important; margin: 0 !important;
-  }
-  .case-story h3 { font-size: 15pt !important; margin-bottom: 10px !important; }
-  .case-story p { font-size: 9.5pt !important; margin-bottom: 8px !important; }
+  .case-wrap { display: grid !important; grid-template-columns: 1.5fr 1fr !important; gap: 28px !important; align-items: center !important; margin: 0 !important; }
+  .case-story h3 { font-size: 17pt !important; margin-bottom: 12px !important; }
+  .case-story p { font-size: 10.5pt !important; margin-bottom: 10px !important; }
   .case-tag { margin-bottom: 12px !important; }
-  .case-frame { max-width: 190px !important; aspect-ratio: 16 / 10 !important; }
+  .case-frame { max-width: 260px !important; aspect-ratio: 4 / 3 !important; }
   .case-industry-tag { font-size: 11pt !important; }
 
-  /* nagłówek sekcji nie odrywa się od treści (orphan kicker/h2) */
-  .section-head { page-break-inside: avoid; }
-  /* zakres 03 — bloki PŁYNĄ (avoid robił z nich za wysoki blok → osierocony
-     nagłówek). "Obsługa" (drugi blok) od nowej strony dla czystego podziału. */
-  .scope-print-block { margin-bottom: 14px !important; page-break-inside: auto; }
-  .scope-print-block + .scope-print-block { page-break-before: always; }
-  .scope-print-block:last-child { margin-bottom: 0 !important; }
-  .scope-print-h { font-size: 13pt !important; margin-bottom: 8px !important; }
-  .scope-list.is-print li { padding: 4px 0 !important; break-inside: avoid; }
-  .scope-list.is-print .scope-body { padding-top: 2px !important; }
-  .scope-head { margin-bottom: 2px !important; }
-  .scope-title { font-size: 10.5pt !important; }
-  .scope-body p { font-size: 9pt !important; line-height: 1.4 !important; margin: 0 !important; }
-  .process-print-step { padding-bottom: 16px !important; break-inside: avoid; }
-  .process-print-step h3 { font-size: 13pt !important; }
-  .process-print-step p, .pp-body p { font-size: 9.5pt !important; }
-  .faq-list li { break-inside: avoid; padding: 10px 0 !important; }
-  .faq-q { font-size: 11.5pt !important; }
-  .faq-a p { font-size: 9.5pt !important; }
+  /* STR.12 — FAQ (08) wszystkie pytania+odpowiedzi na 1 stronie */
+  #faq { page-break-inside: avoid; }
+  #faq .section-head { margin-bottom: 8px !important; }
+  .faq-list li { break-inside: avoid; padding: 0 !important; }
+  /* .faq-q ma w bazie padding 24px 0 (48px/pytanie!) — to psuło mieszczenie */
+  .faq-q { padding: 7px 0 3px !important; gap: 12px !important; font-size: 10.5pt !important; }
+  .faq-a { padding-right: 0 !important; }
+  .faq-a p { font-size: 9pt !important; line-height: 1.4 !important; margin: 0 0 4px !important; }
+
+  /* OSTATNIA STRONA — kontakt + stopka (sekcja 09 usunięta w page.tsx) */
+  #akcept { page-break-before: always; page-break-inside: avoid; padding-top: 18mm !important; }
+  .footer { page-break-before: avoid !important; break-inside: avoid; padding: 28px var(--gutter) 20px !important; }
+  .f-top { padding-bottom: 20px !important; }
 
   a { color: inherit !important; text-decoration: none !important; }
 }
