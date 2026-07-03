@@ -1298,6 +1298,63 @@ export default function OfferForm({
 
       {/* SECTION 5: Treść (rich text — start z dwóch textareas) */}
       <Section title="Treść w ofercie">
+        {/* Potrzeby klienta (4 punkty sekcji 01) NA GÓRZE sekcji — konsultant
+            szuka tego najczęściej, wcześniej było na końcu i trudne do znalezienia. */}
+        <Field label="Potrzeby klienta — 4 punkty z sekcji „01 · Wprowadzenie” (nagłówek + opis; puste = lista domyślna)">
+          <p style={hint}>
+            Cztery punkty pokazywane w sekcji wprowadzenia oferty. Dla każdego: Tytuł
+            (nagłówek) + Opis. Tu wpisujesz swoje rekomendacje. Zostaw pustą listę, by użyć
+            domyślnych 4 pozycji.
+          </p>
+          {form.needs.map((n, idx) => (
+            <div key={idx} style={altCardStyle}>
+              <div style={altCardHead}>
+                Punkt #{idx + 1}
+                <button
+                  type="button"
+                  onClick={() => update('needs', form.needs.filter((_, i) => i !== idx))}
+                  style={btnSmallGhost}
+                >
+                  Usuń
+                </button>
+              </div>
+              <Field label="Tytuł (nagłówek punktu)">
+                <input
+                  type="text"
+                  maxLength={120}
+                  value={n.k}
+                  onChange={(e) => {
+                    const next = [...form.needs];
+                    next[idx] = { ...next[idx], k: e.target.value };
+                    update('needs', next);
+                  }}
+                  style={input}
+                />
+              </Field>
+              <Field label="Opis (treść punktu)">
+                <textarea
+                  rows={2}
+                  maxLength={600}
+                  value={n.v}
+                  onChange={(e) => {
+                    const next = [...form.needs];
+                    next[idx] = { ...next[idx], v: e.target.value };
+                    update('needs', next);
+                  }}
+                  style={textarea}
+                />
+              </Field>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => update('needs', [...form.needs, { k: '', v: '' }])}
+            style={btnSmallGhost}
+          >
+            + Dodaj punkt
+          </button>
+        </Field>
+
         <Field label="Wstęp (intro) — pojawi się nad pricingiem">
           <textarea
             value={form.contentIntro}
@@ -1343,60 +1400,6 @@ export default function OfferForm({
           />
         </Field>
 
-        {/* Etap 2 — uwaga PDF #3: edytowalne potrzeby klienta (sekcja intro) */}
-        <Field label="Potrzeby klienta (sekcja 01 Wprowadzenie) — puste = lista domyślna">
-          <p style={hint}>
-            Lista potrzeb pokazywana po prawej w sekcji wprowadzenia. Zostaw pustą, by użyć
-            domyślnych 4 pozycji.
-          </p>
-          {form.needs.map((n, idx) => (
-            <div key={idx} style={altCardStyle}>
-              <div style={altCardHead}>
-                Potrzeba #{idx + 1}
-                <button
-                  type="button"
-                  onClick={() => update('needs', form.needs.filter((_, i) => i !== idx))}
-                  style={btnSmallGhost}
-                >
-                  Usuń
-                </button>
-              </div>
-              <Field label="Tytuł">
-                <input
-                  type="text"
-                  maxLength={120}
-                  value={n.k}
-                  onChange={(e) => {
-                    const next = [...form.needs];
-                    next[idx] = { ...next[idx], k: e.target.value };
-                    update('needs', next);
-                  }}
-                  style={input}
-                />
-              </Field>
-              <Field label="Opis">
-                <textarea
-                  rows={2}
-                  maxLength={600}
-                  value={n.v}
-                  onChange={(e) => {
-                    const next = [...form.needs];
-                    next[idx] = { ...next[idx], v: e.target.value };
-                    update('needs', next);
-                  }}
-                  style={textarea}
-                />
-              </Field>
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={() => update('needs', [...form.needs, { k: '', v: '' }])}
-            style={btnSmallGhost}
-          >
-            + Dodaj potrzebę
-          </button>
-        </Field>
       </Section>
 
       {/* SECTION 6: Załączniki */}
