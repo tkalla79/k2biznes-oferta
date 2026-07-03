@@ -11,6 +11,12 @@ import {
 import type { PaymentMilestone } from '@/lib/pricing/types';
 import { extractTemplate, applyTemplate } from '@/lib/offers/template';
 import RichTextEditor from '@/components/RichTextEditor';
+import { NEEDS as DEFAULT_NEEDS } from '@/app/o/[token]/staticContent';
+
+/** Świeże kopie domyślnych potrzeb (mutowalne w formularzu — WYSIWYG prefill). */
+function defaultNeeds(): { k: string; v: string }[] {
+  return DEFAULT_NEEDS.map((n) => ({ k: n.k, v: n.v }));
+}
 
 type ProgramOpt = { id: string; label: string; group_name: string };
 type CaseStudyOpt = { id: string; client: string; title: string };
@@ -234,7 +240,7 @@ function initialFromOffer(offer: OfferDto): FormState {
           url: typeof p.url === 'string' ? p.url : '',
         }))
     : [];
-  const needs = Array.isArray(c?.needs)
+  const parsedNeeds = Array.isArray(c?.needs)
     ? (c!.needs as unknown[])
         .filter((n): n is Record<string, unknown> => typeof n === 'object' && n !== null)
         .map((n) => ({
@@ -242,6 +248,10 @@ function initialFromOffer(offer: OfferDto): FormState {
           v: typeof n.v === 'string' ? n.v : '',
         }))
     : [];
+  // WYSIWYG (uwaga 2026-07): pusta lista = oferta pokazywała niewidoczny w
+  // formularzu fallback (stary tekst "Kredyt Ekologiczny"). Prefill domyślnymi,
+  // żeby konsultant widział i edytował dokładnie to, co trafi do oferty.
+  const needs = parsedNeeds.length > 0 ? parsedNeeds : defaultNeeds();
   return {
     clientName: offer.clientName,
     clientNip: offer.clientNip ?? '',
@@ -298,7 +308,7 @@ function blankInitial(): FormState {
     contentFooter: '',
     programDescription: '',
     altPrograms: [],
-    needs: [],
+    needs: defaultNeeds(),
     programReason: '',
     contentNotes: '',
     assignedConsultantId: '',
@@ -370,7 +380,13 @@ export default function OfferForm({
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error?.message ?? 'Nie udało się wczytać szablonu.');
       const data = (json.data?.template_data ?? {}) as Record<string, unknown>;
-      setForm((f) => applyTemplate(blankInitial(), { ...extractTemplate(f), ...data }) as FormState);
+      setForm((f) => {
+        const next = applyTemplate(blankInitial(), { ...extractTemplate(f), ...data }) as FormState;
+        // Stare szablony (sprzed WYSIWYG-prefill) mają needs: [] — pusta lista
+        // renderowałaby na ofercie niewidoczny fallback. Przywracamy prefill.
+        if (next.needs.length === 0) next.needs = defaultNeeds();
+        return next;
+      });
       setSuccess('Szablon wczytany — uzupełnij dane klienta.');
     } catch (e) {
       setError((e as Error).message);
@@ -1332,11 +1348,10 @@ export default function OfferForm({
       <Section title="Treść w ofercie">
         {/* Potrzeby klienta (4 punkty sekcji 01) NA GÓRZE sekcji — konsultant
             szuka tego najczęściej, wcześniej było na końcu i trudne do znalezienia. */}
-        <Field label="Potrzeby klienta — 4 punkty z sekcji „01 · Wprowadzenie” (nagłówek + opis; puste = lista domyślna)">
+        <Field label="Potrzeby klienta — punkty z sekcji „01 · Wprowadzenie” (nagłówek + opis)">
           <p style={hint}>
-            Cztery punkty pokazywane w sekcji wprowadzenia oferty. Dla każdego: Tytuł
-            (nagłówek) + Opis. Tu wpisujesz swoje rekomendacje. Zostaw pustą listę, by użyć
-            domyślnych 4 pozycji.
+            Dokładnie ta lista trafi do oferty — dopasuj nagłówki i opisy pod rekomendacje
+            dla klienta. Poniżej wstępnie wypełnione teksty startowe.
           </p>
           {form.needs.map((n, idx) => (
             <div key={idx} style={altCardStyle}>

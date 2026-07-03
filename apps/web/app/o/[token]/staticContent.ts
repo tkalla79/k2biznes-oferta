@@ -6,14 +6,18 @@
  * MVP zostają stałe dla całej firmy K2Biznes.
  */
 
+// Uwaga 2026-07: domyślne punkty były zaszłością z oferty pisanej pod
+// konkretnego klienta ("Kredyt Ekologiczny", "Audytor Energetyczny") i
+// wyciekały do ofert z pustą listą potrzeb. Teraz uniwersalne; konsultant
+// nadpisuje je per-oferta w formularzu (pole "Potrzeby klienta").
 export const NEEDS = [
   {
-    k: 'Kredyt Ekologiczny — FENG',
-    v: 'Przedsiębiorstwo planuje złożyć projekt w ramach Działania Kredyt Ekologiczny programu Fundusze Europejskie dla Nowoczesnej Gospodarki 2021–2027.',
+    k: 'Dobór optymalnego programu wsparcia',
+    v: 'Wskazujemy działanie najlepiej dopasowane do charakteru inwestycji, kryteriów naboru oraz strategicznych celów firmy.',
   },
   {
     k: 'Weryfikacja zakresu inwestycji',
-    v: 'Zakres inwestycyjny został zdefiniowany i wymaga weryfikacji oraz korekty na etapie realizacji usługi doradczej we współpracy z Audytorem Energetycznym.',
+    v: 'Zakres inwestycyjny zostanie zweryfikowany i doprecyzowany na etapie realizacji usługi doradczej, tak aby zmaksymalizować szanse projektu.',
   },
   {
     k: 'Kompleksowa dokumentacja',
