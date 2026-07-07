@@ -17,6 +17,8 @@ import { useEffect } from 'react';
  * Montowany tylko dla klienta (page.tsx: !isPrint && !isPreview && isActive)
  * — podgląd konsultanta i render PDF nie zaśmiecają statystyk.
  */
+// Uwaga Karolina 2026-07: „case" scalone w „onas" (sekcja 06) — case study to
+// teraz pod-blok „Dlaczego K2Biznes", więc tracking liczy je jako jedną sekcję.
 const TRACKED_SECTIONS = [
   'intro',
   'program',
@@ -24,7 +26,6 @@ const TRACKED_SECTIONS = [
   'cennik',
   'proces',
   'onas',
-  'case',
   'faq',
   'akcept',
 ];
