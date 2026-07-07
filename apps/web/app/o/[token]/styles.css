@@ -423,7 +423,7 @@ main { display: block; }
   line-height: 1; letter-spacing: -.02em;
 }
 .need-body h4 { margin: 0 0 6px; font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
-.need-body p { margin: 0; font-size: 15px; color: var(--ink-2); line-height: 1.55; }
+.need-body p { margin: 0; font-size: 16px; color: var(--ink-2); line-height: 1.55; }
 @keyframes slideIn {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
@@ -504,7 +504,9 @@ main { display: block; }
 }
 .bullet .text {
   color: var(--ink);
-  font-size: 13px;
+  /* Uwaga Karolina 2026-07 („czcionka 11"): tekst opisowy był za mały (13px)
+     przy body 20px — podniesione do 16px (≈11pt) dla czytelności i spójności. */
+  font-size: 16px;
   line-height: 1.5;
   flex: 1;
   min-width: 0;
@@ -704,7 +706,8 @@ main { display: block; }
   text-decoration: none;
 }
 .alt-nabor {
-  font-size: 13px;
+  /* Uwaga Karolina 2026-07: drobny tekst kart alt-programów podniesiony 13→15px. */
+  font-size: 15px;
   color: #666666;
   font-weight: 400;
   margin: 0 0 12px 0;
@@ -714,7 +717,7 @@ main { display: block; }
   color: #1B2A4A;
 }
 .alt-desc {
-  font-size: 13px;
+  font-size: 15px;
   color: #666666;
   line-height: 1.6;
   margin: 0 0 12px 0;
@@ -1038,6 +1041,23 @@ main { display: block; }
 /* ============================================================
    CASE STUDY
    ============================================================ */
+/* Uwaga Karolina 2026-07: case study scalone w sekcję 06 jako pod-blok „dowód".
+   Oddzielony subtelną linią i odstępem od statystyk. */
+.onas-case {
+  margin-top: 56px;
+  padding-top: 48px;
+  border-top: 1px solid var(--line);
+}
+.onas-case-head { margin-bottom: 28px; }
+.onas-case-head .section-kicker { color: var(--red); }
+.onas-case-head h3 {
+  font-family: var(--serif);
+  font-size: clamp(28px, 3.5vw, 42px);
+  letter-spacing: -.01em;
+  margin: 8px 0 0;
+  line-height: 1.1;
+}
+.onas-case-head h3 em { color: var(--red); font-style: italic; }
 .case-wrap {
   display: grid; grid-template-columns: 1.4fr 1fr; gap: 60px;
   align-items: center; margin-bottom: 40px;
@@ -1820,9 +1840,13 @@ main { display: block; }
 .hero-validity strong { color: var(--red); }
 
 .vat-note {
-  margin: 14px 0 0;
-  font-size: 12.5px;
-  color: var(--mute);
+  /* Uwaga Karolina 2026-07: „wyśrodkować i powiększyć — nie widać". Było 12.5px
+     w kolorze --mute (za jasne). Teraz wyśrodkowane, większe i ciemniejsze. */
+  margin: 16px 0 0;
+  text-align: center;
+  font-size: 14px;
+  color: var(--ink-2);
+  font-weight: 500;
   line-height: 1.5;
 }
 .accept-card .vat-note { margin-top: 10px; }
@@ -1867,7 +1891,7 @@ main { display: block; }
   .hero-client { font-size: 18pt !important; }
   .hero-program { margin-top: 16px !important; }
   .hero-validity { font-size: 10pt !important; margin-top: 14px !important; }
-  .vat-note { font-size: 9pt !important; font-family: var(--sans) !important; }
+  .vat-note { font-size: 10.5pt !important; font-family: var(--sans) !important; text-align: center !important; color: var(--ink-2) !important; font-weight: 500 !important; }
 
   /* STR.2 — WPROWADZENIE (4 punkty) — większe, spójne, wyjustowane */
   .intro-grid { display: block !important; }
@@ -1935,8 +1959,10 @@ main { display: block; }
   .cennik-footer, .cennik-notes { page-break-before: always; page-break-inside: avoid; }
   .cennik-footer p, .cennik-notes p { font-size: 12pt !important; line-height: 1.7 !important; }
 
-  /* STR.10 — PROCES (05) + DLACZEGO K2 (06) RAZEM na 1 stronie */
-  #onas { page-break-before: avoid !important; page-break-inside: avoid; padding-top: 10px !important; }
+  /* STR.10 — DLACZEGO K2 (06) na WŁASNEJ stronie. Uwaga Karolina 2026-07: case
+     study scalony tutaj jako dowód, więc sekcja jest za duża by dzielić stronę
+     z procesem (05). Wewnętrzny podział dozwolony — case spływa niżej jeśli trzeba. */
+  #onas { page-break-before: always !important; page-break-inside: auto; padding-top: 10px !important; }
   #proces .section-head, #onas .section-head { margin-bottom: 10px !important; }
   .process-print { margin-top: 10px !important; }
   .process-print-step { padding-bottom: 10px !important; break-inside: avoid; }
@@ -1954,8 +1980,12 @@ main { display: block; }
   .stat-num { font-size: 18pt !important; margin-bottom: 4px !important; }
   .stat-lbl { font-size: 9pt !important; }
 
-  /* STR.11 — CASE STUDY — lepszy układ, logo większe i wyśrodkowane */
+  /* STR.11 — CASE STUDY (pod-blok „dowód" w sekcji 06) — trzymany razem,
+     spływa na osobną stronę jeśli nie mieści się pod statystykami. */
   #case { page-break-inside: avoid; }
+  .onas-case { margin-top: 22px !important; padding-top: 16px !important; }
+  .onas-case-head { margin-bottom: 10px !important; }
+  .onas-case-head h3 { font-size: 20pt !important; margin: 4px 0 0 !important; }
   .case-wrap { display: grid !important; grid-template-columns: 1.5fr 1fr !important; gap: 28px !important; align-items: center !important; margin: 0 !important; }
   .case-story h3 { font-size: 17pt !important; margin-bottom: 12px !important; }
   .case-story p { font-size: 10.5pt !important; margin-bottom: 10px !important; }
@@ -1963,7 +1993,7 @@ main { display: block; }
   .case-frame { max-width: 260px !important; aspect-ratio: 4 / 3 !important; }
   .case-industry-tag { font-size: 11pt !important; }
 
-  /* STR.12 — FAQ (08) wszystkie pytania+odpowiedzi na 1 stronie */
+  /* STR.12 — FAQ (07) wszystkie pytania+odpowiedzi na 1 stronie */
   #faq { page-break-inside: avoid; }
   #faq .section-head { margin-bottom: 8px !important; }
   .faq-list li { break-inside: avoid; padding: 0 !important; }

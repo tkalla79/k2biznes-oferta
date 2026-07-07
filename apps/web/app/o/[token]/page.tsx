@@ -515,26 +515,21 @@ export default async function OfferPage({ params, searchParams }: Props) {
               <div className="stat-lbl">doświadczenia w pozyskiwaniu środków UE</div>
             </div>
           </div>
-          {/* Logos-bar usunięta — sekcja Case Study (poniżej) jest miejscem
-              prezentacji wybranego przez admina szablonu projektu klienta. */}
-        </section>
-
-        {/* ==================== 08. CASE STUDY (Zaufali nam) ====================
-            Zawsze renderowane — sekcja jest "miejscem" prezentacji szablonu
-            projektu klienta wybranego przez admina (sekcja Załączniki w
-            edytorze oferty). Bez wybranego case'a pokazujemy placeholder. */}
-        <section id="case" className="section case reveal">
-          <div className="section-head">
-            <div className="section-kicker">07 · Zaufali nam</div>
-            <h2>
-              {dto.caseStudy ? (
-                <>Case study: <em>{dto.caseStudy.client}</em></>
-              ) : (
-                <>Wybrany <em>projekt klienta</em></>
-              )}
-            </h2>
-          </div>
-          <div className="case-wrap">
+          {/* Uwaga Karolina 2026-07: sekcja „Zaufali nam" (case study) scalona
+              tutaj z „Dlaczego K2Biznes" — case study zamyka argument „dlaczego my"
+              jako dowód. id="case" zachowane jako kotwica nawigacji („Referencje"). */}
+          <div id="case" className="onas-case">
+            <div className="onas-case-head">
+              <div className="section-kicker">Zaufali nam</div>
+              <h3>
+                {dto.caseStudy ? (
+                  <>Case study: <em>{dto.caseStudy.client}</em></>
+                ) : (
+                  <>Wybrany <em>projekt klienta</em></>
+                )}
+              </h3>
+            </div>
+            <div className="case-wrap">
             <div className="case-story">
               {dto.caseStudy ? (
                 <>
@@ -591,12 +586,13 @@ export default async function OfferPage({ params, searchParams }: Props) {
               </div>
             </div>
           </div>
+          </div>
         </section>
 
-        {/* ==================== 10. FAQ ==================== */}
+        {/* ==================== 07. FAQ ==================== */}
         <section id="faq" className="section faq reveal">
           <div className="section-head">
-            <div className="section-kicker">08 · FAQ</div>
+            <div className="section-kicker">07 · FAQ</div>
             <h2>
               Najczęstsze <em>pytania</em>
             </h2>
@@ -620,7 +616,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
             {!isPrint && (
             <>
             <div className="section-head">
-              <div className="section-kicker">09 · Akceptacja oferty</div>
+              <div className="section-kicker">08 · Akceptacja oferty</div>
               <h2>
                 Gotowi, by <em>zacząć</em>?
               </h2>

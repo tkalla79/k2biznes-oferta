@@ -25,10 +25,11 @@ const SECTIONS: Array<{ id: string; label: string }> = [
   { id: 'zakres', label: '03 · Zakres usługi' },
   { id: 'cennik', label: '04 · Model wynagrodzenia' },
   { id: 'proces', label: '05 · Schemat procesu' },
-  { id: 'onas', label: '06 · Dlaczego K2Biznes' },
-  { id: 'case', label: '07 · Case study' },
-  { id: 'faq', label: '08 · FAQ' },
-  { id: 'akcept', label: '09 · Akceptacja' },
+  // Uwaga Karolina 2026-07: „case" scalone w „onas" (sekcja 06) — case study
+  // to pod-blok „Dlaczego K2Biznes". Doczytanie liczone razem z onas. 8 sekcji.
+  { id: 'onas', label: '06 · Dlaczego K2Biznes (+ case study)' },
+  { id: 'faq', label: '07 · FAQ' },
+  { id: 'akcept', label: '08 · Akceptacja' },
 ];
 
 const EVENT_LABELS: Record<string, string> = {
