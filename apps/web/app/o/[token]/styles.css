@@ -226,9 +226,11 @@ main { display: block; }
 .hero-title {
   font-family: var(--serif);
   font-weight: 400;
-  font-size: clamp(48px, 7.5vw, 108px);
-  line-height: 1;
-  letter-spacing: -0.03em;
+  /* Uwaga 2026-07: tytuł wydłużony o „dokumentacji" — mniejsza czcionka
+     i lekko luźniejszy line-height, by 3 linie ładnie się układały. */
+  font-size: clamp(38px, 5.5vw, 72px);
+  line-height: 1.06;
+  letter-spacing: -0.02em;
   margin: 0 0 40px;
 }
 .hero-title em { color: var(--red); font-style: italic; }
@@ -1335,7 +1337,7 @@ main { display: block; }
   background: rgba(250, 247, 242, 0.88);
   border-bottom-color: rgba(26,15,13,.1);
 }
-.theme-editorial .hero-title { font-size: clamp(56px, 10vw, 140px); }
+.theme-editorial .hero-title { font-size: clamp(44px, 7vw, 84px); }
 .theme-editorial .hero-title em { color: var(--red); }
 .theme-editorial .hero-rings { opacity: .25; }
 .theme-editorial .section h2 { font-size: clamp(44px, 6vw, 80px); }
@@ -1886,7 +1888,7 @@ main { display: block; }
   /* OKŁADKA (str.1) */
   .hero { min-height: 0 !important; padding: 68mm 0 0 0 !important; }
   .hero-print-logo { display: block; height: 54px; width: auto; margin-bottom: 30px; }
-  .hero-title { font-size: 34pt !important; line-height: 1.12 !important; }
+  .hero-title { font-size: 28pt !important; line-height: 1.12 !important; }
   .hero-for { margin-top: 18px !important; font-size: 12pt !important; }
   .hero-client { font-size: 18pt !important; }
   .hero-program { margin-top: 16px !important; }
