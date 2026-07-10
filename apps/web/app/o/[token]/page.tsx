@@ -175,15 +175,26 @@ export default async function OfferPage({ params, searchParams }: Props) {
     needs?: Array<{ k: string; v: string }>;
     programReason?: string;
     notes?: string;
+    // Uwaga pilotaż 2026-07 (#5C): punktory w kafelku „Założenia oferty".
+    calcBullets?: string[];
+    // Uwaga pilotaż 2026-07 (#3): zdiagnozowane potrzeby i podstawa rekomendacji
+    // (tekst na 2 kolumny, sekcja 02, pod „Rekomendujemy", nad alternatywami).
+    recommendationBasis?: string;
   };
+  // Punktory kafelka (sekcja 04) — renderowane tylko gdy niepuste.
+  const calcBullets = Array.isArray(content.calcBullets)
+    ? content.calcBullets.filter((b) => typeof b === 'string' && b.trim() !== '')
+    : [];
   const programDescriptionHtml = sanitizeRichText(content.programDescription);
   const altPrograms =
     Array.isArray(content.altPrograms) && content.altPrograms.length > 0
       ? content.altPrograms
       : ALT_PROGRAMS;
-  // Edytowalne potrzeby klienta (sekcja intro) — fallback do domyślnych NEEDS.
-  const needs =
-    Array.isArray(content.needs) && content.needs.length > 0 ? content.needs : NEEDS;
+  // Edytowalne potrzeby klienta (sekcja intro). Uwaga pilotaż 2026-07 (#1A):
+  // klucz OBECNY (nawet pusta lista) wygrywa — usunięcie wszystkich punktów
+  // w panelu = brak punktów w ofercie. Fallback do NEEDS tylko gdy klucz nieobecny.
+  const needs = Array.isArray(content.needs) ? content.needs : NEEDS;
+  const hasNeeds = needs.length > 0;
   // Edytowalne uzasadnienie wyboru naboru (sekcja program) — fallback do domyślnego.
   const programReason =
     content.programReason?.trim() ||
@@ -304,29 +315,39 @@ export default async function OfferPage({ params, searchParams }: Props) {
               Wsparcie doradcze szyte na miarę <em>{dto.clientName}</em>
             </h2>
           </div>
-          <div className="intro-grid">
+          {/* Uwaga pilotaż 2026-07 (#1A): brak punktów -> prawa kolumna znika,
+              lewa (intro) na całą szerokość. (#1E): stały akapit „Na podstawie…"
+              przeniesiony do prawej kolumny jako nagłówek nad punktami. */}
+          <div className={`intro-grid${hasNeeds ? '' : ' intro-grid--single'}`}>
             <div className="intro-copy">
               <p className="lead">
                 {content.intro ??
                   'Dziękujemy za rozmowę i zainteresowanie współpracą z K2Biznes. Poniżej przedstawiamy ofertę wsparcia doradczego w zakresie przygotowania projektu w ramach programu Fundusze Europejskie dla Nowoczesnej Gospodarki 2021–2027.'}
               </p>
-              <p>
-                Na podstawie przeprowadzonych rozmów oraz przekazanych materiałów zidentyfikowaliśmy
-                kluczowe potrzeby Państwa przedsiębiorstwa.
-              </p>
               {/* Kafelek "Klient + numer oferty" usunięty — duplikuje info z hero (PR #27 feedback) */}
             </div>
-            <ul className="needs-list">
-              {needs.map((n, i) => (
-                <li key={i} style={{ ['--i' as string]: i } as React.CSSProperties}>
-                  <div className="need-num">{String(i + 1).padStart(2, '0')}</div>
-                  <div className="need-body">
-                    <h4>{n.k}</h4>
-                    <p>{n.v}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            {hasNeeds && (
+              <div>
+                <div className="needs-header">
+                  <span className="rule" />
+                  <p>
+                    Na podstawie przeprowadzonych rozmów oraz przekazanych materiałów
+                    zidentyfikowaliśmy kluczowe potrzeby Państwa przedsiębiorstwa.
+                  </p>
+                </div>
+                <ul className="needs-list">
+                  {needs.map((n, i) => (
+                    <li key={i} style={{ ['--i' as string]: i } as React.CSSProperties}>
+                      <div className="need-num">{String(i + 1).padStart(2, '0')}</div>
+                      <div className="need-body">
+                        <h4>{n.k}</h4>
+                        <p>{n.v}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </section>
 
@@ -360,6 +381,13 @@ export default async function OfferPage({ params, searchParams }: Props) {
               </div>
             )}
           </div>
+          {/* Uwaga pilotaż 2026-07 (#3): zdiagnozowane potrzeby i podstawa
+              rekomendacji — tekst na 2 kolumny, pod „Rekomendujemy". */}
+          {content.recommendationBasis?.trim() && (
+            <div className="reco-basis">
+              <p style={{ whiteSpace: 'pre-wrap' }}>{content.recommendationBasis}</p>
+            </div>
+          )}
           <div className="alt-header">
             <h3>Inne możliwości wsparcia</h3>
             <p>Alternatywne programy, które możemy rozważyć równolegle lub jako backup.</p>
@@ -408,13 +436,12 @@ export default async function OfferPage({ params, searchParams }: Props) {
           </div>
 
           <div className="calc">
+            {/* Uwaga pilotaż 2026-07 (#5A): zdublowany chip „Wartość dofinansowania"
+                usunięty — kwota jest w 3. karcie (na czerwono, #5B). */}
             <div className="calc-head">
               <div>
                 <div className="calc-kicker">Założenia oferty</div>
                 <h3>Wartości przyjęte w tej ofercie</h3>
-              </div>
-              <div className="calc-chip">
-                Wartość dofinansowania: <strong>{fmt(funding)}</strong>
               </div>
             </div>
             <div className="calc-readonly">
@@ -428,9 +455,21 @@ export default async function OfferPage({ params, searchParams }: Props) {
               </div>
               <div className="cr-item">
                 <div className="cr-label">Szacowana wartość dofinansowania</div>
-                <div className="cr-val">{fmt(funding)}</div>
+                <div className="cr-val cr-val-accent">{fmt(funding)}</div>
               </div>
             </div>
+            {/* Uwaga pilotaż 2026-07 (#5C): edytowalne punktory w kafelku
+                (zastępują usunięte „Podsumowanie"). */}
+            {calcBullets.length > 0 && (
+              <ul className="calc-bullets">
+                {calcBullets.map((b, i) => (
+                  <li key={i}>
+                    <span className="marker">›</span>
+                    <span>{b}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <PricingVariants
@@ -445,20 +484,14 @@ export default async function OfferPage({ params, searchParams }: Props) {
             trackToken={!isPrint && !isPreview && isActive ? params.token : undefined}
           />
 
-          {/* Uwaga 6b: pole „uwagi" (np. rabat) — wyróżniony box nad podsumowaniem. */}
+          {/* Uwaga 6b: pole „uwagi" (np. rabat) — wyróżniony box. */}
           {content.notes && (
             <div className="cennik-notes">
               <p style={{ whiteSpace: 'pre-wrap' }}>{content.notes}</p>
             </div>
           )}
-
-          {/* Podsumowanie (content.footer z OfferForm) — pojawia się pod pricingiem
-              jeśli konsultant wpisał. Plain text z line-breaks. */}
-          {content.footer && (
-            <div className="cennik-footer">
-              <p style={{ whiteSpace: 'pre-wrap' }}>{content.footer}</p>
-            </div>
-          )}
+          {/* Uwaga pilotaż 2026-07 (#5E): pole „Podsumowanie (footer)" usunięte —
+              zastąpione punktorami w kafelku „Założenia oferty" (#5C). */}
         </section>
 
         {/* ==================== 06. PROCES ==================== */}

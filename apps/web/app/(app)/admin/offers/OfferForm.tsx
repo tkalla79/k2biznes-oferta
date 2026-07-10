@@ -122,13 +122,16 @@ type FormState = {
   contactPersonId: string;
   // Treść (rich text — start prosty: dwa textareas)
   contentIntro: string;
-  contentFooter: string;
+  // Uwaga pilotaż 2026-07 (#5C): „Podsumowanie (footer)" zastąpione punktorami
+  // w kafelku „Założenia oferty" (sekcja 04). Textarea: jeden punkt = jedna linia.
+  calcBullets: string;
   // PR-D: edytowalne sekcje oferty
   programDescription: string; // HTML z Tiptapa
   altPrograms: AltProgramUI[]; // alternatywne programy (per oferta)
   // Etap 2: edytowalność per-oferta (uwagi PDF #3, #4, #6b)
   needs: { k: string; v: string }[]; // potrzeby klienta (sekcja intro)
   programReason: string; // uzasadnienie wyboru naboru (sekcja program)
+  recommendationBasis: string; // zdiagnozowane potrzeby i podstawa rekomendacji (#3, sekcja 02)
   contentNotes: string; // uwagi/rabat (sekcja wynagrodzenia)
   // Ownership (admin only)
   assignedConsultantId: string;
@@ -221,12 +224,13 @@ function initialFromOffer(offer: OfferDto): FormState {
   const c = offer.content as
     | {
         intro?: unknown;
-        footer?: unknown;
         programDescription?: unknown;
         altPrograms?: unknown;
         needs?: unknown;
         programReason?: unknown;
         notes?: unknown;
+        calcBullets?: unknown;
+        recommendationBasis?: unknown;
       }
     | null;
   const altPrograms = Array.isArray(c?.altPrograms)
@@ -272,11 +276,14 @@ function initialFromOffer(offer: OfferDto): FormState {
     caseStudyId: offer.caseStudyId ?? '',
     contactPersonId: offer.contactPersonId ?? '',
     contentIntro: typeof c?.intro === 'string' ? c.intro : '',
-    contentFooter: typeof c?.footer === 'string' ? c.footer : '',
+    calcBullets: Array.isArray(c?.calcBullets)
+      ? (c!.calcBullets as unknown[]).filter((b) => typeof b === 'string').join('\n')
+      : '',
     programDescription: typeof c?.programDescription === 'string' ? c.programDescription : '',
     altPrograms,
     needs,
     programReason: typeof c?.programReason === 'string' ? c.programReason : '',
+    recommendationBasis: typeof c?.recommendationBasis === 'string' ? c.recommendationBasis : '',
     contentNotes: typeof c?.notes === 'string' ? c.notes : '',
     assignedConsultantId: offer.assignedConsultantId ?? '',
     pricingMode: pricingModeFromOffer(offer),
@@ -305,11 +312,12 @@ function blankInitial(): FormState {
     caseStudyId: '',
     contactPersonId: '',
     contentIntro: '',
-    contentFooter: '',
+    calcBullets: '',
     programDescription: '',
     altPrograms: [],
     needs: defaultNeeds(),
     programReason: '',
+    recommendationBasis: '',
     contentNotes: '',
     assignedConsultantId: '',
     pricingMode: 'auto',
@@ -603,20 +611,25 @@ export default function OfferForm({
     setBusy(true);
     const content: Record<string, unknown> = {};
     if (form.contentIntro.trim()) content.intro = form.contentIntro.trim();
-    if (form.contentFooter.trim()) content.footer = form.contentFooter.trim();
+    // Uwaga pilotaż 2026-07 (#5C): punktory kafelka — jeden punkt = jedna linia.
+    const calcBullets = form.calcBullets
+      .split('\n')
+      .map((s) => s.trim())
+      .filter((s) => s !== '');
+    if (calcBullets.length > 0) content.calcBullets = calcBullets;
     if (form.programDescription.trim()) content.programDescription = form.programDescription;
     const cleanAlts = form.altPrograms.filter(
       (p) => p.name.trim() !== '' || p.desc.trim() !== '' || p.program.trim() !== '',
     );
     if (cleanAlts.length > 0) content.altPrograms = cleanAlts;
 
-    // Etap 2: needs/programReason/notes — zapisujemy tylko gdy wypełnione
-    // (pusta wartość = render używa fallbacku do staticContent).
+    // Uwaga pilotaż 2026-07 (#1A): content.needs zapisujemy ZAWSZE (też pustą listę)
+    // — usunięcie wszystkich punktów w panelu ma dać pustą sekcję w ofercie, a nie
+    // fallback do domyślnych. Fallback (render) działa tylko gdy klucz nigdy nie powstał.
     const cleanNeeds = form.needs.filter((n) => n.k.trim() !== '' || n.v.trim() !== '');
-    if (cleanNeeds.length > 0) {
-      content.needs = cleanNeeds.map((n) => ({ k: n.k.trim(), v: n.v.trim() }));
-    }
+    content.needs = cleanNeeds.map((n) => ({ k: n.k.trim(), v: n.v.trim() }));
     if (form.programReason.trim()) content.programReason = form.programReason.trim();
+    if (form.recommendationBasis.trim()) content.recommendationBasis = form.recommendationBasis.trim();
     if (form.contentNotes.trim()) content.notes = form.contentNotes.trim();
 
     const body = {
@@ -1402,24 +1415,27 @@ export default function OfferForm({
           </button>
         </Field>
 
-        <Field label="Wstęp (intro) — pojawi się nad pricingiem">
+        <Field label="Wstęp (intro) — pojawi się nad pricingiem (lewa kolumna sekcji 01)">
           <textarea
             value={form.contentIntro}
             onChange={(e) => update('contentIntro', e.target.value)}
             style={textarea}
             rows={4}
-            maxLength={4000}
+            maxLength={1500}
             placeholder="Np. Dziękujemy za rozmowę. Poniżej propozycja współpracy przy aplikacji o dofinansowanie…"
           />
+          <div style={{ fontSize: 12, color: '#6b7a92', textAlign: 'right', marginTop: 4 }}>
+            {form.contentIntro.length}/1500 znaków
+          </div>
         </Field>
-        <Field label="Podsumowanie (footer) — pojawi się pod pricingiem">
+        <Field label="Punktory w kafelku Założenia oferty (sekcja 04) — jeden punkt = jedna linia">
           <textarea
-            value={form.contentFooter}
-            onChange={(e) => update('contentFooter', e.target.value)}
+            value={form.calcBullets}
+            onChange={(e) => update('calcBullets', e.target.value)}
             style={textarea}
-            rows={3}
+            rows={4}
             maxLength={2000}
-            placeholder="Np. Pełen zakres usług, harmonogram pracy i warunki płatności znajdziesz w załączonym PDF."
+            placeholder={'Np.\nPełen zakres usług, harmonogram i warunki płatności precyzuje załączony dokument oferty.\nWszystkie kwoty netto; szczegóły rozliczeń ustalamy indywidualnie.'}
           />
         </Field>
 
@@ -1444,6 +1460,19 @@ export default function OfferForm({
             rows={2}
             maxLength={600}
             placeholder="Nabór jest najbardziej odpowiedni ze względu na charakter inwestycji…"
+          />
+        </Field>
+
+        {/* Uwaga pilotaż 2026-07 (#3): zdiagnozowane potrzeby i podstawa rekomendacji
+            — tekst na 2 kolumny w sekcji 02 (pod „Rekomendujemy"). */}
+        <Field label="Zdiagnozowane potrzeby i podstawa rekomendacji (sekcja 02, tekst na 2 kolumny) — puste = ukryte">
+          <textarea
+            value={form.recommendationBasis}
+            onChange={(e) => update('recommendationBasis', e.target.value)}
+            style={textarea}
+            rows={5}
+            maxLength={2000}
+            placeholder="Opisz realne, zdiagnozowane potrzeby klienta i merytoryczną podstawę, z której wynika rekomendacja działania…"
           />
         </Field>
 
