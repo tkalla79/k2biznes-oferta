@@ -170,7 +170,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
     intro?: string;
     footer?: string;
     programDescription?: string;
-    altPrograms?: Array<{ name: string; program: string; nabor: string; desc: string; url: string }>;
+    altPrograms?: Array<{ name: string; program: string; nabor: string; desc: string; url: string; recommended?: boolean }>;
     // Etap 2 (edytowalność per-oferta): needs/programReason/notes — fallback do staticContent.
     needs?: Array<{ k: string; v: string }>;
     programReason?: string;
@@ -190,6 +190,12 @@ export default async function OfferPage({ params, searchParams }: Props) {
     Array.isArray(content.altPrograms) && content.altPrograms.length > 0
       ? content.altPrograms
       : ALT_PROGRAMS;
+  // Uwaga pilotaż 2026-07 (#2): jeden z altPrograms może być oznaczony jako
+  // rekomendowany — jego nazwa/termin/opis zasilają blok „Rekomendujemy".
+  // Backward-compat: gdy żaden nieoznaczony (stare oferty / domyślne) —
+  // recommendedAlt=null, program_label z oferty, wszystkie alt jako alternatywy.
+  const recommendedAlt = altPrograms.find((p) => (p as { recommended?: boolean }).recommended) ?? null;
+  const alternativeAlts = altPrograms.filter((p) => !(p as { recommended?: boolean }).recommended);
   // Edytowalne potrzeby klienta (sekcja intro). Uwaga pilotaż 2026-07 (#1A):
   // klucz OBECNY (nawet pusta lista) wygrywa — usunięcie wszystkich punktów
   // w panelu = brak punktów w ofercie. Fallback do NEEDS tylko gdy klucz nieobecny.
@@ -363,13 +369,25 @@ export default async function OfferPage({ params, searchParams }: Props) {
           <div className="program-hero">
             <div className="program-top">
               <p className="program-reason">{programReason}</p>
+              {/* Uwaga pilotaż 2026-07 (#2): termin naboru z rekomendowanej pozycji. */}
+              {recommendedAlt?.nabor && (
+                <div className="program-nabor">
+                  <span>Nabór</span> <strong>{recommendedAlt.nabor}</strong>
+                </div>
+              )}
             </div>
             <div className="program-separator" />
+            {/* #2: opis programu — override (programDescription) > opis rekomendowanego
+                z biblioteki > domyślne punkty. */}
             {programDescriptionHtml ? (
               <div
                 className="program-description"
                 dangerouslySetInnerHTML={{ __html: programDescriptionHtml }}
               />
+            ) : recommendedAlt?.desc ? (
+              <div className="program-description">
+                <p>{recommendedAlt.desc}</p>
+              </div>
             ) : (
               <div className="program-points">
                 {PROGRAM_BULLETS.map((b, i) => (
@@ -388,27 +406,33 @@ export default async function OfferPage({ params, searchParams }: Props) {
               <p style={{ whiteSpace: 'pre-wrap' }}>{content.recommendationBasis}</p>
             </div>
           )}
-          <div className="alt-header">
-            <h3>Inne możliwości wsparcia</h3>
-            <p>Alternatywne programy, które możemy rozważyć równolegle lub jako backup.</p>
-          </div>
-          <div className="alt-grid">
-            {altPrograms.map((p, i) => (
-              <article key={i} className="alt-card">
-                <div className="alt-program">{p.program}</div>
-                <h4>{p.name}</h4>
-                <p className="alt-nabor">
-                  Nabór: <strong>{p.nabor}</strong>
-                </p>
-                <p className="alt-desc">{p.desc}</p>
-                {p.url && (
-                  <a href={p.url} target="_blank" rel="noopener noreferrer" className="alt-link">
-                    Dowiedz się więcej →
-                  </a>
-                )}
-              </article>
-            ))}
-          </div>
+          {/* Uwaga pilotaż 2026-07 (#2): tylko pozycje alternatywne (bez rekomendowanej);
+              ukryte gdy brak alternatyw. */}
+          {alternativeAlts.length > 0 && (
+            <>
+              <div className="alt-header">
+                <h3>Inne możliwości wsparcia</h3>
+                <p>Alternatywne programy, które możemy rozważyć równolegle lub jako backup.</p>
+              </div>
+              <div className="alt-grid">
+                {alternativeAlts.map((p, i) => (
+                  <article key={i} className="alt-card">
+                    <div className="alt-program">{p.program}</div>
+                    <h4>{p.name}</h4>
+                    <p className="alt-nabor">
+                      Nabór: <strong>{p.nabor}</strong>
+                    </p>
+                    <p className="alt-desc">{p.desc}</p>
+                    {p.url && (
+                      <a href={p.url} target="_blank" rel="noopener noreferrer" className="alt-link">
+                        Dowiedz się więcej →
+                      </a>
+                    )}
+                  </article>
+                ))}
+              </div>
+            </>
+          )}
         </section>
 
         {/* ==================== 04. ZAKRES ==================== */}

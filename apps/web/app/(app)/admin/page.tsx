@@ -36,9 +36,8 @@ export default async function AdminDashboard() {
         <Link href="/admin/offers" style={{ color: '#c92b3a', textDecoration: 'none', fontWeight: 600 }}>
           → Oferty
         </Link>
-        <Link href="/admin/programs" style={{ color: '#6b7a92', textDecoration: 'none' }}>
-          Programy
-        </Link>
+        {/* Pilotaż 2026-07 (#2): katalog „Programy" wygaszony — rekomendowany program
+            wybiera się na liście „Inne możliwości wsparcia" w edytorze oferty. */}
         <Link href="/admin/case-studies" style={{ color: '#6b7a92', textDecoration: 'none' }}>
           Case studies
         </Link>

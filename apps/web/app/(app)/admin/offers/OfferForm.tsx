@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { OfferDto } from '@/lib/offers/mapper';
 import {
@@ -77,6 +77,8 @@ type AltProgramUI = {
   nabor: string;
   desc: string;
   url: string;
+  // Uwaga pilotaż 2026-07 (#2): dokładnie jedna pozycja rekomendowana (reszta = alternatywne).
+  recommended: boolean;
 };
 
 // Feature #2: pozycja biblioteki alt-programów (do szybkiego dodania do listy).
@@ -242,6 +244,7 @@ function initialFromOffer(offer: OfferDto): FormState {
           nabor: typeof p.nabor === 'string' ? p.nabor : '',
           desc: typeof p.desc === 'string' ? p.desc : '',
           url: typeof p.url === 'string' ? p.url : '',
+          recommended: p.recommended === true,
         }))
     : [];
   const parsedNeeds = Array.isArray(c?.needs)
@@ -353,7 +356,6 @@ type Props =
 export default function OfferForm({
   mode,
   offer,
-  programs,
   caseStudies,
   contactPersons,
   profiles,
@@ -428,15 +430,7 @@ export default function OfferForm({
     }
   }
 
-  // Auto-fill program label gdy wybierze się program z select'a.
-  function selectProgram(id: string) {
-    const p = programs.find((x) => x.id === id);
-    setForm((f) => ({
-      ...f,
-      programId: id,
-      programLabel: p?.label ?? f.programLabel,
-    }));
-  }
+  // Pilotaż 2026-07 (#2): katalog „Programy" wygaszony — selectProgram usunięty.
 
   // Live pricing preview — debounced 400ms na zmianach finansów.
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -595,8 +589,16 @@ export default function OfferForm({
     setError(null);
     setSuccess(null);
 
-    if (!form.clientName.trim() || !form.programLabel.trim()) {
-      setError('Klient i nazwa programu są wymagane.');
+    // Uwaga pilotaż 2026-07 (#2): nazwa programu pochodzi z pozycji oznaczonej
+    // jako REKOMENDOWANA na liście „Inne możliwości wsparcia" (scalenie katalogów).
+    const recommendedAlt = form.altPrograms.find((p) => p.recommended && p.name.trim() !== '');
+    const recommendedLabel = recommendedAlt?.name.trim() ?? '';
+    if (!form.clientName.trim()) {
+      setError('Nazwa klienta jest wymagana.');
+      return;
+    }
+    if (!recommendedLabel) {
+      setError('Oznacz jeden program na liście „Inne możliwości wsparcia" jako rekomendowany (to on trafia do nagłówka „Rekomendujemy").');
       return;
     }
     if (!form.offeredVariants.includes(form.selectedVariant)) {
@@ -647,8 +649,9 @@ export default function OfferForm({
       clientIndustry: form.clientIndustry.trim() || undefined,
       clientCompanySize: form.clientCompanySize || undefined,
       clientVoivodeship: form.clientVoivodeship.trim() || undefined,
-      programId: form.programId || undefined,
-      programLabel: form.programLabel.trim(),
+      // #2: brak katalogu „Programy" — programId nie ustawiany; label z rekomendowanej pozycji.
+      programId: undefined,
+      programLabel: recommendedLabel,
       programCustomName: form.programCustomName.trim() || undefined,
       projectValue: form.projectValue,
       fundingRate: form.fundingRate,
@@ -695,16 +698,6 @@ export default function OfferForm({
     }
   }
 
-  // Programy zgrupowane dla <optgroup>
-  const grouped = useMemo(() => {
-    const m = new Map<string, ProgramOpt[]>();
-    for (const p of programs) {
-      const list = m.get(p.group_name) ?? [];
-      list.push(p);
-      m.set(p.group_name, list);
-    }
-    return Array.from(m.entries());
-  }, [programs]);
 
   const isEditingSentOffer = mode === 'edit' && offer!.status !== 'draft';
 
@@ -818,49 +811,9 @@ export default function OfferForm({
         )}
       </Section>
 
-      {/* SECTION 2: Program */}
-      <Section title="Program dotacyjny">
-        <Field label="Wybierz z katalogu (lub zostaw puste i wpisz własny)">
-          <select
-            value={form.programId}
-            onChange={(e) => selectProgram(e.target.value)}
-            style={input}
-          >
-            <option value="">— wybierz program —</option>
-            {grouped.map(([group, list]) => (
-              <optgroup key={group} label={group}>
-                {list.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        </Field>
-        <Grid2>
-          <Field label="Nazwa programu (label) *">
-            <input
-              type="text"
-              required
-              maxLength={200}
-              value={form.programLabel}
-              onChange={(e) => update('programLabel', e.target.value)}
-              style={input}
-            />
-          </Field>
-          <Field label="Custom name (override)">
-            <input
-              type="text"
-              maxLength={200}
-              value={form.programCustomName}
-              onChange={(e) => update('programCustomName', e.target.value)}
-              style={input}
-              placeholder="opcjonalnie"
-            />
-          </Field>
-        </Grid2>
-      </Section>
+      {/* SECTION 2: Program dotacyjny — USUNIĘTA (pilotaż 2026-07 #2).
+          Rekomendowany program wybierasz teraz na liście „Inne możliwości wsparcia"
+          (oznacz pozycję jako rekomendowaną). Katalog „Programy" wygaszony. */}
 
       {/* SECTION 3: Finanse */}
       <Section title="Finanse projektu">
@@ -1188,8 +1141,8 @@ export default function OfferForm({
       {/* SECTION 4c: Opis rekomendowanego programu (rich text — Tiptap) */}
       <Section title="Opis rekomendowanego programu (na ofercie)">
         <p style={hint}>
-          Pojawia się w sekcji „Rekomendujemy: <em>{form.programLabel || '<nazwa programu>'}</em>”.
-          Pozostaw puste, by użyć domyślnych punktów (4 bullets).
+          Pojawia się w sekcji „Rekomendujemy: <em>{form.altPrograms.find((p) => p.recommended)?.name || '<oznacz program jako rekomendowany>'}</em>”.
+          Pozostaw puste, by użyć opisu z biblioteki (rekomendowanej pozycji) lub domyślnych punktów.
         </p>
         <RichTextEditor
           value={form.programDescription}
@@ -1199,11 +1152,12 @@ export default function OfferForm({
         />
       </Section>
 
-      {/* SECTION 4d: Alternatywne programy (per oferta) */}
-      <Section title="Alternatywne programy (Inne możliwości wsparcia)">
+      {/* SECTION 4d: Programy wsparcia — rekomendowany + alternatywne (scalone, #2) */}
+      <Section title="Programy wsparcia (Inne możliwości wsparcia)">
         <p style={hint}>
-          Lista programów, które pojawią się pod opisem rekomendowanego — jako backup lub
-          uzupełnienie. Pusta lista = pokazuje domyślne 4 programy z szablonu.
+          Dodaj programy i <strong>oznacz jeden jako rekomendowany</strong> — jego nazwa,
+          termin naboru i opis trafią do nagłówka „Rekomendujemy”. Pozostałe pokazują się
+          jako alternatywy. Pusta lista = domyślne 4 programy z szablonu.
         </p>
 
         {/* Feature #2: szybkie dodanie z biblioteki. Klik → kopia do listy poniżej
@@ -1232,6 +1186,7 @@ export default function OfferForm({
                           nabor: lib.nabor ?? '',
                           desc: lib.desc ?? '',
                           url: lib.url ?? '',
+                          recommended: false,
                         },
                       ])
                     }
@@ -1258,7 +1213,34 @@ export default function OfferForm({
         {form.altPrograms.map((p, idx) => (
           <div key={idx} style={altCardStyle}>
             <div style={altCardHead}>
-              Program #{idx + 1}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
+                Program #{idx + 1}
+                {/* Uwaga pilotaż 2026-07 (#2): dokładnie jedna pozycja rekomendowana. */}
+                <label
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: p.recommended ? '#d91e18' : '#6b7a92',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="alt-recommended"
+                    checked={p.recommended}
+                    onChange={() =>
+                      update(
+                        'altPrograms',
+                        form.altPrograms.map((x, i) => ({ ...x, recommended: i === idx })),
+                      )
+                    }
+                  />
+                  {p.recommended ? 'Rekomendowany' : 'Oznacz jako rekomendowany'}
+                </label>
+              </span>
               <button
                 type="button"
                 onClick={() =>
@@ -1348,7 +1330,7 @@ export default function OfferForm({
           onClick={() =>
             update('altPrograms', [
               ...form.altPrograms,
-              { name: '', program: '', nabor: '', desc: '', url: '' },
+              { name: '', program: '', nabor: '', desc: '', url: '', recommended: false },
             ])
           }
           style={btnSmall}

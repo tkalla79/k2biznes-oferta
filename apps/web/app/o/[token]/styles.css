@@ -488,6 +488,14 @@ main { display: block; }
   color: rgba(255, 255, 255, 0.5);
   margin-top: 4px;
 }
+/* Uwaga pilotaż 2026-07 (#2): badge terminu naboru rekomendowanego programu. */
+.program-nabor {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 12px;
+  font-size: 13px; color: var(--ink-2);
+  background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 5px 14px;
+}
+.program-nabor span { text-transform: uppercase; letter-spacing: .08em; font-size: 11px; font-weight: 600; color: var(--mute); }
+.program-nabor strong { color: var(--ink); font-weight: 600; }
 .program-separator {
   height: 1px;
   background: rgba(42, 50, 75, 0.1); /* dark navy na 10% — visible na bialym tle */
