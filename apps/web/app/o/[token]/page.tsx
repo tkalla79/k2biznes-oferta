@@ -265,7 +265,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
             <h1 className="hero-title">
               Wsparcie doradcze<br />
               w zakresie przygotowania<br />
-              <em>projektu</em>
+              <em>dokumentacji projektu</em>
             </h1>
             <div className="hero-for">
               Oferta przygotowana dla
