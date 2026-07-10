@@ -401,8 +401,16 @@ main { display: block; }
   display: grid; grid-template-columns: 1fr 1fr; gap: 80px;
   align-items: start;
 }
-.intro-copy .lead { font-size: 22px; line-height: 1.5; margin-top: 0; color: var(--ink); }
-.intro-copy p { margin-bottom: 24px; }
+/* Uwaga pilotaż 2026-07 (#1A): gdy brak punktów po prawej — jedna kolumna. */
+.intro-grid--single { grid-template-columns: 1fr; }
+/* Uwaga pilotaż 2026-07 (#1B): lewa kolumna intro do 16px (jak opisy punktów). */
+.intro-copy .lead { font-size: 16px; line-height: 1.55; margin-top: 0; color: var(--ink); }
+.intro-copy p { font-size: 16px; margin-bottom: 24px; color: var(--ink-2); }
+/* Uwaga pilotaż 2026-07 (#1E): nagłówek nad punktami w prawej kolumnie
+   (przeniesione zdanie „Na podstawie…"). */
+.needs-header { margin: 0 0 20px; }
+.needs-header .rule { display: block; width: 28px; height: 1px; background: var(--red); margin-bottom: 10px; }
+.needs-header p { margin: 0; font-size: 16px; line-height: 1.5; color: var(--ink); font-weight: 500; }
 .client-chip {
   margin-top: 40px; padding: 24px; background: var(--bg-2);
   border-radius: var(--radius); border-left: 3px solid var(--red);
@@ -787,7 +795,7 @@ main { display: block; }
   transition: max-height .3s, padding .3s;
   padding-left: 80px; padding-right: 60px;
 }
-.scope-body p { margin: 0 0 22px; color: var(--ink-2); line-height: 1.6; max-width: 720px; }
+.scope-body p { margin: 0 0 22px; font-size: 16px; color: var(--ink-2); line-height: 1.6; max-width: 720px; }
 .scope-list li.open .scope-body { max-height: 200px; }
 
 /* ============================================================
@@ -924,10 +932,13 @@ main { display: block; }
 /* ============================================================
    PROCES — timeline
    ============================================================ */
-.timeline { position: relative; margin: 60px 0 48px; padding: 40px 0; }
+/* Uwaga pilotaż 2026-07 (#6): lead sekcji 05 do 16px (scoped, żeby nie ruszać
+   innych sekcji) + kompaktowe odstępy osi i boxu szczegółu. */
+#proces .section-lead { font-size: 16px; }
+.timeline { position: relative; margin: 28px 0 20px; padding: 24px 0; }
 .timeline-rail {
   position: relative; height: 2px; background: var(--line);
-  margin: 40px 40px;
+  margin: 24px 40px;
 }
 .timeline-fill {
   position: absolute; left: 0; top: 0; bottom: 0;
@@ -946,7 +957,7 @@ main { display: block; }
   transform: translate(-50%, -50%) scale(1.15);
   box-shadow: 0 0 0 6px rgba(217, 30, 24, .2);
 }
-.timeline-labels { position: relative; height: 80px; margin: 16px 40px 0; }
+.timeline-labels { position: relative; height: 68px; margin: 10px 40px 0; }
 .timeline-label {
   position: absolute; top: 0; transform: translateX(-50%);
   display: flex; flex-direction: column; align-items: center; text-align: center;
@@ -960,12 +971,12 @@ main { display: block; }
 
 .process-detail {
   background: var(--bg-2); border-radius: var(--radius-lg);
-  padding: 40px; max-width: 720px; margin: 0 auto;
+  padding: 28px; max-width: 720px; margin: 0 auto;
   text-align: center;
 }
-.pd-step { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--red); font-weight: 600; margin-bottom: 14px; }
-.process-detail h3 { font-family: var(--serif); font-size: 36px; margin: 0 0 14px; font-weight: 400; letter-spacing: -.01em; }
-.process-detail p { color: var(--ink-2); font-size: 17px; line-height: 1.6; margin: 0 0 32px; }
+.pd-step { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--red); font-weight: 600; margin-bottom: 8px; }
+.process-detail h3 { font-family: var(--serif); font-size: 30px; margin: 0 0 10px; font-weight: 400; letter-spacing: -.01em; }
+.process-detail p { color: var(--ink-2); font-size: 16px; line-height: 1.55; margin: 0 0 18px; }
 .pd-nav { display: flex; gap: 12px; justify-content: center; }
 .pd-nav button {
   padding: 12px 20px; border: 1px solid var(--line);
@@ -1564,7 +1575,7 @@ main { display: block; }
 .faq-a p {
   margin: 0 0 24px;
   color: var(--ink-2);
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.6;
   max-width: 820px;
 }
@@ -1690,6 +1701,16 @@ main { display: block; }
   color: var(--ink);
   letter-spacing: -.01em;
 }
+/* Uwaga pilotaż 2026-07 (#5B): szacowana wartość dofinansowania na czerwono. */
+.cr-val-accent { color: var(--red); }
+/* Uwaga pilotaż 2026-07 (#5C): punktory w kafelku „Założenia oferty". */
+.calc-bullets { list-style: none; padding: 0; margin: 24px 0 0; border-top: 1px solid var(--line); padding-top: 20px; }
+.calc-bullets li { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+.calc-bullets li:last-child { margin-bottom: 0; }
+.calc-bullets .marker { color: var(--red); font-weight: 700; line-height: 1.5; flex-shrink: 0; }
+.calc-bullets li > span:last-child { font-size: 16px; line-height: 1.5; color: var(--ink); }
+/* Uwaga pilotaż 2026-07 (#5D): lead sekcji 04 rozciągnięty na całą szerokość. */
+#cennik .section-lead { max-width: none; text-align: justify; }
 
 /* Uwaga 9b: branże — jeden label „Branże" + tagi inline (nie „branża" 3×). */
 .case-industries {
@@ -1941,6 +1962,9 @@ main { display: block; }
   .cr-item { padding: 18px 20px !important; }
   .cr-label { font-size: 11pt !important; }
   .cr-val { font-size: 20pt !important; }
+  /* Uwaga pilotaż 2026-07 (#5C): punktory kafelka w PDF. */
+  .calc-bullets { margin-top: 16px !important; padding-top: 12px !important; }
+  .calc-bullets li > span:last-child { font-size: 11pt !important; line-height: 1.4 !important; }
 
   /* STR.8 — WARIANTY poziomo (od nowej strony, po założeniach) */
   .variants { display: grid !important; grid-template-columns: 1fr 1fr 1fr !important; gap: 8px !important; page-break-before: always; page-break-inside: avoid; margin-bottom: 16px !important; }
