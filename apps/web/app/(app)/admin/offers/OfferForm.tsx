@@ -131,6 +131,7 @@ type FormState = {
   // Etap 2: edytowalność per-oferta (uwagi PDF #3, #4, #6b)
   needs: { k: string; v: string }[]; // potrzeby klienta (sekcja intro)
   programReason: string; // uzasadnienie wyboru naboru (sekcja program)
+  recommendationBasis: string; // zdiagnozowane potrzeby i podstawa rekomendacji (#3, sekcja 02)
   contentNotes: string; // uwagi/rabat (sekcja wynagrodzenia)
   // Ownership (admin only)
   assignedConsultantId: string;
@@ -229,6 +230,7 @@ function initialFromOffer(offer: OfferDto): FormState {
         programReason?: unknown;
         notes?: unknown;
         calcBullets?: unknown;
+        recommendationBasis?: unknown;
       }
     | null;
   const altPrograms = Array.isArray(c?.altPrograms)
@@ -281,6 +283,7 @@ function initialFromOffer(offer: OfferDto): FormState {
     altPrograms,
     needs,
     programReason: typeof c?.programReason === 'string' ? c.programReason : '',
+    recommendationBasis: typeof c?.recommendationBasis === 'string' ? c.recommendationBasis : '',
     contentNotes: typeof c?.notes === 'string' ? c.notes : '',
     assignedConsultantId: offer.assignedConsultantId ?? '',
     pricingMode: pricingModeFromOffer(offer),
@@ -314,6 +317,7 @@ function blankInitial(): FormState {
     altPrograms: [],
     needs: defaultNeeds(),
     programReason: '',
+    recommendationBasis: '',
     contentNotes: '',
     assignedConsultantId: '',
     pricingMode: 'auto',
@@ -625,6 +629,7 @@ export default function OfferForm({
     const cleanNeeds = form.needs.filter((n) => n.k.trim() !== '' || n.v.trim() !== '');
     content.needs = cleanNeeds.map((n) => ({ k: n.k.trim(), v: n.v.trim() }));
     if (form.programReason.trim()) content.programReason = form.programReason.trim();
+    if (form.recommendationBasis.trim()) content.recommendationBasis = form.recommendationBasis.trim();
     if (form.contentNotes.trim()) content.notes = form.contentNotes.trim();
 
     const body = {
@@ -1455,6 +1460,19 @@ export default function OfferForm({
             rows={2}
             maxLength={600}
             placeholder="Nabór jest najbardziej odpowiedni ze względu na charakter inwestycji…"
+          />
+        </Field>
+
+        {/* Uwaga pilotaż 2026-07 (#3): zdiagnozowane potrzeby i podstawa rekomendacji
+            — tekst na 2 kolumny w sekcji 02 (pod „Rekomendujemy"). */}
+        <Field label="Zdiagnozowane potrzeby i podstawa rekomendacji (sekcja 02, tekst na 2 kolumny) — puste = ukryte">
+          <textarea
+            value={form.recommendationBasis}
+            onChange={(e) => update('recommendationBasis', e.target.value)}
+            style={textarea}
+            rows={5}
+            maxLength={2000}
+            placeholder="Opisz realne, zdiagnozowane potrzeby klienta i merytoryczną podstawę, z której wynika rekomendacja działania…"
           />
         </Field>
 

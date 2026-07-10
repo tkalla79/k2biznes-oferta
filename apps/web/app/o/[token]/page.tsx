@@ -177,6 +177,9 @@ export default async function OfferPage({ params, searchParams }: Props) {
     notes?: string;
     // Uwaga pilotaż 2026-07 (#5C): punktory w kafelku „Założenia oferty".
     calcBullets?: string[];
+    // Uwaga pilotaż 2026-07 (#3): zdiagnozowane potrzeby i podstawa rekomendacji
+    // (tekst na 2 kolumny, sekcja 02, pod „Rekomendujemy", nad alternatywami).
+    recommendationBasis?: string;
   };
   // Punktory kafelka (sekcja 04) — renderowane tylko gdy niepuste.
   const calcBullets = Array.isArray(content.calcBullets)
@@ -378,6 +381,13 @@ export default async function OfferPage({ params, searchParams }: Props) {
               </div>
             )}
           </div>
+          {/* Uwaga pilotaż 2026-07 (#3): zdiagnozowane potrzeby i podstawa
+              rekomendacji — tekst na 2 kolumny, pod „Rekomendujemy". */}
+          {content.recommendationBasis?.trim() && (
+            <div className="reco-basis">
+              <p style={{ whiteSpace: 'pre-wrap' }}>{content.recommendationBasis}</p>
+            </div>
+          )}
           <div className="alt-header">
             <h3>Inne możliwości wsparcia</h3>
             <p>Alternatywne programy, które możemy rozważyć równolegle lub jako backup.</p>

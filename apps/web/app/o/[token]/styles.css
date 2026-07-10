@@ -411,6 +411,11 @@ main { display: block; }
 .needs-header { margin: 0 0 20px; }
 .needs-header .rule { display: block; width: 28px; height: 1px; background: var(--red); margin-bottom: 10px; }
 .needs-header p { margin: 0; font-size: 16px; line-height: 1.5; color: var(--ink); font-weight: 500; }
+/* Uwaga pilotaż 2026-07 (#3): podstawa rekomendacji — tekst na 2 kolumny,
+   styl jak lewa kolumna sekcji 01 (16px, --ink-2). */
+.reco-basis { columns: 2; column-gap: 48px; margin: 28px 0 8px; }
+.reco-basis p { margin: 0; font-size: 16px; line-height: 1.6; color: var(--ink-2); }
+@media (max-width: 720px) { .reco-basis { columns: 1; } }
 .client-chip {
   margin-top: 40px; padding: 24px; background: var(--bg-2);
   border-radius: var(--radius); border-left: 3px solid var(--red);
