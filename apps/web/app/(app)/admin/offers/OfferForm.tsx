@@ -1155,188 +1155,116 @@ export default function OfferForm({
       {/* SECTION 4d: Programy wsparcia — rekomendowany + alternatywne (scalone, #2) */}
       <Section title="Programy wsparcia (Inne możliwości wsparcia)">
         <p style={hint}>
-          Dodaj programy i <strong>oznacz jeden jako rekomendowany</strong> — jego nazwa,
-          termin naboru i opis trafią do nagłówka „Rekomendujemy”. Pozostałe pokazują się
-          jako alternatywy. Pusta lista = domyślne 4 programy z szablonu.
+          Wybierz programy z biblioteki (<em>/admin/alt-programs</em>) i{' '}
+          <strong>oznacz jeden jako rekomendowany</strong> — jego nazwa, termin i opis trafią
+          do nagłówka „Rekomendujemy”, reszta jako alternatywy. Pusta lista = domyślne 4 programy.
         </p>
 
-        {/* Feature #2: szybkie dodanie z biblioteki. Klik → kopia do listy poniżej
-            (edytowalna/usuwalna jak ad-hoc). Zarządzanie biblioteką: /admin/alt-programs. */}
-        {altProgramLibrary.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 13, color: '#3a4254', marginBottom: 6 }}>
-              Dodaj z biblioteki:
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {altProgramLibrary.map((lib) => {
-                const already = form.altPrograms.some(
-                  (p) => p.name === lib.name && p.program === lib.program,
-                );
-                return (
-                  <button
-                    key={lib.id}
-                    type="button"
-                    disabled={already}
-                    onClick={() =>
-                      update('altPrograms', [
-                        ...form.altPrograms,
-                        {
-                          name: lib.name,
-                          program: lib.program,
-                          nabor: lib.nabor ?? '',
-                          desc: lib.desc ?? '',
-                          url: lib.url ?? '',
-                          recommended: false,
-                        },
-                      ])
-                    }
+        {/* Wariant A (2026-07-15): dodawanie TYLKO z biblioteki przez listę rozwijaną
+            (bez edycji ad-hoc). Nowy program dodajesz najpierw w /admin/alt-programs. */}
+        <Field label="Dodaj program z biblioteki">
+          <select
+            value=""
+            onChange={(e) => {
+              const lib = altProgramLibrary.find((l) => l.id === e.target.value);
+              if (!lib) return;
+              update('altPrograms', [
+                ...form.altPrograms,
+                {
+                  name: lib.name,
+                  program: lib.program,
+                  nabor: lib.nabor ?? '',
+                  desc: lib.desc ?? '',
+                  url: lib.url ?? '',
+                  recommended: false,
+                },
+              ]);
+            }}
+            style={input}
+          >
+            <option value="">— wybierz program z biblioteki —</option>
+            {altProgramLibrary
+              .filter(
+                (lib) =>
+                  !form.altPrograms.some(
+                    (p) => p.name === lib.name && p.program === lib.program,
+                  ),
+              )
+              .map((lib) => (
+                <option key={lib.id} value={lib.id}>
+                  {lib.name} — {lib.program}
+                </option>
+              ))}
+          </select>
+        </Field>
+
+        {form.altPrograms.length === 0 ? (
+          <p style={hint}>
+            Brak wybranych programów — dodaj z listy powyżej. Pusta lista = domyślne 4 programy z szablonu.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+            {form.altPrograms.map((p, idx) => (
+              <div
+                key={idx}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  padding: '10px 14px',
+                  border: '1px solid #e4e6ec',
+                  borderRadius: 8,
+                  background: p.recommended ? '#fff5f5' : '#fff',
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, color: '#2a324b' }}>{p.name || '—'}</div>
+                  <div style={{ fontSize: 12, color: '#6b7a92' }}>
+                    {p.program}
+                    {p.nabor ? ` · nabór: ${p.nabor}` : ''}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+                  {/* Dokładnie jedna pozycja rekomendowana. */}
+                  <label
                     style={{
-                      padding: '5px 12px',
-                      fontSize: 13,
-                      borderRadius: 999,
-                      border: '1px solid #d4dae6',
-                      background: already ? '#eef1f6' : '#fff',
-                      color: already ? '#9aa3b2' : '#3a4254',
-                      cursor: already ? 'default' : 'pointer',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: p.recommended ? '#d91e18' : '#6b7a92',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
                     }}
-                    title={already ? 'Już dodany' : `Dodaj: ${lib.program}`}
                   >
-                    {already ? '✓ ' : '+ '}
-                    {lib.name}
+                    <input
+                      type="radio"
+                      name="alt-recommended"
+                      checked={p.recommended}
+                      onChange={() =>
+                        update(
+                          'altPrograms',
+                          form.altPrograms.map((x, i) => ({ ...x, recommended: i === idx })),
+                        )
+                      }
+                    />
+                    Rekomendowany
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      update('altPrograms', form.altPrograms.filter((_, i) => i !== idx))
+                    }
+                    style={btnSmallGhost}
+                  >
+                    Usuń
                   </button>
-                );
-              })}
-            </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
-
-        {form.altPrograms.map((p, idx) => (
-          <div key={idx} style={altCardStyle}>
-            <div style={altCardHead}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
-                Program #{idx + 1}
-                {/* Uwaga pilotaż 2026-07 (#2): dokładnie jedna pozycja rekomendowana. */}
-                <label
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: p.recommended ? '#d91e18' : '#6b7a92',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name="alt-recommended"
-                    checked={p.recommended}
-                    onChange={() =>
-                      update(
-                        'altPrograms',
-                        form.altPrograms.map((x, i) => ({ ...x, recommended: i === idx })),
-                      )
-                    }
-                  />
-                  {p.recommended ? 'Rekomendowany' : 'Oznacz jako rekomendowany'}
-                </label>
-              </span>
-              <button
-                type="button"
-                onClick={() =>
-                  update(
-                    'altPrograms',
-                    form.altPrograms.filter((_, i) => i !== idx),
-                  )
-                }
-                style={btnSmallGhost}
-              >
-                Usuń
-              </button>
-            </div>
-            <Grid2>
-              <Field label="Nazwa programu (np. Ścieżka SMART)">
-                <input
-                  type="text"
-                  maxLength={120}
-                  value={p.name}
-                  onChange={(e) => {
-                    const next = [...form.altPrograms];
-                    next[idx] = { ...next[idx], name: e.target.value };
-                    update('altPrograms', next);
-                  }}
-                  style={input}
-                />
-              </Field>
-              <Field label="Etykieta programu (np. FENG 2021–2027)">
-                <input
-                  type="text"
-                  maxLength={120}
-                  value={p.program}
-                  onChange={(e) => {
-                    const next = [...form.altPrograms];
-                    next[idx] = { ...next[idx], program: e.target.value };
-                    update('altPrograms', next);
-                  }}
-                  style={input}
-                />
-              </Field>
-              <Field label="Termin naboru">
-                <input
-                  type="text"
-                  maxLength={80}
-                  value={p.nabor}
-                  onChange={(e) => {
-                    const next = [...form.altPrograms];
-                    next[idx] = { ...next[idx], nabor: e.target.value };
-                    update('altPrograms', next);
-                  }}
-                  placeholder="np. IV kw. 2026"
-                  style={input}
-                />
-              </Field>
-              <Field label="Link (URL)">
-                <input
-                  type="url"
-                  maxLength={400}
-                  value={p.url}
-                  onChange={(e) => {
-                    const next = [...form.altPrograms];
-                    next[idx] = { ...next[idx], url: e.target.value };
-                    update('altPrograms', next);
-                  }}
-                  placeholder="https://..."
-                  style={input}
-                />
-              </Field>
-            </Grid2>
-            <Field label="Krótki opis">
-              <textarea
-                rows={2}
-                maxLength={500}
-                value={p.desc}
-                onChange={(e) => {
-                  const next = [...form.altPrograms];
-                  next[idx] = { ...next[idx], desc: e.target.value };
-                  update('altPrograms', next);
-                }}
-                style={textarea}
-              />
-            </Field>
-          </div>
-        ))}
-        <button
-          type="button"
-          onClick={() =>
-            update('altPrograms', [
-              ...form.altPrograms,
-              { name: '', program: '', nabor: '', desc: '', url: '', recommended: false },
-            ])
-          }
-          style={btnSmall}
-        >
-          + dodaj program alternatywny
-        </button>
       </Section>
 
       {/* SECTION 5: Treść (rich text — start z dwóch textareas) */}
