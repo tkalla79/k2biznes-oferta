@@ -1341,75 +1341,9 @@ export default function OfferForm({
 
       {/* SECTION 5: Treść (rich text — start z dwóch textareas) */}
       <Section title="Treść w ofercie">
-        {/* Potrzeby klienta (4 punkty sekcji 01) NA GÓRZE sekcji — konsultant
-            szuka tego najczęściej, wcześniej było na końcu i trudne do znalezienia. */}
-        <Field label="Potrzeby klienta — punkty z sekcji „01 · Wprowadzenie” (nagłówek + opis)">
-          <p style={hint}>
-            Dokładnie ta lista trafi do oferty — dopasuj nagłówki i opisy pod rekomendacje
-            dla klienta. Poniżej wstępnie wypełnione teksty startowe.
-          </p>
-          {form.needs.map((n, idx) => (
-            <div key={idx} style={altCardStyle}>
-              <div style={altCardHead}>
-                Punkt #{idx + 1}
-                <button
-                  type="button"
-                  onClick={() => update('needs', form.needs.filter((_, i) => i !== idx))}
-                  style={btnSmallGhost}
-                >
-                  Usuń
-                </button>
-              </div>
-              <Field label="Tytuł (nagłówek punktu)">
-                <input
-                  type="text"
-                  maxLength={120}
-                  value={n.k}
-                  onChange={(e) => {
-                    const next = [...form.needs];
-                    next[idx] = { ...next[idx], k: e.target.value };
-                    update('needs', next);
-                  }}
-                  style={input}
-                />
-              </Field>
-              <Field label="Opis (treść punktu)">
-                <textarea
-                  rows={2}
-                  maxLength={600}
-                  value={n.v}
-                  onChange={(e) => {
-                    const next = [...form.needs];
-                    next[idx] = { ...next[idx], v: e.target.value };
-                    update('needs', next);
-                  }}
-                  style={textarea}
-                />
-              </Field>
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={() => update('needs', [...form.needs, { k: '', v: '' }])}
-            style={btnSmallGhost}
-          >
-            + Dodaj punkt
-          </button>
-        </Field>
-
-        <Field label="Wstęp (intro) — pojawi się nad pricingiem (lewa kolumna sekcji 01)">
-          <textarea
-            value={form.contentIntro}
-            onChange={(e) => update('contentIntro', e.target.value)}
-            style={textarea}
-            rows={4}
-            maxLength={1500}
-            placeholder="Np. Dziękujemy za rozmowę. Poniżej propozycja współpracy przy aplikacji o dofinansowanie…"
-          />
-          <div style={{ fontSize: 12, color: '#6b7a92', textAlign: 'right', marginTop: 4 }}>
-            {form.contentIntro.length}/1500 znaków
-          </div>
-        </Field>
+        {/* N1 (2026-07-15): edytor „Potrzeby klienta" (4 punkty) i pole „Wstęp (intro)"
+            usunięte — sekcja 01 to teraz tekst z pola „Zdiagnozowane potrzeby i podstawa
+            rekomendacji" (poniżej) rozlany na 2 kolumny. */}
         <Field label="Punktory w kafelku Założenia oferty (sekcja 04) — jeden punkt = jedna linia">
           <textarea
             value={form.calcBullets}
@@ -1433,21 +1367,12 @@ export default function OfferForm({
           />
         </Field>
 
-        {/* Etap 2 — uwaga PDF #4: uzasadnienie wyboru naboru (sekcja program) */}
-        <Field label="Dlaczego ten nabór (sekcja Rekomendujemy) — puste = tekst domyślny">
-          <textarea
-            value={form.programReason}
-            onChange={(e) => update('programReason', e.target.value)}
-            style={textarea}
-            rows={2}
-            maxLength={600}
-            placeholder="Nabór jest najbardziej odpowiedni ze względu na charakter inwestycji…"
-          />
-        </Field>
+        {/* N2 (2026-07-15): pole „Dlaczego ten nabór" (programReason) usunięte —
+            sekcja 02 nie pokazuje już tego tekstu. */}
 
         {/* Uwaga pilotaż 2026-07 (#3): zdiagnozowane potrzeby i podstawa rekomendacji
             — tekst na 2 kolumny w sekcji 02 (pod „Rekomendujemy"). */}
-        <Field label="Zdiagnozowane potrzeby i podstawa rekomendacji (sekcja 02, tekst na 2 kolumny) — puste = ukryte">
+        <Field label="Zdiagnozowane potrzeby i podstawa rekomendacji (sekcja 01, tekst na 2 kolumny) — puste = pusta sekcja 01">
           <textarea
             value={form.recommendationBasis}
             onChange={(e) => update('recommendationBasis', e.target.value)}
