@@ -158,6 +158,7 @@ export type Database = {
           tag: string | null
           title: string
           updated_at: string
+          url: string | null
         }
         Insert: {
           client: string
@@ -176,6 +177,7 @@ export type Database = {
           tag?: string | null
           title: string
           updated_at?: string
+          url?: string | null
         }
         Update: {
           client?: string
@@ -194,6 +196,7 @@ export type Database = {
           tag?: string | null
           title?: string
           updated_at?: string
+          url?: string | null
         }
         Relationships: []
       }

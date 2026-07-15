@@ -155,6 +155,8 @@ export type PublicCaseStudyDto = {
   programTags: string[];
   logoBig: string | null;
   logoSm: string | null;
+  // Pilotaż 2026-07 (#7): link do pełnego opisu projektu na stronie K2.
+  url: string | null;
 };
 
 type ContactPersonRow = Database['public']['Tables']['contact_persons']['Row'];
@@ -184,6 +186,9 @@ export function toCaseStudyDto(row: CaseStudyRow): PublicCaseStudyDto {
     programTags: row.program_tags,
     logoBig: publicStorageUrl(row.logo_storage_key, row.logo_big),
     logoSm: row.logo_sm,
+    // Cast: kolumna `url` dodana migracją 20260715000001; typy DB regenerowane po
+    // zastosowaniu migracji na prodzie. select('*') zwraca ją, gdy istnieje.
+    url: (row as unknown as { url?: string | null }).url ?? null,
   };
 }
 

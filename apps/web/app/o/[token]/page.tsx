@@ -607,6 +607,17 @@ export default async function OfferPage({ params, searchParams }: Props) {
                       </div>
                     </div>
                   )}
+                  {/* Uwaga pilotaż 2026-07 (#7): link do pełnego opisu projektu na K2. */}
+                  {dto.caseStudy.url && (
+                    <a
+                      href={dto.caseStudy.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="case-link"
+                    >
+                      Zobacz pełny opis projektu →
+                    </a>
+                  )}
                 </>
               ) : (
                 <div className="case-placeholder">

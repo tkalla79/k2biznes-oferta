@@ -113,6 +113,8 @@ export const CaseStudyInput = z.object({
   logo_storage_key: STORAGE_KEY_OR_NULL,
   display_order: z.coerce.number().int().min(0).max(9999).default(100),
   is_active: z.boolean().default(true),
+  // Pilotaż 2026-07 (#7): link do pełnego opisu projektu na stronie K2.
+  url: URL_OR_NULL,
 });
 export type CaseStudyInput = z.infer<typeof CaseStudyInput>;
 
