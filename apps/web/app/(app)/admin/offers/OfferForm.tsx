@@ -811,11 +811,150 @@ export default function OfferForm({
         )}
       </Section>
 
-      {/* SECTION 2: Program dotacyjny — USUNIĘTA (pilotaż 2026-07 #2).
-          Rekomendowany program wybierasz teraz na liście „Inne możliwości wsparcia"
-          (oznacz pozycję jako rekomendowaną). Katalog „Programy" wygaszony. */}
+      {/* SECTION 01 (reorg 2026-07-15): Wprowadzenie — zdiagnozowane potrzeby i podstawa rekomendacji */}
+      <Section title="Wprowadzenie — zdiagnozowane potrzeby i podstawa rekomendacji (sekcja 01)">
+        <Field label="Zdiagnozowane potrzeby i podstawa rekomendacji (sekcja 01, tekst na 2 kolumny) — puste = pusta sekcja 01">
+          <textarea
+            value={form.recommendationBasis}
+            onChange={(e) => update('recommendationBasis', e.target.value)}
+            style={textarea}
+            rows={5}
+            maxLength={2000}
+            placeholder="Opisz realne, zdiagnozowane potrzeby klienta i merytoryczną podstawę, z której wynika rekomendacja działania…"
+          />
+        </Field>
+      </Section>
 
-      {/* SECTION 3: Finanse */}
+      {/* SECTION 02a (reorg): Programy wsparcia — rekomendowany + alternatywne */}
+      <Section title="Programy wsparcia (Inne możliwości wsparcia)">
+        <p style={hint}>
+          Wybierz programy z biblioteki (<em>/admin/alt-programs</em>) i{' '}
+          <strong>oznacz jeden jako rekomendowany</strong> — jego nazwa, termin i opis trafią
+          do nagłówka „Rekomendujemy”, reszta jako alternatywy. Pusta lista = domyślne 4 programy.
+        </p>
+
+        {/* Wariant A (2026-07-15): dodawanie TYLKO z biblioteki przez listę rozwijaną
+            (bez edycji ad-hoc). Nowy program dodajesz najpierw w /admin/alt-programs. */}
+        <Field label="Dodaj program z biblioteki">
+          <select
+            value=""
+            onChange={(e) => {
+              const lib = altProgramLibrary.find((l) => l.id === e.target.value);
+              if (!lib) return;
+              update('altPrograms', [
+                ...form.altPrograms,
+                {
+                  name: lib.name,
+                  program: lib.program,
+                  nabor: lib.nabor ?? '',
+                  desc: lib.desc ?? '',
+                  url: lib.url ?? '',
+                  recommended: false,
+                },
+              ]);
+            }}
+            style={input}
+          >
+            <option value="">— wybierz program z biblioteki —</option>
+            {altProgramLibrary
+              .filter(
+                (lib) =>
+                  !form.altPrograms.some(
+                    (p) => p.name === lib.name && p.program === lib.program,
+                  ),
+              )
+              .map((lib) => (
+                <option key={lib.id} value={lib.id}>
+                  {lib.name} — {lib.program}
+                </option>
+              ))}
+          </select>
+        </Field>
+
+        {form.altPrograms.length === 0 ? (
+          <p style={hint}>
+            Brak wybranych programów — dodaj z listy powyżej. Pusta lista = domyślne 4 programy z szablonu.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+            {form.altPrograms.map((p, idx) => (
+              <div
+                key={idx}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  padding: '10px 14px',
+                  border: '1px solid #e4e6ec',
+                  borderRadius: 8,
+                  background: p.recommended ? '#fff5f5' : '#fff',
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, color: '#2a324b' }}>{p.name || '—'}</div>
+                  <div style={{ fontSize: 12, color: '#6b7a92' }}>
+                    {p.program}
+                    {p.nabor ? ` · nabór: ${p.nabor}` : ''}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+                  {/* Dokładnie jedna pozycja rekomendowana. */}
+                  <label
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: p.recommended ? '#d91e18' : '#6b7a92',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="alt-recommended"
+                      checked={p.recommended}
+                      onChange={() =>
+                        update(
+                          'altPrograms',
+                          form.altPrograms.map((x, i) => ({ ...x, recommended: i === idx })),
+                        )
+                      }
+                    />
+                    Rekomendowany
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      update('altPrograms', form.altPrograms.filter((_, i) => i !== idx))
+                    }
+                    style={btnSmallGhost}
+                  >
+                    Usuń
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      {/* SECTION 02b (reorg): Opis rekomendowanego programu */}
+      <Section title="Opis rekomendowanego programu (na ofercie)">
+        <p style={hint}>
+          Pojawia się w sekcji „Rekomendujemy: <em>{form.altPrograms.find((p) => p.recommended)?.name || '<oznacz program jako rekomendowany>'}</em>”.
+          Pozostaw puste, by użyć opisu z biblioteki (rekomendowanej pozycji) lub domyślnych punktów.
+        </p>
+        <RichTextEditor
+          value={form.programDescription}
+          onChange={(html) => update('programDescription', html)}
+          placeholder="Wpisz dlaczego ten program jest najlepszy dla klienta — możesz użyć list, pogrubień, cytatów."
+          minHeight={180}
+        />
+      </Section>
+
+      {/* SECTION 04a (reorg): Finanse */}
       <Section title="Finanse projektu">
         <Grid2>
           <Field label="Wartość projektu (PLN) *">
@@ -868,7 +1007,7 @@ export default function OfferForm({
         </Grid2>
       </Section>
 
-      {/* SECTION 4: Pricing preview (live) */}
+      {/* SECTION 04b: Pricing (live preview) */}
       <Section title="Pricing (live preview)">
         <div style={modeToggleRow}>
           <span style={{ fontSize: 13, color: '#6b7a92', fontWeight: 600 }}>Tryb cennika:</span>
@@ -1084,9 +1223,7 @@ export default function OfferForm({
         )}
       </Section>
 
-      {/* SECTION 4b: Wynagrodzenie wykonawcze (exec fee) — opcjonalne nadpisanie
-          tekstu i kwoty miesięcznej. Pola puste = wartości domyślne (kicker/title/desc)
-          oraz monthly z wybranego wariantu. */}
+      {/* SECTION 04c: Wynagrodzenie wykonawcze */}
       <Section title="Wynagrodzenie wykonawcze (exec-fee)">
         <p style={hint}>
           Pojawia się pod tabelą wariantów na ofercie. Jeśli chcesz zachować
@@ -1138,140 +1275,8 @@ export default function OfferForm({
         </Field>
       </Section>
 
-      {/* SECTION 4c: Opis rekomendowanego programu (rich text — Tiptap) */}
-      <Section title="Opis rekomendowanego programu (na ofercie)">
-        <p style={hint}>
-          Pojawia się w sekcji „Rekomendujemy: <em>{form.altPrograms.find((p) => p.recommended)?.name || '<oznacz program jako rekomendowany>'}</em>”.
-          Pozostaw puste, by użyć opisu z biblioteki (rekomendowanej pozycji) lub domyślnych punktów.
-        </p>
-        <RichTextEditor
-          value={form.programDescription}
-          onChange={(html) => update('programDescription', html)}
-          placeholder="Wpisz dlaczego ten program jest najlepszy dla klienta — możesz użyć list, pogrubień, cytatów."
-          minHeight={180}
-        />
-      </Section>
-
-      {/* SECTION 4d: Programy wsparcia — rekomendowany + alternatywne (scalone, #2) */}
-      <Section title="Programy wsparcia (Inne możliwości wsparcia)">
-        <p style={hint}>
-          Wybierz programy z biblioteki (<em>/admin/alt-programs</em>) i{' '}
-          <strong>oznacz jeden jako rekomendowany</strong> — jego nazwa, termin i opis trafią
-          do nagłówka „Rekomendujemy”, reszta jako alternatywy. Pusta lista = domyślne 4 programy.
-        </p>
-
-        {/* Wariant A (2026-07-15): dodawanie TYLKO z biblioteki przez listę rozwijaną
-            (bez edycji ad-hoc). Nowy program dodajesz najpierw w /admin/alt-programs. */}
-        <Field label="Dodaj program z biblioteki">
-          <select
-            value=""
-            onChange={(e) => {
-              const lib = altProgramLibrary.find((l) => l.id === e.target.value);
-              if (!lib) return;
-              update('altPrograms', [
-                ...form.altPrograms,
-                {
-                  name: lib.name,
-                  program: lib.program,
-                  nabor: lib.nabor ?? '',
-                  desc: lib.desc ?? '',
-                  url: lib.url ?? '',
-                  recommended: false,
-                },
-              ]);
-            }}
-            style={input}
-          >
-            <option value="">— wybierz program z biblioteki —</option>
-            {altProgramLibrary
-              .filter(
-                (lib) =>
-                  !form.altPrograms.some(
-                    (p) => p.name === lib.name && p.program === lib.program,
-                  ),
-              )
-              .map((lib) => (
-                <option key={lib.id} value={lib.id}>
-                  {lib.name} — {lib.program}
-                </option>
-              ))}
-          </select>
-        </Field>
-
-        {form.altPrograms.length === 0 ? (
-          <p style={hint}>
-            Brak wybranych programów — dodaj z listy powyżej. Pusta lista = domyślne 4 programy z szablonu.
-          </p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-            {form.altPrograms.map((p, idx) => (
-              <div
-                key={idx}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                  padding: '10px 14px',
-                  border: '1px solid #e4e6ec',
-                  borderRadius: 8,
-                  background: p.recommended ? '#fff5f5' : '#fff',
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, color: '#2a324b' }}>{p.name || '—'}</div>
-                  <div style={{ fontSize: 12, color: '#6b7a92' }}>
-                    {p.program}
-                    {p.nabor ? ` · nabór: ${p.nabor}` : ''}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
-                  {/* Dokładnie jedna pozycja rekomendowana. */}
-                  <label
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: p.recommended ? '#d91e18' : '#6b7a92',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name="alt-recommended"
-                      checked={p.recommended}
-                      onChange={() =>
-                        update(
-                          'altPrograms',
-                          form.altPrograms.map((x, i) => ({ ...x, recommended: i === idx })),
-                        )
-                      }
-                    />
-                    Rekomendowany
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      update('altPrograms', form.altPrograms.filter((_, i) => i !== idx))
-                    }
-                    style={btnSmallGhost}
-                  >
-                    Usuń
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Section>
-
-      {/* SECTION 5: Treść (rich text — start z dwóch textareas) */}
-      <Section title="Treść w ofercie">
-        {/* N1 (2026-07-15): edytor „Potrzeby klienta" (4 punkty) i pole „Wstęp (intro)"
-            usunięte — sekcja 01 to teraz tekst z pola „Zdiagnozowane potrzeby i podstawa
-            rekomendacji" (poniżej) rozlany na 2 kolumny. */}
+      {/* SECTION 04d (reorg): kafelek „Założenia oferty” i uwagi do wyceny */}
+      <Section title="Kafelek „Założenia oferty” i uwagi do wyceny (sekcja 04)">
         <Field label="Punktory w kafelku Założenia oferty (sekcja 04) — jeden punkt = jedna linia">
           <textarea
             value={form.calcBullets}
@@ -1283,7 +1288,6 @@ export default function OfferForm({
           />
         </Field>
 
-        {/* Etap 2 — uwaga PDF #6b: uwagi/rabat w sekcji wynagrodzenia */}
         <Field label="Uwagi do wyceny (np. rabat) — wyróżniony box w sekcji wynagrodzenia">
           <textarea
             value={form.contentNotes}
@@ -1294,24 +1298,8 @@ export default function OfferForm({
             placeholder="Np. Oferta zawiera rabat 15% — cena standardowa opłaty wstępnej to 18 000 zł."
           />
         </Field>
-
-        {/* N2 (2026-07-15): pole „Dlaczego ten nabór" (programReason) usunięte —
-            sekcja 02 nie pokazuje już tego tekstu. */}
-
-        {/* Uwaga pilotaż 2026-07 (#3): zdiagnozowane potrzeby i podstawa rekomendacji
-            — tekst na 2 kolumny w sekcji 02 (pod „Rekomendujemy"). */}
-        <Field label="Zdiagnozowane potrzeby i podstawa rekomendacji (sekcja 01, tekst na 2 kolumny) — puste = pusta sekcja 01">
-          <textarea
-            value={form.recommendationBasis}
-            onChange={(e) => update('recommendationBasis', e.target.value)}
-            style={textarea}
-            rows={5}
-            maxLength={2000}
-            placeholder="Opisz realne, zdiagnozowane potrzeby klienta i merytoryczną podstawę, z której wynika rekomendacja działania…"
-          />
-        </Field>
-
       </Section>
+
 
       {/* SECTION 6: Załączniki */}
       <Section title="Załączniki w ofercie">
