@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
         logo_storage_key: body.logo_storage_key ?? null,
         display_order: body.display_order,
         is_active: body.is_active,
+        url: body.url ?? null,
       })
       .select()
       .single();

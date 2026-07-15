@@ -41,6 +41,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (patch.logo_storage_key !== undefined) update.logo_storage_key = patch.logo_storage_key;
     if (patch.display_order !== undefined) update.display_order = patch.display_order;
     if (patch.is_active !== undefined) update.is_active = patch.is_active;
+    if (patch.url !== undefined) update.url = patch.url;
 
     if (Object.keys(update).length === 0) {
       throw new ApiError('VALIDATION_ERROR', 'Brak pól do aktualizacji.', 422);

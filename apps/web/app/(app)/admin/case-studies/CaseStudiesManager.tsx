@@ -19,6 +19,8 @@ type CaseStudy = {
   logo_storage_key: string | null;
   display_order: number;
   is_active: boolean;
+  // Pilotaż 2026-07 (#7): link do pełnego opisu projektu na stronie K2.
+  url?: string | null;
 };
 
 type FormData = {
@@ -35,6 +37,7 @@ type FormData = {
   logo_storage_key?: string | null;
   display_order: number;
   is_active: boolean;
+  url?: string | null;
 };
 
 export default function CaseStudiesManager({ initial }: { initial: CaseStudy[] }) {
@@ -253,6 +256,7 @@ function CaseStudyForm({
   const [logoStorageKey, setLogoStorageKey] = useState<string | null>(initial?.logo_storage_key ?? null);
   const [order, setOrder] = useState(initial?.display_order ?? 100);
   const [active, setActive] = useState(initial?.is_active ?? true);
+  const [url, setUrl] = useState(initial?.url ?? '');
   const [customId, setCustomId] = useState('');
 
   function submit(e: React.FormEvent) {
@@ -276,6 +280,7 @@ function CaseStudyForm({
       logo_storage_key: logoStorageKey,
       display_order: Number(order),
       is_active: active,
+      url: url.trim() || null,
     };
     if (!isEdit && customId.trim()) data.id = customId.trim();
     onSubmit(data);
@@ -320,6 +325,15 @@ function CaseStudyForm({
             onChange={(e) => setProgramTags(e.target.value)}
             style={input}
             placeholder="feng-smart"
+          />
+        </Field>
+        <Field label="Link do pełnego opisu projektu (URL) — przycisk w ofercie">
+          <input
+            type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            style={input}
+            placeholder="https://k2biznes.pl/realizacje/..."
           />
         </Field>
         <Field label="Display order">
