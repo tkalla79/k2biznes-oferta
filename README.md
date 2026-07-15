@@ -2,7 +2,7 @@
 
 SaaS do ofert handlowych dla klientów dotacyjnych (FENG / FEPW / KPO / FELU).
 
-> **Stan:** Produkcja https://oferta.k2biznes.pl (PR #1–#57 zmergowane). 3 rundy code review, 4 admin userzy, RODO/GDPR v2 + privacy policy live. **Etap 2 (edytowalność)** wdrożony: biblioteka alt-programów, szablony oferty, globalne statystyki firmowe (`/admin/ustawienia`), edytowalne treści per-oferta, fix rozwijania komponentów w PDF. Stack: Next.js 14 + Supabase Cloud + Vercel + Resend + Sentry + UptimeRobot.
+> **Stan:** Produkcja https://oferta.k2biznes.pl (PR #1–#80 zmergowane). 3 rundy code review, 4 admin userzy, RODO/GDPR v2 + privacy policy live. **Etap 2 (edytowalność)** wdrożony: biblioteka alt-programów, szablony oferty, globalne statystyki firmowe (`/admin/ustawienia`), edytowalne treści per-oferta, fix rozwijania komponentów w PDF. **Etap 3 (pilotaż UX)** wdrożony — patrz [Model oferty i katalogów](#model-oferty-i-katalogów). Stack: Next.js 14 + Supabase Cloud + Vercel + Resend + Sentry + UptimeRobot.
 
 ## Lokalizacja
 
@@ -12,6 +12,8 @@ SaaS do ofert handlowych dla klientów dotacyjnych (FENG / FEPW / KPO / FELU).
 ## Dokumentacja (tech-admin)
 
 Zacznij od **[docs/TECH_ADMIN_MANUAL.md](docs/TECH_ADMIN_MANUAL.md)** — masterdoc spinający wszystko.
+
+Dla osób tworzących oferty: **[docs/K2Biznes_Oferta_-_instrukcja_i_architektura.docx](docs/K2Biznes_Oferta_-_instrukcja_i_architektura.docx)** — instrukcja obsługi panelu (Część I) + opis architektury (Część II), w standardzie dokumentów K2.
 
 - **[docs/BACKEND_SPEC.md](docs/BACKEND_SPEC.md)** — pełna specyfikacja techniczna (v1.2.0, etap 2)
 - **[docs/APPLICATIONS_INVENTORY.md](docs/APPLICATIONS_INVENTORY.md)** — inwentarz 10 external services
@@ -77,6 +79,31 @@ OFERTA_APP/
 │   └── functions/             # Edge Functions (puste)
 └── docs/
 ```
+
+## Model oferty i katalogów
+
+Aktualna struktura treści oferty (po pilotażu UX, PR #75–#80). Widok klienta ma 8 sekcji;
+formularz administratora układa pola w **tej samej kolejności co sekcje oferty**.
+
+**Sekcja 01 — Wprowadzenie:** dwie kolumny — po lewej *zdiagnozowane potrzeby klienta*,
+po prawej *merytoryczna podstawa rekomendacji* (pole `recommendationBasis`, limit 1500 znaków).
+Usunięto dawny wstęp (`intro`) i 4 stałe punkty potrzeb.
+
+**Sekcja 02 — Proponowane rozwiązanie:** program rekomendowany renderuje się jako wyróżniony
+kafelek (badge „Rekomendowany”), pod nim jego opis, a niżej pozostałe programy wsparcia.
+
+**Katalog programów — scalony.** Dawne osobne katalogi „Programy" i „Alternatywne programy"
+połączono w jedną **bibliotekę programów wsparcia** (`/admin/alt-programs`, tabela `alt_programs`).
+W formularzu oferty dodaje się je z listy rozwijanej; dokładnie jeden wpis oznacza się jako
+**rekomendowany** (trafia do sekcji 02). Moduł `/admin/programs` został wygaszony (tabela
+`programs` pozostaje w bazie, bez UI). Minimalne wymagane pola oferty: nazwa firmy, wartość
+projektu i jeden rekomendowany program wsparcia.
+
+**Case study** (`/admin/case-studies`) ma opcjonalne pole `url` — jeśli uzupełnione, w sekcji 06
+oferty pojawia się odnośnik „Zobacz pełny opis projektu” (migracja `20260715000001_case_study_url`).
+
+**Statystyki firmowe** (kwota dofinansowania, liczba projektów, lata doświadczenia) edytuje się
+w `/admin/ustawienia` — wspólne dla wszystkich ofert.
 
 ## Quickstart
 
