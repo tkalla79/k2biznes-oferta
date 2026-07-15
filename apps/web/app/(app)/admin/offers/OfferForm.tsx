@@ -378,6 +378,131 @@ export default function OfferForm({
     setForm((f) => ({ ...f, [key]: value }));
   }
 
+  // AI-DRAFT: wypełnianie z transkrypcji spotkania.
+  const [draftOpen, setDraftOpen] = useState(false);
+  const [draftText, setDraftText] = useState('');
+  const [draftFileName, setDraftFileName] = useState('');
+  const draftFileRef = useRef<HTMLInputElement>(null);
+  const [draftBusy, setDraftBusy] = useState(false);
+  const [draftError, setDraftError] = useState<string | null>(null);
+  const [aiFilled, setAiFilled] = useState<Set<string>>(new Set());
+  const withAI = (key: string, base: React.CSSProperties): React.CSSProperties =>
+    aiFilled.has(key) ? { ...base, boxShadow: '0 0 0 2px #ffd54a', borderColor: '#f0b400' } : base;
+  // Wynik ostatniej ekstrakcji do panelu podsumowania (transparentność „sprawdź").
+  const [draftResult, setDraftResult] = useState<{
+    filled: string[];
+    warnings: string[];
+    suggestedProjectValue: number | null;
+    programMsg: string | null;
+  } | null>(null);
+
+  async function runDraft() {
+    setDraftBusy(true);
+    setDraftError(null);
+    try {
+      const file = draftFileRef.current?.files?.[0] ?? null;
+      let res: Response;
+      if (file) {
+        const fd = new FormData();
+        if (draftText.trim()) fd.append('transcript', draftText);
+        fd.append('file', file);
+        res = await fetch('/api/admin/offer-draft', { method: 'POST', body: fd });
+      } else {
+        if (draftText.trim().length < 20) {
+          throw new Error('Wklej transkrypcję (min. 20 znaków) albo wgraj plik .docx/.txt.');
+        }
+        res = await fetch('/api/admin/offer-draft', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcript: draftText }),
+        });
+      }
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error?.message ?? 'Analiza transkrypcji nie powiodła się.');
+
+      const d = json.data as {
+        fields: {
+          clientName: string | null;
+          clientNip: string | null;
+          clientIndustry: string | null;
+          clientCompanySize: string | null;
+          clientVoivodeship: string | null;
+          recommendationBasis: string | null;
+          projectValue: number | null;
+        };
+        suggestedProgram: { id: string; name: string; program: string; nabor: string | null; desc: string | null } | null;
+        warnings: string[];
+      };
+
+      const labels: Record<string, string> = {
+        clientName: 'Nazwa firmy',
+        clientNip: 'NIP',
+        clientIndustry: 'Branża',
+        clientCompanySize: 'Wielkość firmy',
+        clientVoivodeship: 'Województwo',
+        recommendationBasis: 'Wprowadzenie (sekcja 01)',
+      };
+      const filledKeys = new Set<string>();
+      const filledLabels: string[] = [];
+
+      setForm((f) => {
+        const next = { ...f };
+        const fillText = (key: keyof FormState, val: string | null) => {
+          if (!val) return;
+          if (String(next[key] ?? '').trim() !== '') return; // fill-empty-only
+          (next[key] as string) = val;
+          filledKeys.add(key as string);
+          if (labels[key as string]) filledLabels.push(labels[key as string]);
+        };
+        fillText('clientName', d.fields.clientName);
+        fillText('clientNip', d.fields.clientNip);
+        fillText('clientIndustry', d.fields.clientIndustry);
+        fillText('clientCompanySize', d.fields.clientCompanySize);
+        fillText('clientVoivodeship', d.fields.clientVoivodeship);
+        fillText('recommendationBasis', d.fields.recommendationBasis);
+
+        // Program: dodaj jako rekomendowany tylko gdy lista jest pusta (fill-empty-only).
+        if (d.suggestedProgram && next.altPrograms.length === 0) {
+          next.altPrograms = [
+            {
+              name: d.suggestedProgram.name,
+              program: d.suggestedProgram.program,
+              nabor: d.suggestedProgram.nabor ?? '',
+              desc: d.suggestedProgram.desc ?? '',
+              url: '',
+              recommended: true,
+            },
+          ];
+          filledKeys.add('altPrograms');
+        }
+        return next;
+      });
+
+      let programMsg: string | null = null;
+      if (d.suggestedProgram) {
+        programMsg = filledKeys.has('altPrograms')
+          ? `Dodano rekomendowany program: „${d.suggestedProgram.name}".`
+          : `Sugestia programu: „${d.suggestedProgram.name}" — masz już programy na liście, dodaj ręcznie, jeśli chcesz.`;
+      }
+
+      setAiFilled(filledKeys);
+      setDraftResult({
+        filled: filledLabels,
+        warnings: d.warnings ?? [],
+        suggestedProjectValue: d.fields.projectValue,
+        programMsg,
+      });
+      setDraftOpen(false);
+      setDraftText('');
+      setDraftFileName('');
+      if (draftFileRef.current) draftFileRef.current.value = '';
+    } catch (e) {
+      setDraftError((e as Error).message);
+    } finally {
+      setDraftBusy(false);
+    }
+  }
+
   // Feature #1: pre-fill z szablonu (tryb create). Pobiera pełny template_data
   // (lista jest lekka) i nakłada na blank — pola klienta zostają puste.
   const [tplLoading, setTplLoading] = useState(false);
@@ -732,6 +857,96 @@ export default function OfferForm({
         </div>
       )}
 
+      {/* AI-DRAFT: wypełnianie z transkrypcji spotkania */}
+      <div style={{ marginBottom: 20 }}>
+        <button
+          type="button"
+          onClick={() => { setDraftError(null); setDraftOpen(true); }}
+          style={btnDraft}
+          title="Wklej lub wgraj transkrypcję spotkania — Claude wypełni wstępnie dane klienta, wprowadzenie i podpowie program"
+        >
+          ✨ Wypełnij z transkrypcji spotkania
+        </button>
+        <span style={{ marginLeft: 10, fontSize: 12, color: '#6b7a92' }}>
+          Uzupełnia tylko puste pola. Wszystko do sprawdzenia — nic nie wysyłamy.
+        </span>
+      </div>
+
+      {draftResult && (
+        <div style={draftPanel}>
+          <button type="button" onClick={() => { setDraftResult(null); setAiFilled(new Set()); }}
+            style={draftPanelClose} title="Zamknij podsumowanie">×</button>
+          <strong style={{ color: '#1f6f3f' }}>Wypełniono z transkrypcji — sprawdź podświetlone pola.</strong>
+          {draftResult.filled.length > 0 ? (
+            <p style={{ margin: '6px 0 0', fontSize: 13 }}>Uzupełnione: {draftResult.filled.join(', ')}.</p>
+          ) : (
+            <p style={{ margin: '6px 0 0', fontSize: 13 }}>Nie uzupełniono żadnego pustego pola (mogły być już wypełnione).</p>
+          )}
+          {draftResult.programMsg && <p style={{ margin: '6px 0 0', fontSize: 13 }}>{draftResult.programMsg}</p>}
+          {draftResult.suggestedProjectValue !== null && (
+            <p style={{ margin: '8px 0 0', fontSize: 13 }}>
+              Wartość projektu z rozmowy: <strong>{fmtPLN(draftResult.suggestedProjectValue)}</strong> —{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  update('projectValue', draftResult.suggestedProjectValue!);
+                  setAiFilled((s) => new Set(s).add('projectValue'));
+                  setDraftResult((r) => (r ? { ...r, suggestedProjectValue: null } : r));
+                }}
+                style={btnInlineAccent}
+              >
+                wstaw kwotę
+              </button>{' '}
+              (potwierdź — steruje cennikiem).
+            </p>
+          )}
+          {draftResult.warnings.length > 0 && (
+            <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 12.5, color: '#8a6d1f' }}>
+              {draftResult.warnings.map((w, i) => <li key={i}>{w}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {draftOpen && (
+        <div style={modalOverlay} onClick={() => !draftBusy && setDraftOpen(false)}>
+          <div style={modalBox} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 18 }}>Wypełnij z transkrypcji spotkania</h3>
+            <p style={{ margin: '0 0 14px', fontSize: 13, color: '#6b7a92' }}>
+              Wklej transkrypcję albo wgraj plik (.docx / .txt). Claude wyciągnie nazwę podmiotu,
+              zdiagnozowane potrzeby, województwo, branżę i podpowie program. Kwotę projektu potwierdzasz ręcznie.
+              Transkryptu nie zapisujemy.
+            </p>
+            <textarea
+              value={draftText}
+              onChange={(e) => setDraftText(e.target.value)}
+              rows={10}
+              placeholder="Wklej tutaj transkrypcję rozmowy…"
+              style={{ ...textarea, width: '100%', boxSizing: 'border-box' }}
+            />
+            <div style={{ margin: '10px 0', fontSize: 13 }}>
+              <label style={{ fontWeight: 600, color: '#3a4254' }}>…albo wgraj plik: </label>
+              <input
+                ref={draftFileRef}
+                type="file"
+                accept=".docx,.txt"
+                onChange={(e) => setDraftFileName(e.target.files?.[0]?.name ?? '')}
+              />
+              {draftFileName && <span style={{ color: '#6b7a92' }}> {draftFileName}</span>}
+            </div>
+            {draftError && <div style={{ ...warnBox, background: '#fdecec', borderColor: '#f5c2c2' }}>{draftError}</div>}
+            <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+              <button type="button" onClick={runDraft} disabled={draftBusy} style={btnDraft}>
+                {draftBusy ? 'Analizuję…' : 'Analizuj i wypełnij'}
+              </button>
+              <button type="button" onClick={() => setDraftOpen(false)} disabled={draftBusy} style={btnSecondaryAction}>
+                Anuluj
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* SECTION 1: Klient */}
       <Section title="Klient">
         <Grid2>
@@ -742,7 +957,7 @@ export default function OfferForm({
               maxLength={200}
               value={form.clientName}
               onChange={(e) => update('clientName', e.target.value)}
-              style={input}
+              style={withAI('clientName', input)}
             />
           </Field>
           <Field label="NIP (10 cyfr)">
@@ -753,7 +968,7 @@ export default function OfferForm({
               maxLength={10}
               value={form.clientNip}
               onChange={(e) => update('clientNip', e.target.value.replace(/\D/g, ''))}
-              style={input}
+              style={withAI('clientNip', input)}
             />
           </Field>
           <Field label="Branża">
@@ -762,14 +977,14 @@ export default function OfferForm({
               maxLength={200}
               value={form.clientIndustry}
               onChange={(e) => update('clientIndustry', e.target.value)}
-              style={input}
+              style={withAI('clientIndustry', input)}
             />
           </Field>
           <Field label="Wielkość firmy">
             <select
               value={form.clientCompanySize}
               onChange={(e) => update('clientCompanySize', e.target.value)}
-              style={input}
+              style={withAI('clientCompanySize', input)}
             >
               {COMPANY_SIZES.map((s) => (
                 <option key={s.value} value={s.value}>
@@ -782,7 +997,7 @@ export default function OfferForm({
             <select
               value={form.clientVoivodeship}
               onChange={(e) => update('clientVoivodeship', e.target.value)}
-              style={input}
+              style={withAI('clientVoivodeship', input)}
             >
               {VOIVODESHIPS.map((v) => (
                 <option key={v.value} value={v.value}>
@@ -817,7 +1032,7 @@ export default function OfferForm({
           <textarea
             value={form.recommendationBasis}
             onChange={(e) => update('recommendationBasis', e.target.value)}
-            style={textarea}
+            style={withAI('recommendationBasis', textarea)}
             rows={5}
             maxLength={2000}
             placeholder="Opisz realne, zdiagnozowane potrzeby klienta i merytoryczną podstawę, z której wynika rekomendacja działania…"
@@ -966,7 +1181,7 @@ export default function OfferForm({
               step="any"
               value={form.projectValue}
               onChange={(e) => update('projectValue', Number(e.target.value))}
-              style={input}
+              style={withAI('projectValue', input)}
               placeholder="np. 3500000 lub 3500000.50"
             />
           </Field>
@@ -1510,6 +1725,66 @@ const btnSecondaryAction: React.CSSProperties = {
   fontSize: 14,
   fontWeight: 600,
   cursor: 'pointer',
+};
+// AI-DRAFT: style
+const btnDraft: React.CSSProperties = {
+  padding: '10px 18px',
+  background: '#2b2f6b',
+  color: '#fff',
+  border: 'none',
+  borderRadius: 6,
+  fontSize: 14,
+  fontWeight: 600,
+  cursor: 'pointer',
+};
+const btnInlineAccent: React.CSSProperties = {
+  background: 'none',
+  border: 'none',
+  padding: 0,
+  color: '#c92b3a',
+  fontWeight: 700,
+  fontSize: 13,
+  cursor: 'pointer',
+  textDecoration: 'underline',
+};
+const draftPanel: React.CSSProperties = {
+  position: 'relative',
+  marginBottom: 20,
+  padding: '14px 34px 14px 14px',
+  background: '#eefaf1',
+  border: '1px solid #bfe6cc',
+  borderRadius: 10,
+};
+const draftPanelClose: React.CSSProperties = {
+  position: 'absolute',
+  top: 8,
+  right: 10,
+  background: 'none',
+  border: 'none',
+  fontSize: 20,
+  lineHeight: 1,
+  color: '#6b7a92',
+  cursor: 'pointer',
+};
+const modalOverlay: React.CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(20,24,40,0.45)',
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'center',
+  padding: '6vh 16px',
+  zIndex: 1000,
+};
+const modalBox: React.CSSProperties = {
+  width: '100%',
+  maxWidth: 640,
+  background: '#fff',
+  borderRadius: 12,
+  padding: 22,
+  boxShadow: '0 12px 40px rgba(0,0,0,0.25)',
+  maxHeight: '88vh',
+  overflowY: 'auto',
 };
 const errorBox: React.CSSProperties = {
   padding: 10,

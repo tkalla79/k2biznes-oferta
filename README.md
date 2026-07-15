@@ -105,6 +105,14 @@ oferty pojawia się odnośnik „Zobacz pełny opis projektu” (migracja `20260
 **Statystyki firmowe** (kwota dofinansowania, liczba projektów, lata doświadczenia) edytuje się
 w `/admin/ustawienia` — wspólne dla wszystkich ofert.
 
+**Wypełnianie z transkrypcji (AI).** W formularzu oferty przycisk „Wypełnij z transkrypcji"
+przyjmuje wklejony tekst albo plik `.docx`/`.txt`; endpoint `POST /api/admin/offer-draft`
+(Claude Haiku, tool-use) wyciąga dane klienta, wprowadzenie (sekcja 01), wartość projektu
+(do ręcznego potwierdzenia) i podpowiada program z biblioteki. Uzupełnia **tylko puste pola**,
+oznacza je do sprawdzenia, nic nie zapisuje ani nie wysyła; transkryptu nie przechowujemy.
+Wymaga `ANTHROPIC_API_KEY` w środowisku (dev: `.env.local`, prod: Vercel). Bez klucza endpoint
+zwraca `503`. Czysta normalizacja wyjścia modelu: [`lib/offers/draft.ts`](apps/web/lib/offers/draft.ts) (+ testy).
+
 ## Quickstart
 
 ### Wymagania
