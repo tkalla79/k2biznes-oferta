@@ -695,6 +695,20 @@ main { display: block; }
 .alt-grid {
   display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;
 }
+/* N2 (2026-07-15): kafelek rekomendowanego programu — pełna szerokość, akcent czerwony. */
+.reco-card { margin-bottom: 32px; }
+.reco-card .alt-card--reco {
+  border: 2px solid var(--red);
+  box-shadow: var(--shadow);
+  cursor: default;
+  margin-top: 12px;
+}
+.reco-badge {
+  position: absolute; top: -12px; left: 24px;
+  background: var(--red); color: #fff;
+  font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 999px;
+}
 .alt-card {
   background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.08);

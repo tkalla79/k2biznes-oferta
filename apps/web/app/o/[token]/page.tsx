@@ -26,7 +26,6 @@ import AcceptForm from './AcceptForm';
 import PricingVariants from './PricingVariants';
 import { sanitizeRichText } from '@/lib/richtext';
 import {
-  NEEDS,
   PROGRAM_BULLETS,
   ALT_PROGRAMS,
   SCOPE_PREP,
@@ -196,15 +195,8 @@ export default async function OfferPage({ params, searchParams }: Props) {
   // recommendedAlt=null, program_label z oferty, wszystkie alt jako alternatywy.
   const recommendedAlt = altPrograms.find((p) => (p as { recommended?: boolean }).recommended) ?? null;
   const alternativeAlts = altPrograms.filter((p) => !(p as { recommended?: boolean }).recommended);
-  // Edytowalne potrzeby klienta (sekcja intro). Uwaga pilotaż 2026-07 (#1A):
-  // klucz OBECNY (nawet pusta lista) wygrywa — usunięcie wszystkich punktów
-  // w panelu = brak punktów w ofercie. Fallback do NEEDS tylko gdy klucz nieobecny.
-  const needs = Array.isArray(content.needs) ? content.needs : NEEDS;
-  const hasNeeds = needs.length > 0;
-  // Edytowalne uzasadnienie wyboru naboru (sekcja program) — fallback do domyślnego.
-  const programReason =
-    content.programReason?.trim() ||
-    'Nabór jest najbardziej odpowiedni ze względu na charakter inwestycji, dopasowanie do kryteriów formalnych i merytorycznych oraz strategiczne cele firmy.';
+  // N1/N2 (2026-07-15): sekcja 01 to teraz „podstawa rekomendacji" (bez punktów),
+  // sekcja 02 bez „Dlaczego ten nabór" — `needs`/`hasNeeds`/`programReason` usunięte.
 
   // Status / preview banners
   const previewBanner = isPreview ? (
@@ -321,40 +313,13 @@ export default async function OfferPage({ params, searchParams }: Props) {
               Wsparcie doradcze szyte na miarę <em>{dto.clientName}</em>
             </h2>
           </div>
-          {/* Uwaga pilotaż 2026-07 (#1A): brak punktów -> prawa kolumna znika,
-              lewa (intro) na całą szerokość. (#1E): stały akapit „Na podstawie…"
-              przeniesiony do prawej kolumny jako nagłówek nad punktami. */}
-          <div className={`intro-grid${hasNeeds ? '' : ' intro-grid--single'}`}>
-            <div className="intro-copy">
-              <p className="lead">
-                {content.intro ??
-                  'Dziękujemy za rozmowę i zainteresowanie współpracą z K2Biznes. Poniżej przedstawiamy ofertę wsparcia doradczego w zakresie przygotowania projektu w ramach programu Fundusze Europejskie dla Nowoczesnej Gospodarki 2021–2027.'}
-              </p>
-              {/* Kafelek "Klient + numer oferty" usunięty — duplikuje info z hero (PR #27 feedback) */}
+          {/* N1 (2026-07-15): sekcja 01 = „Zdiagnozowane potrzeby i podstawa
+              rekomendacji" na 2 kolumny. Powitanie (intro) i 4 punkty usunięte. */}
+          {content.recommendationBasis?.trim() && (
+            <div className="reco-basis">
+              <p style={{ whiteSpace: 'pre-wrap' }}>{content.recommendationBasis}</p>
             </div>
-            {hasNeeds && (
-              <div>
-                <div className="needs-header">
-                  <span className="rule" />
-                  <p>
-                    Na podstawie przeprowadzonych rozmów oraz przekazanych materiałów
-                    zidentyfikowaliśmy kluczowe potrzeby Państwa przedsiębiorstwa.
-                  </p>
-                </div>
-                <ul className="needs-list">
-                  {needs.map((n, i) => (
-                    <li key={i} style={{ ['--i' as string]: i } as React.CSSProperties}>
-                      <div className="need-num">{String(i + 1).padStart(2, '0')}</div>
-                      <div className="need-body">
-                        <h4>{n.k}</h4>
-                        <p>{n.v}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
+          )}
         </section>
 
         {/* ==================== 03. PROGRAM ==================== */}
@@ -366,28 +331,37 @@ export default async function OfferPage({ params, searchParams }: Props) {
               <em>{dto.programLabel}</em>
             </h2>
           </div>
-          <div className="program-hero">
-            <div className="program-top">
-              <p className="program-reason">{programReason}</p>
-              {/* Uwaga pilotaż 2026-07 (#2): termin naboru z rekomendowanej pozycji. */}
-              {recommendedAlt?.nabor && (
-                <div className="program-nabor">
-                  <span>Nabór</span> <strong>{recommendedAlt.nabor}</strong>
-                </div>
-              )}
+          {/* N2 (2026-07-15): kafelek rekomendowanego programu — ten sam layout co
+              alt-card (pierwszy pod nagłówkiem). Dla starych ofert (brak recommendedAlt)
+              kafelek się nie pokazuje — nagłówek „Rekomendujemy {label}" wystarcza. */}
+          {recommendedAlt && (
+            <div className="reco-card">
+              <article className="alt-card alt-card--reco">
+                <span className="reco-badge">Rekomendowany</span>
+                {recommendedAlt.program && <div className="alt-program">{recommendedAlt.program}</div>}
+                <h4>{recommendedAlt.name}</h4>
+                {recommendedAlt.nabor && (
+                  <p className="alt-nabor">
+                    Nabór: <strong>{recommendedAlt.nabor}</strong>
+                  </p>
+                )}
+                {recommendedAlt.desc && <p className="alt-desc">{recommendedAlt.desc}</p>}
+                {recommendedAlt.url && (
+                  <a href={recommendedAlt.url} target="_blank" rel="noopener noreferrer" className="alt-link">
+                    Dowiedz się więcej →
+                  </a>
+                )}
+              </article>
             </div>
-            <div className="program-separator" />
-            {/* #2: opis programu — override (programDescription) > opis rekomendowanego
-                z biblioteki > domyślne punkty. */}
+          )}
+          {/* N2: opis rekomendowanego programu POD kafelkiem (nasza diagnoza + program).
+              Puste = domyślne punkty. */}
+          <div className="program-hero">
             {programDescriptionHtml ? (
               <div
                 className="program-description"
                 dangerouslySetInnerHTML={{ __html: programDescriptionHtml }}
               />
-            ) : recommendedAlt?.desc ? (
-              <div className="program-description">
-                <p>{recommendedAlt.desc}</p>
-              </div>
             ) : (
               <div className="program-points">
                 {PROGRAM_BULLETS.map((b, i) => (
@@ -399,13 +373,6 @@ export default async function OfferPage({ params, searchParams }: Props) {
               </div>
             )}
           </div>
-          {/* Uwaga pilotaż 2026-07 (#3): zdiagnozowane potrzeby i podstawa
-              rekomendacji — tekst na 2 kolumny, pod „Rekomendujemy". */}
-          {content.recommendationBasis?.trim() && (
-            <div className="reco-basis">
-              <p style={{ whiteSpace: 'pre-wrap' }}>{content.recommendationBasis}</p>
-            </div>
-          )}
           {/* Uwaga pilotaż 2026-07 (#2): tylko pozycje alternatywne (bez rekomendowanej);
               ukryte gdy brak alternatyw. */}
           {alternativeAlts.length > 0 && (
