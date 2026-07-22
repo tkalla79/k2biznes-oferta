@@ -31,7 +31,16 @@ Złożenie i akceptacja oferty handlowej, ewentualne zawarcie umowy o usługi do
 - **Hosting aplikacji:** Vercel (Europa)
 - **Email transactional:** Resend (US-based, podmiot przetwarzający)
 - **Brak automatycznego decision-makingu** (no profiling, no algorithmic decisions)
-- **Transfer danych poza EOG:** TYLKO dla wysyłki maila przez Resend (US). Hosting bazy + frontend w EU.
+- **Transfer danych poza EOG:** wysyłka maila przez Resend (US) oraz — od 2026-07 — opcjonalna analiza transkrypcji przez Anthropic API (Claude, US). Hosting bazy + frontend w EU.
+
+> **Addendum 2026-07-22 (funkcja „Wypełnij z transkrypcji", PR #82).** W panelu konsultanta
+> działa opcjonalne wstępne wypełnianie oferty na podstawie wklejonej notatki lub transkrypcji
+> spotkania (tekst albo plik `.docx`/`.txt`). Treść jest wysyłana do Anthropic API (Claude Haiku)
+> wyłącznie na czas analizy — **nie jest zapisywana** w bazie ani w audit_log, przetwarzanie
+> odbywa się w pamięci, a efektem jest jedynie szkic pól zwrócony do formularza. Transkrypcja może
+> zawierać dane osobowe klienta wprowadzone przez konsultanta. Do rozważenia z radcą: DPA z Anthropic
+> (podmiot przetwarzający w US), podstawa transferu poza EOG, oraz informacja dla osób, których dane
+> mogą pojawić się w transkrypcji. Funkcja jest wyłączalna (brak `ANTHROPIC_API_KEY` = niedostępna).
 
 ## Polityka prywatności
 
@@ -44,7 +53,7 @@ Przegląd klauzuli pod kątem zgodności z RODO:
 - Art. 7 — warunki wyrażenia zgody (dobrowolność, konkretność, świadomość, jednoznaczność)
 - Art. 13 — informacje przekazywane podmiotowi danych
 - Art. 14 — informacje gdy dane nie są pozyskiwane bezpośrednio od osoby
-- Wymóg DPA z Resend (podmiot przetwarzający w US)?
+- Wymóg DPA z Resend oraz Anthropic (podmioty przetwarzające w US)?
 - Czy potrzebny IOD (Inspektor Ochrony Danych) dla skali działalności?
 
 ## Po review — proces wprowadzenia v2

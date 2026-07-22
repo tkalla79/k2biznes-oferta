@@ -20,6 +20,7 @@ Spina rozproszone runbooks w jedną nawigowalną dokumentację.
 - **Email:** Resend (domena `k2biznes.pl` zweryfikowana)
 - **Monitoring:** Sentry + UptimeRobot
 - **Rate limit:** Upstash Redis
+- **AI (opcjonalne):** Anthropic API (Claude Haiku) — wypełnianie oferty z transkrypcji (`/api/admin/offer-draft`, `ANTHROPIC_API_KEY`)
 
 **Co warto wiedzieć od razu:**
 - Supabase Free **pauzuje projekt po 7 dniach inactivity** — UptimeRobot pinguje `/api/health` co 5 min zapobiegawczo
@@ -95,11 +96,11 @@ Spina rozproszone runbooks w jedną nawigowalną dokumentację.
 | `/auth/mfa-challenge` | 6-cyfrowy kod TOTP | session aal1 |
 | `/admin` | Dashboard (KPI, forecast, simulator) | admin+ MFA |
 | `/admin/offers/*` | CRUD ofert + editor | consultant+ |
-| `/admin/programs` | Katalog programów | admin+ |
-| `/admin/case-studies` | Katalog case studies | admin+ |
+| `/admin/programs` | Dawny katalog programów — **UI wygaszone** (etap 3); tabela `programs` została w bazie | admin+ |
+| `/admin/case-studies` | Katalog case studies (pole `url` — link do pełnego opisu) | admin+ |
 | `/admin/contact-persons` | Osoby kontaktowe | admin+ |
 | `/admin/faq` | Globalne FAQ | admin+ |
-| `/admin/alt-programs` | Biblioteka alt-programów (etap 2) | admin+ |
+| `/admin/alt-programs` | Biblioteka programów wsparcia (scalona, etap 3) — źródło programów oferty | admin+ |
 | `/admin/templates` | Szablony oferty (etap 2) | admin+ |
 | `/admin/ustawienia` | Statystyki firmowe `company_stats` (etap 2) | super_admin |
 | `/admin/users` | Lista userów + role | super_admin |
@@ -107,6 +108,8 @@ Spina rozproszone runbooks w jedną nawigowalną dokumentację.
 | `/o/[token]` | Publiczna oferta (klient) | brak (token = auth) |
 | `/privacy-policy` | Polityka prywatności | brak |
 | `/auth/request-data-deletion` | Form RODO | brak |
+
+> API (nie strona): `POST /api/admin/offer-draft` — wypełnianie oferty z transkrypcji (Claude Haiku, admin+, wymaga `ANTHROPIC_API_KEY`; PR #82).
 
 ---
 
@@ -310,9 +313,11 @@ curl -X PUT "https://yuyyejwnryuynbosqwwa.supabase.co/auth/v1/admin/users/$USER_
 
 Przekaż tymczasowe hasło out-of-band (Signal/Telegram), user zmieni przez `/auth/forgot-password` po pierwszym zalogowaniu.
 
-### Dodanie/edycja programu / case study / osoby kontaktowej
+### Dodanie/edycja programu wsparcia / case study / osoby kontaktowej
 
-Przez UI: `/admin/programs`, `/admin/case-studies`, `/admin/contact-persons`. Każda strona ma CRUD z formularzem.
+Przez UI: `/admin/alt-programs` (biblioteka programów wsparcia — scalona w etapie 3;
+dawne `/admin/programs` wygaszone, tabela `programs` i endpoint API pozostają w bazie),
+`/admin/case-studies`, `/admin/contact-persons`. Każda strona ma CRUD z formularzem.
 
 ### Edycja statystyk firmowych (etap 2)
 
@@ -408,6 +413,7 @@ Quick list (login + URL panel):
 - UptimeRobot: https://uptimerobot.com/dashboard
 - Upstash: https://console.upstash.com
 - CreaTech DNS: panel zarządzania DNS dla k2biznes.pl (apex)
+- Anthropic: https://console.anthropic.com (AI — wypełnianie z transkrypcji, `ANTHROPIC_API_KEY`)
 
 ---
 
@@ -504,6 +510,11 @@ Gotowe gdy `env ls` pokazuje `RESEND_API_KEY … Encrypted` i **brak** `EMAIL_FR
 **Gotchy, które nas spowolniły:** (a) `... | npx vercel@latest env add` przy pierwszym uruchomieniu — prompt instalacji npx **zjada wklejaną wartość ze stdin** (użyj `npx --yes` i redirectu z pliku, nie pipe'a); (b) plik bez `\n` na końcu → `env add` zapisuje pustą wartość; (c) edycja **złego projektu/konta** w dashboardzie (upewnij się, że to projekt obsługujący `oferta.k2biznes.pl`).
 
 **Monitoring:** każda nieudana wysyłka trafia do Sentry (`[email] send failed: …`).
+
+### 12. „Wypełnij z transkrypcji" zwraca 503 / komunikat o niedostępności
+
+**Przyczyna:** brak `ANTHROPIC_API_KEY` w środowisku (dev: `.env.local`, prod: Vercel env, scope Production). Endpoint `/api/admin/offer-draft` celowo zwraca `503`, gdy klucza nie ma.
+**Fix:** dodaj `ANTHROPIC_API_KEY` (Anthropic Console → API Keys) do Vercel env i zrób redeploy. Funkcja jest opcjonalna — bez klucza oferty wypełnia się ręcznie, reszta aplikacji działa. Uwaga: transkrypcji nie zapisujemy (przetwarzanie w pamięci), więc w bazie nie ma śladu wejścia do zdiagnozowania — sprawdzaj po statusie odpowiedzi i logach Vercel.
 
 ---
 

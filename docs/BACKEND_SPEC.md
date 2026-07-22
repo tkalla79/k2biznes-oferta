@@ -5,7 +5,8 @@
 > wyłącznie do edycji wspólnej. Po zatwierdzeniu zmian — commit do repo.
 > Repo zawsze wygrywa nad OneDrive.
 
-**Wersja:** 1.2.0 · **Data:** 2026-06-14 · **Status:** NA PRODUKCJI (`oferta.k2biznes.pl`). Etap 2 (edytowalność) wdrożony — patrz sekcje 3.2.11–3.2.13, 4.4.1, 9.1.3.
+**Wersja:** 1.3.0 · **Data:** 2026-07-22 · **Status:** NA PRODUKCJI (`oferta.k2biznes.pl`). Etap 2 (edytowalność) wdrożony — patrz sekcje 3.2.11–3.2.13, 4.4.1, 9.1.3.
+**Changelog 1.3.0 (etap 3 — pilotaż UX + AI):** przebudowa sekcji 01/02 oferty, scalenie katalogów programów w bibliotekę `alt_programs`, wygaszenie UI `/admin/programs`, `case_studies.url` (migracja `case_study_url`), statystyki firmowe w `/admin/ustawienia`. **Wypełnianie oferty z transkrypcji (AI, PR #82):** endpoint `POST /api/admin/offer-draft` (Claude Haiku, tool-use) — patrz sekcja 5.3 i Appendix B. Nadal niezaimplementowany pozostaje matching AI (`/api/match`, `useAi`) — opis w spec'u jest planistyczny.
 **Changelog 1.2.0 (etap 2):** tabele `alt_programs` (PR #50), `offer_templates` (PR #51), `app_settings` (PR #56); edytowalne pola `offers.content` (needs/programReason/notes/altPrograms); audit `settings.update`; rozwijanie komponentów w trybie print (PR #57); ujednolicenie statystyk firmowych w `/admin/ustawienia`.
 **Stan startowy:** `OFERTA_INTERAKTYWNA/` (statyczny vanilla-JS template — `index.html` + `js/app.js` + `css/styles.css`); szczegóły w Appendix A.
 **Target:** Supabase (Postgres + Auth + Storage + Edge Functions) + Next.js 14 App Router + TypeScript strict + Zod
@@ -62,7 +63,7 @@ Aplikacja K2Biznes Oferta to SaaS do wystawiania i obsługi ofert handlowych dla
 | Email | Resend + React Email | Wygodne templaty JSX |
 | PDF | Edge Function + Puppeteer on @sparticuz/chromium (Vercel) | Renderuje `/o/<id>/pdf` → PDF |
 | CRM webhook | Retry queue w Supabase (tabela `webhook_jobs` + cron) | Niezależne od dostępności CRM |
-| AI matching | Claude API (Haiku 4.5) via server-side wrapper | Opcjonalne wzbogacenie |
+| AI (wypełnianie z transkrypcji) | Claude API (Haiku 4.5) via server-side wrapper (`@anthropic-ai/sdk`, tool-use) | Wdrożone: `POST /api/admin/offer-draft` (PR #82). Matching AI z Appendix B pozostaje planem |
 | Analytics | Plausible (self-hosted lub cloud) | Bez ciasteczek third-party |
 | Monitoring | Sentry | Frontend + backend |
 | CI/CD | GitHub Actions → Vercel | Preview per PR |
@@ -818,6 +819,7 @@ ADMIN
   *      /api/admin/templates                 – CRUD szablonów oferty (etap 2)
   GET    /api/admin/settings/company-stats    – odczyt statystyk firmowych (etap 2)
   PUT    /api/admin/settings/company-stats    – zapis statystyk (super_admin, audit settings.update)
+  POST   /api/admin/offer-draft               – wypełnienie oferty z transkrypcji (AI, admin+; PR #82)
 
 WEBHOOKS (wewnętrzne, wywoływane przez cron)
   POST   /api/internal/process-webhook-jobs
@@ -1560,7 +1562,8 @@ RESEND_API_KEY=
 EMAIL_FROM="K2Biznes <oferty@k2biznes.pl>"
 EMAIL_REPLY_TO="kontakt@k2biznes.pl"
 
-# AI (opcjonalne)
+# AI — wypełnianie oferty z transkrypcji (POST /api/admin/offer-draft, PR #82).
+# Bez klucza endpoint zwraca 503; reszta aplikacji działa normalnie.
 ANTHROPIC_API_KEY=
 
 # CRM (opcjonalne)
@@ -1660,9 +1663,29 @@ Wszystko z sekcji 3-12 oraz: `apps/web/app/(app)/admin/*` (dashboard, simulator,
 
 ---
 
-## Appendix B — Matching AI prompt (Claude Haiku)
+## Appendix B — AI (Claude Haiku)
 
-Dla `POST /api/match` z `useAi=true`:
+### B.1 Wdrożone — wypełnianie oferty z transkrypcji (`POST /api/admin/offer-draft`, PR #82)
+
+Realnie działająca funkcja AI. Endpoint (tylko rola `admin`) przyjmuje wklejony tekst
+(JSON `{ transcript }`) lub plik (multipart: `.docx` parsowany w pamięci przez `mammoth`,
+`.txt` jako UTF-8). Model `claude-haiku-4-5` z wymuszonym `tool_choice` (narzędzie
+`zapisz_pola_oferty`) zwraca ustrukturyzowany draft: `clientName`, `clientNip`,
+`clientIndustry`, `clientCompanySize`, `clientVoivodeship`, `recommendationBasis`
+(potrzeby + podstawa rekomendacji, max 1500 znaków), `projectValue` (tylko gdy padła
+wprost — zawsze z `warnings` o potwierdzeniu), `suggestedProgramId` (wyłącznie z realnych
+ID biblioteki `alt_programs`) oraz `warnings[]`.
+
+- Zakres wejścia: min. 20 znaków; analiza do 50 000 znaków (nadmiar obcinany z ostrzeżeniem).
+- RODO: transkryptu ani pliku **nie zapisujemy** — przetwarzanie w pamięci, nic nie trafia
+  do bazy ani `audit_log`. Efektem jest wyłącznie draft zwracany do formularza.
+- Frontend uzupełnia **tylko puste pola** i podświetla je jako „do sprawdzenia".
+- Wymaga `ANTHROPIC_API_KEY`; bez klucza endpoint zwraca `503`.
+- Normalizacja wyjścia modelu: `apps/web/lib/offers/draft.ts` (z testami).
+
+### B.2 Planowane — matching AI (`POST /api/match`, `useAi=true`)
+
+Poniższe pozostaje projektem (nie wdrożone). Dla `POST /api/match` z `useAi=true`:
 
 **System prompt:**
 ```
