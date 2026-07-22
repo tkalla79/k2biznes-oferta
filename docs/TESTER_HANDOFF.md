@@ -55,7 +55,8 @@ Email: Resend (3000 maili / mc, free tier).
 4. Wypełnij formularz:
    - **Klient**: dowolna firma, NIP 10 cyfr (np. `1234567890`), branża,
      wielkość firmy, województwo (dropdown 16 PL)
-   - **Program**: wybierz z dropdown (25 programów — zacznij od `Ścieżka SMART`)
+   - **Programy wsparcia**: dodaj z rozwijanej listy (biblioteka programów wsparcia)
+     co najmniej jedną pozycję i **zaznacz ją jako rekomendowaną** (trafia do sekcji 02)
    - **Finanse**: project value 3M, intensywność 70%, projekty 1, klient
      powracający = nie
    - **Pricing live preview** powinien pokazać 4 warianty (I/II/III/IV) — sprawdź
@@ -103,12 +104,13 @@ Email: Resend (3000 maili / mc, free tier).
 
 ### Scenariusz 5: Katalogi (admin only)
 
-1. Z dashboardu kliknij **"Programy"** → `/admin/programs`
-2. Powinno być 25 programów w 5 grupach (FENG/FEPW/KPO/REG/HORYZONT)
-3. Kliknij "+ Nowy program" → wypełnij i zapisz
-4. Kliknij "Edytuj" przy istniejącym → zmień nazwę → zapisz
-5. Toggle checkbox `is_active` przy programie → odśwież stronę → status pozostał
-6. Tak samo dla **"Case studies"** i **"Osoby kontaktowe"**
+1. Z dashboardu kliknij **"Programy wsparcia"** → `/admin/alt-programs` (biblioteka
+   scalona w etapie 3; dawny moduł `/admin/programs` został wygaszony)
+2. Kliknij "+ Nowy" → wypełnij i zapisz
+3. Kliknij "Edytuj" przy istniejącym → zmień nazwę → zapisz
+4. Toggle checkbox `is_active` przy pozycji → odśwież stronę → status pozostał
+5. Sprawdź, że dodana pozycja jest dostępna w formularzu oferty (dropdown Programy wsparcia)
+6. Tak samo dla **"Case studies"** (w tym pole `url`) i **"Osoby kontaktowe"**
 
 ### Scenariusz 6: RODO + GDPR
 
@@ -168,6 +170,21 @@ Email: Resend (3000 maili / mc, free tier).
    to znaczy że Resend zwrócił błąd przy wysyłce. Wyślij ofertę ponownie.
 2. (Trudne do wywołania w teście — wymaga awarii Resend. Sprawdź tylko że badge NIE
    pojawia się przy normalnie wysłanych ofertach.)
+
+### Scenariusz 13: Wypełnianie z transkrypcji (AI) — PR #82
+
+1. W formularzu nowej oferty (`/admin/offers/new`) kliknij **"Wypełnij z transkrypcji"**.
+2. Wklej kilka zdań notatki ze spotkania (nazwa firmy, branża, potrzeby, ewentualnie kwota)
+   albo wgraj plik `.docx`/`.txt`. Kliknij analizę.
+3. Sprawdź, że **puste** pola (nazwa firmy, branża, wielkość, województwo, wprowadzenie)
+   uzupełniły się i są **podświetlone na żółto** ("do sprawdzenia"); wypełnione wcześniej
+   pola pozostały bez zmian.
+4. Jeśli kwota padła w tekście — powinna trafić do wartości projektu z adnotacją do potwierdzenia;
+   jeśli program z biblioteki pasuje — powinien być podpowiedziany.
+5. Panel pokazuje podsumowanie + ostrzeżenia. Nic nie zapisuje się automatycznie — dopiero
+   "Stwórz ofertę" utrwala dane.
+6. Uwaga środowiskowa: bez `ANTHROPIC_API_KEY` przycisk zwraca komunikat o niedostępności (503) —
+   to oczekiwane, nie bug.
 
 ---
 
@@ -250,7 +267,7 @@ Screenshot: (jeśli wizualne)
 | Powrót do listy ofert | "← Lista" w prawym górnym rogu edytora |
 | Skopiowanie linku klienta | "Skopiuj link" w toolbar oferty (draft → preview URL z `?__preview=1`, sent+ → publiczny URL) |
 | Otwarcie wszystkich 5 case studies | `/admin/case-studies` — lista |
-| Otwarcie 25 programów | `/admin/programs` — lista zgrupowana |
+| Otwarcie biblioteki programów wsparcia | `/admin/alt-programs` — lista |
 
 ---
 
@@ -275,10 +292,11 @@ Spec wraz z kontraktami API: `docs/BACKEND_SPEC.md`.
 |---|---|---|
 | 2026-04-28 | MVP (PR #22) | Scenariusze 1-7 |
 | 2026-06-09 | po PR #44 | + Scenariusze 8-12: MFA, reset hasła+rate-limit, RODO flow, expires_at, email-failed marker |
+| 2026-07-22 | etap 3 (po PR #82) | Scalenie katalogów programów (Scenariusz 5), biblioteka programów wsparcia w tworzeniu oferty (Scenariusz 1), + Scenariusz 13: wypełnianie z transkrypcji (AI) |
 
 Przy dodaniu nowej funkcji (nowy PR z user-facing zmianą) — dopisz scenariusz
 w sekcji 2 i bumpnij tę tabelę.
 
 ---
 
-**Wersja dokumentu**: 2026-06-09 · po PR #44
+**Wersja dokumentu**: 2026-07-22 · etap 3 (po PR #82)

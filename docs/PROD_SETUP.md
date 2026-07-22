@@ -44,7 +44,7 @@ Po otrzymaniu credentials z Etapu 1:
 # 1. Link nowy projekt
 SUPABASE_ACCESS_TOKEN=sbp_xxx supabase link --project-ref <NEW_REF>
 
-# 2. Push wszystkich 10 migracji
+# 2. Push wszystkich migracji z supabase/migrations/ (16 na 2026-07-22)
 SUPABASE_ACCESS_TOKEN=sbp_xxx SUPABASE_DB_PASSWORD=<DB_PASS> \
   supabase db push --linked
 
@@ -135,6 +135,9 @@ SUPER_ADMIN_EMAIL=t.kalla@k2biznes.pl
 # Opcjonalne (jak juz uzywane w stagingu)
 RATE_LIMIT_REDIS_URL=<reuse staging Upstash>
 RATE_LIMIT_REDIS_TOKEN=<reuse>
+
+# AI — wypelnianie oferty z transkrypcji (opcjonalne; bez klucza endpoint /api/admin/offer-draft zwraca 503)
+ANTHROPIC_API_KEY=<z Anthropic Console>
 
 # Prod-only — NIE ustawione dla Preview/Development
 ```

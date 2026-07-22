@@ -8,6 +8,9 @@ status, motywację biznesową i szkic implementacji. Status:
 - ✅ **zrealizowane** — przeniesione do CHANGELOG
 - ❌ **odrzucone** — z uzasadnieniem
 
+> **Zrealizowane od ostatniej aktualizacji:**
+> - ✅ **Wypełnianie oferty z transkrypcji (AI)** — `POST /api/admin/offer-draft` (Claude Haiku, tool-use), PR #82. Wstępnie zasila puste pola z wklejonego tekstu lub pliku `.docx`/`.txt`; transkryptu nie przechowuje. Opis: BACKEND_SPEC Appendix B.1.
+
 ---
 
 ## 1. Globalna edycja pricing_segments + pricing_config (Poziom 2)

@@ -4,7 +4,7 @@ Pełna lista zewnętrznych usług które tworzą produkcję `oferta.k2biznes.pl`
 Dla każdej: do czego służy, jak się zalogować, gdzie szukać w razie awarii,
 co przestaje działać jak padnie, jak rotować klucze.
 
-**Aktualizacja:** 2026-06-14 (zweryfikowany po etapie 2 — usługi zewnętrzne bez zmian)
+**Aktualizacja:** 2026-07-22 (etap 3 — dodana usługa Anthropic API dla wypełniania oferty z transkrypcji, PR #82; pozostałe bez zmian)
 **Audience:** tech-admin (Tomek + przyszli devs)
 
 ---
@@ -21,6 +21,7 @@ co przestaje działać jak padnie, jak rotować klucze.
 8. [CreaTech.pl DNS](#8-createchpl-dns) — DNS apex `k2biznes.pl`
 9. [Vercel DNS / CNAME](#9-vercel-dns--cname) — subdomena `oferta.k2biznes.pl`
 10. [Bitwarden](#10-bitwarden) — secrets vault
+11. [Anthropic API](#11-anthropic-api) — Claude (wypełnianie oferty z transkrypcji)
 
 ---
 
@@ -345,6 +346,35 @@ Jeśli cert wygasł albo CNAME zniknął:
 
 ---
 
+## 11. Anthropic API
+
+| Pole | Wartość |
+|---|---|
+| **URL** | https://console.anthropic.com |
+| **Account** | t.kalla@k2biznes.pl |
+| **Model** | `claude-haiku-4-5` (tool-use) |
+| **Plan** | Pay-as-you-go (API credits) |
+| **Sekret** | `ANTHROPIC_API_KEY` (Vercel env — scope Production; Bitwarden) |
+
+**Do czego służy:**
+- Wypełnianie oferty z transkrypcji spotkania — `POST /api/admin/offer-draft` (PR #82).
+  Model wyciąga dane klienta, wprowadzenie i podpowiada program z biblioteki `alt_programs`.
+
+**Co przetwarza (RODO):**
+- Wklejony tekst / plik `.docx`/`.txt` analizowany jest w pamięci; transkryptu **nie
+  zapisujemy** (nic nie trafia do bazy ani audit_log). Anthropic to podmiot przetwarzający
+  poza EOG (US) — patrz [docs/GDPR_REVIEW_BRIEF.md](GDPR_REVIEW_BRIEF.md).
+
+**Co przestaje działać jak padnie:**
+- Przycisk „Wypełnij z transkrypcji" zwraca `503`. Reszta aplikacji działa normalnie —
+  oferty wypełnia się ręcznie.
+
+**Kontakt support:** https://support.anthropic.com
+
+**Rotacja:** Console → Settings → API Keys → utwórz nowy, usuń stary + update Vercel env + Bitwarden + redeploy.
+
+---
+
 ## Cheatsheet — szybki dostęp
 
 | Co | Gdzie kliknąć |
@@ -367,6 +397,7 @@ Jeśli cert wygasł albo CNAME zniknął:
 | **Upstash** | 10k cmd/dzień | Alert email 8000/dzień |
 | **Resend** | 3000/mc, 100/dzień | Usage notifications "approaching limit" |
 | **Vercel** | 100GB bandwidth | Spend management / usage notifications 80% |
+| **Anthropic** | Pay-as-you-go credits | Console → Billing → usage limits + email alert; funkcja opcjonalna (503 bez klucza) |
 
 ---
 
