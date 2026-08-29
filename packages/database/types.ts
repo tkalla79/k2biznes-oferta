@@ -503,12 +503,13 @@ export type Database = {
           deleted_at: string | null
           expires_at: string | null
           first_viewed_at: string | null
-          funding_rate: number
+          funding_rate: number | null
           gdpr_accepted_at: string | null
           gdpr_clause_version: string | null
           gdpr_text_hash: string | null
           id: string
           last_viewed_at: string | null
+          offer_kind: string
           offer_number: string
           offered_variants: Database["public"]["Enums"]["pricing_variant"][]
           pricing_override: Json
@@ -553,12 +554,13 @@ export type Database = {
           deleted_at?: string | null
           expires_at?: string | null
           first_viewed_at?: string | null
-          funding_rate: number
+          funding_rate?: number | null
           gdpr_accepted_at?: string | null
           gdpr_clause_version?: string | null
           gdpr_text_hash?: string | null
           id?: string
           last_viewed_at?: string | null
+          offer_kind?: string
           offer_number: string
           offered_variants?: Database["public"]["Enums"]["pricing_variant"][]
           pricing_override?: Json
@@ -603,12 +605,13 @@ export type Database = {
           deleted_at?: string | null
           expires_at?: string | null
           first_viewed_at?: string | null
-          funding_rate?: number
+          funding_rate?: number | null
           gdpr_accepted_at?: string | null
           gdpr_clause_version?: string | null
           gdpr_text_hash?: string | null
           id?: string
           last_viewed_at?: string | null
+          offer_kind?: string
           offer_number?: string
           offered_variants?: Database["public"]["Enums"]["pricing_variant"][]
           pricing_override?: Json

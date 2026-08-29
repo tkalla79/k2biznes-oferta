@@ -14,6 +14,29 @@ import { expiresAtSchema } from './shared';
 const PricingVariantId = z.enum(['I', 'II', 'III', 'IV']);
 const CompanySize = z.enum(['micro', 'small', 'medium', 'large']);
 const OfferStatus = z.enum(['draft', 'sent', 'viewed', 'accepted', 'rejected', 'expired']);
+const OfferKind = z.enum(['grant', 'loan']);
+
+// =============================================================================
+// Pożyczki (tryb `loan`) — parametry produktu per-oferta + stawki.
+// Parametry produktu jako wolny tekst (np. "od 2% w skali roku", "do 84 mies.").
+// =============================================================================
+
+const LoanProductInput = z.object({
+  name: z.string().max(200).optional(),
+  interestRate: z.string().max(120).optional(),
+  termMonths: z.string().max(120).optional(),
+  graceMonths: z.string().max(120).optional(),
+  commission: z.string().max(120).optional(),
+  ownContribution: z.string().max(120).optional(),
+});
+
+export const LoanInput = z.object({
+  baseFee: z.number().min(0).max(1_000_000).default(4000),
+  sfPct: z.number().min(0).max(1).default(0.015),
+  product: LoanProductInput.optional(),
+});
+
+export type LoanInput = z.infer<typeof LoanInput>;
 
 // =============================================================================
 // Wspólne pola — single source of truth dla Create + Update
@@ -42,17 +65,32 @@ const offerFields = {
 // POST /api/offers — required + defaults
 // =============================================================================
 
-export const CreateOfferInput = z.object({
-  ...offerFields,
+export const CreateOfferInput = z
+  .object({
+    ...offerFields,
+    // fundingRate wymagany warunkowo (dotacja) — patrz superRefine niżej.
+    fundingRate: offerFields.fundingRate.optional(),
 
-  returningClient: z.boolean().default(false),
-  projectCount: z.number().int().min(1).max(5).default(1),
+    offerKind: OfferKind.default('grant'),
+    loan: LoanInput.optional(),
 
-  selectedVariant: PricingVariantId.default('I'),
-  offeredVariants: z.array(PricingVariantId).min(1).max(4).default(['I', 'II', 'III']),
+    returningClient: z.boolean().default(false),
+    projectCount: z.number().int().min(1).max(5).default(1),
 
-  content: z.record(z.string(), z.unknown()).default({}),
-});
+    selectedVariant: PricingVariantId.default('I'),
+    offeredVariants: z.array(PricingVariantId).min(1).max(4).default(['I', 'II', 'III']),
+
+    content: z.record(z.string(), z.unknown()).default({}),
+  })
+  .superRefine((v, ctx) => {
+    if (v.offerKind === 'grant' && v.fundingRate === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['fundingRate'],
+        message: 'fundingRate jest wymagany dla oferty dotacyjnej',
+      });
+    }
+  });
 
 export type CreateOfferInput = z.infer<typeof CreateOfferInput>;
 
@@ -79,6 +117,9 @@ export const UpdateOfferInput = z.object({
 
   selectedVariant: PricingVariantId.optional(),
   offeredVariants: z.array(PricingVariantId).min(1).max(4).optional(),
+
+  offerKind: OfferKind.optional(),
+  loan: LoanInput.optional(),
 
   caseStudyId: offerFields.caseStudyId,
   contactPersonId: offerFields.contactPersonId,
@@ -109,7 +150,8 @@ export function shouldRecalcSnapshot(patch: UpdateOfferInput): boolean {
     patch.projectValue !== undefined ||
     patch.fundingRate !== undefined ||
     patch.returningClient !== undefined ||
-    patch.projectCount !== undefined
+    patch.projectCount !== undefined ||
+    patch.loan !== undefined
   );
 }
 

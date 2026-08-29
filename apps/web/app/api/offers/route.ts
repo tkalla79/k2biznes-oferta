@@ -8,6 +8,7 @@ import { requireSession } from '@/lib/auth/session';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { calcPricing } from '@/lib/pricing';
+import { calcLoanPricing, LOAN_BASE_FEE, LOAN_SF_PCT } from '@/lib/pricing/loan';
 import { loadPricing } from '@/lib/pricing/load';
 import {
   CreateOfferInput,
@@ -97,9 +98,10 @@ export async function POST(req: NextRequest) {
     const session = await requireSession();
 
     const body = CreateOfferInput.parse(await req.json());
+    const isLoan = body.offerKind === 'loan';
 
-    // Walidacja: selectedVariant musi być w offeredVariants
-    if (!body.offeredVariants.includes(body.selectedVariant)) {
+    // Walidacja: selectedVariant musi być w offeredVariants (tylko dotacja — pożyczka bez wariantów)
+    if (!isLoan && !body.offeredVariants.includes(body.selectedVariant)) {
       throw new ApiError(
         'VALIDATION_ERROR',
         '`selectedVariant` musi być w `offeredVariants`.',
@@ -107,18 +109,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Wylicz pricing snapshot
-    const { segments, config } = await loadPricing();
-    const pricingSnapshot = calcPricing(
-      {
-        projectValue: body.projectValue,
-        fundingRate: body.fundingRate,
-        returningClient: body.returningClient,
-        projectCount: body.projectCount,
-      },
-      segments,
-      config,
-    );
+    // Dane pożyczki (produkt + stawki) — persystowane w content.loan.
+    const loanData = isLoan ? (body.loan ?? { baseFee: LOAN_BASE_FEE, sfPct: LOAN_SF_PCT }) : null;
+
+    // Wylicz pricing snapshot — gałąź dotacja / pożyczka.
+    let pricingSnapshot;
+    if (isLoan) {
+      pricingSnapshot = calcLoanPricing({
+        loanAmount: body.projectValue,
+        baseFee: loanData?.baseFee,
+        sfPct: loanData?.sfPct,
+      });
+    } else {
+      const { segments, config } = await loadPricing();
+      pricingSnapshot = calcPricing(
+        {
+          projectValue: body.projectValue,
+          fundingRate: body.fundingRate as number,
+          returningClient: body.returningClient,
+          projectCount: body.projectCount,
+        },
+        segments,
+        config,
+      );
+    }
 
     const sb = createAdminClient();
 
@@ -142,18 +156,19 @@ export async function POST(req: NextRequest) {
         client_industry: body.clientIndustry ?? null,
         client_company_size: body.clientCompanySize ?? null,
         client_voivodeship: body.clientVoivodeship ?? null,
+        offer_kind: body.offerKind,
         program_id: body.programId ?? null,
         program_label: body.programLabel,
         program_custom_name: body.programCustomName ?? null,
         project_value: body.projectValue,
-        funding_rate: body.fundingRate,
+        funding_rate: isLoan ? null : (body.fundingRate as number),
         returning_client: body.returningClient,
         project_count: body.projectCount,
         pricing_snapshot: pricingSnapshot as unknown as Json,
         selected_variant: body.selectedVariant,
         offered_variants: body.offeredVariants,
         case_study_id: body.caseStudyId ?? null,
-        content: body.content as Json,
+        content: (isLoan ? { ...body.content, loan: loanData } : body.content) as Json,
       })
       .select()
       .single();
