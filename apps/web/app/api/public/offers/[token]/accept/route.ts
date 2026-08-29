@@ -29,7 +29,8 @@ import { logAudit } from '@/lib/audit';
 import { notifyConsultantOfferAccepted } from '@/lib/email/notifications';
 import { enqueueOfferWebhook } from '@/lib/webhooks/enqueue';
 import type { Json } from '@k2/database/types';
-import type { PricingResult, PricingVariant } from '@/lib/pricing';
+import type { LoanPricingResult, PricingResult, PricingVariant } from '@/lib/pricing';
+import { isLoanPricing } from '@/lib/pricing/loan';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -68,19 +69,26 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
       );
     }
 
-    // Wylicz acceptedFee z pricing_snapshot (zamrożona kalkulacja z momentu utworzenia oferty)
-    const snapshot = offer.pricing_snapshot as unknown as PricingResult;
-    const variant = snapshot.variants.find(
-      (v: PricingVariant) => v.id === body.selectedVariant,
-    );
-    if (!variant) {
-      throw new ApiError(
-        'INTERNAL_ERROR',
-        `Wariant ${body.selectedVariant} nie istnieje w pricing_snapshot.`,
-        500,
+    // Wylicz acceptedFee z pricing_snapshot (zamrożona kalkulacja z momentu utworzenia oferty).
+    // Pożyczka (offer_kind='loan') nie ma wariantów — fee to całość wynagrodzenia
+    // (opłata wstępna + success fee) z pożyczkowego snapshotu.
+    const rawSnapshot = offer.pricing_snapshot as unknown as PricingResult | LoanPricingResult;
+    let acceptedFee: number;
+    if (isLoanPricing(rawSnapshot)) {
+      acceptedFee = rawSnapshot.total;
+    } else {
+      const variant = rawSnapshot.variants.find(
+        (v: PricingVariant) => v.id === body.selectedVariant,
       );
+      if (!variant) {
+        throw new ApiError(
+          'INTERNAL_ERROR',
+          `Wariant ${body.selectedVariant} nie istnieje w pricing_snapshot.`,
+          500,
+        );
+      }
+      acceptedFee = variant.sfAmount;
     }
-    const acceptedFee = variant.sfAmount;
 
     // IP hash + UA dla audytu
     const { hash: ipHash, version: saltVersion } = await hashIp(getClientIp(req.headers));
