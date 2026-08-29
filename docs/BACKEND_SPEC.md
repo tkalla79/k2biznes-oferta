@@ -5,7 +5,8 @@
 > wyłącznie do edycji wspólnej. Po zatwierdzeniu zmian — commit do repo.
 > Repo zawsze wygrywa nad OneDrive.
 
-**Wersja:** 1.3.0 · **Data:** 2026-07-22 · **Status:** NA PRODUKCJI (`oferta.k2biznes.pl`). Etap 2 (edytowalność) wdrożony — patrz sekcje 3.2.11–3.2.13, 4.4.1, 9.1.3.
+**Wersja:** 1.4.0 · **Data:** 2026-08-29 · **Status:** NA PRODUKCJI (`oferta.k2biznes.pl`). Etap 2 (edytowalność) wdrożony — patrz sekcje 3.2.11–3.2.13, 4.4.1, 9.1.3.
+**Changelog 1.4.0 (tryb pożyczkowy):** drugi typ oferty obok dotacji — kolumna `offers.offer_kind` (`grant`|`loan`), `funding_rate` nullable (wymagany tylko dla dotacji), silnik `lib/pricing/loan.ts` (opłata wstępna + % od kwoty pożyczki, domyślnie 4 000 zł + 1,5%, bez części miesięcznej i bez wariantów), dane pożyczki w `content.loan` (stawki + parametry produktu per-oferta), gałąź w create/patch/recalculate/accept, formularz z przełącznikiem typu oferty i widok klienta z kartą produktu + `LoanPricing`. Zmiana addytywna — istniejące oferty mają `offer_kind='grant'`. Patrz sekcje 3.2.3, 6.6.
 **Changelog 1.3.0 (etap 3 — pilotaż UX + AI):** przebudowa sekcji 01/02 oferty, scalenie katalogów programów w bibliotekę `alt_programs`, wygaszenie UI `/admin/programs`, `case_studies.url` (migracja `case_study_url`), statystyki firmowe w `/admin/ustawienia`. **Wypełnianie oferty z transkrypcji (AI, PR #82):** endpoint `POST /api/admin/offer-draft` (Claude Haiku, tool-use) — patrz sekcja 5.3 i Appendix B. Nadal niezaimplementowany pozostaje matching AI (`/api/match`, `useAi`) — opis w spec'u jest planistyczny.
 **Changelog 1.2.0 (etap 2):** tabele `alt_programs` (PR #50), `offer_templates` (PR #51), `app_settings` (PR #56); edytowalne pola `offers.content` (needs/programReason/notes/altPrograms); audit `settings.update`; rozwijanie komponentów w trybie print (PR #57); ujednolicenie statystyk firmowych w `/admin/ustawienia`.
 **Stan startowy:** `OFERTA_INTERAKTYWNA/` (statyczny vanilla-JS template — `index.html` + `js/app.js` + `css/styles.css`); szczegóły w Appendix A.
@@ -205,15 +206,22 @@ create table offers (
   program_label text not null,                 -- denormalizacja — etykieta w momencie utworzenia oferty
   program_custom_name text,                    -- jeśli program=custom
 
+  -- TYP OFERTY (v1.4.0) — 'grant' = dotacja (segmenty + warianty),
+  -- 'loan' = pożyczka (opłata wstępna + % od kwoty pożyczki, bez wariantów).
+  offer_kind text not null default 'grant' check (offer_kind in ('grant','loan')),
+
   -- FINANCIALS (wejście do silnika pricing)
+  -- Dla offer_kind='loan' `project_value` jest KWOTĄ POŻYCZKI (reużyta kolumna).
   project_value numeric(14,2) not null,        -- netto, w PLN
-  funding_rate numeric(4,3) not null,          -- 0.700 = 70%
+  funding_rate numeric(4,3),                   -- 0.700 = 70%; NULL dla pożyczki
+                                               -- check: offer_kind <> 'grant' or funding_rate is not null
   returning_client boolean not null default false,
   project_count integer not null default 1 check (project_count between 1 and 5),
 
   -- PRICING (denormalizowane — snapshot w momencie utworzenia)
   -- Zawiera pełny rezultat calcPricing() dla audytu
-  pricing_snapshot jsonb not null,             -- {funding, segment:{...}, base, variants:[...]}
+  pricing_snapshot jsonb not null,             -- grant: {funding, segment:{...}, base, variants:[...]}
+                                               -- loan:  {kind:'loan', loanAmount, baseFee, sfPct, sfAmount, total}
 
   -- VARIANT SELECTION
   selected_variant pricing_variant not null default 'I',   -- wybrany przez konsultanta jako domyślny
@@ -786,7 +794,7 @@ AUTH
 
 OFFERS (consultant+)
   GET    /api/offers                          – lista z filtrami + paginacją
-  POST   /api/offers                          – utwórz
+  POST   /api/offers                          – utwórz (offerKind: 'grant'|'loan'; dla loan: pole `loan` + kwota w projectValue)
   GET    /api/offers/:id                      – szczegóły
   PATCH  /api/offers/:id                      – edycja
   DELETE /api/offers/:id                      – soft delete (admin+)
@@ -986,7 +994,7 @@ const CreateOfferInput = z.object({
 **Server logic (transakcja):**
 1. Verify offer token + status in (`sent`,`viewed`).
 2. Verify `selectedVariant in offeredVariants`.
-3. Compute `acceptedFee` z `pricing_snapshot.variants[selectedVariant].sfAmount`.
+3. Compute `acceptedFee` z `pricing_snapshot.variants[selectedVariant].sfAmount` (dla `offer_kind='loan'` — `pricing_snapshot.total`, patrz sekcja 6.2).
 4. Update offer (`status = 'accepted'`, `accepted_*`).
 5. Insert event `accepted`.
 6. Enqueue email do `assigned_consultant_id` + `contact_person`.
@@ -1140,6 +1148,61 @@ describe('calcPricing', () => {
   });
 });
 ```
+
+### 6.2 Cennik pożyczkowy (`offer_kind='loan'`, v1.4.0)
+
+Oferta pożyczkowa NIE korzysta z segmentów, wariantów ani części miesięcznej.
+Cennik to dwa składniki, liczone w `lib/pricing/loan.ts` (pure function):
+
+```typescript
+total = baseFee + sfPct * loanAmount
+```
+
+| Składnik | Domyślnie | Uwagi |
+|---|---|---|
+| `baseFee` — opłata wstępna | **4 000 zł** | flat, płatna po podpisaniu umowy o współpracy |
+| `sfPct` — wynagrodzenie wynikowe | **1,5 %** | liczone od **kwoty przyznanej pożyczki**, płatne po decyzji pożyczkowej |
+
+Obie wartości są **edytowalne per oferta** (w praktyce negocjowane — porównaj
+realne umowy: 2 000 zł + 1,5 %, 4 000 zł + 1 %). Kwota pożyczki to
+`offers.project_value` (reużyta kolumna), a stawki i parametry produktu
+zapisujemy w `offers.content.loan`:
+
+```jsonc
+{
+  "loan": {
+    "baseFee": 4000,
+    "sfPct": 0.015,
+    "product": {                    // wszystkie pola opcjonalne, wolny tekst
+      "name": "Pożyczka na inwestycje w MŚP",
+      "interestRate": "od 2% w skali roku",
+      "termMonths": "do 84 miesięcy",
+      "graceMonths": "do 12 miesięcy",
+      "commission": "0 zł",
+      "ownContribution": "brak wymogu"
+    }
+  }
+}
+```
+
+Parametry produktu ustawiane są **per oferta** — świadomie nie ma katalogu
+produktów pożyczkowych (warunki funduszy zmieniają się między naborami).
+
+Snapshot pożyczkowy (`pricing_snapshot`) ma kształt:
+
+```jsonc
+{ "kind": "loan", "loanAmount": 500000, "baseFee": 4000, "sfPct": 0.015, "sfAmount": 7500, "total": 11500 }
+```
+
+Rozróżnienie w kodzie: `isLoanPricing(snapshot)` (`lib/pricing/loan.ts`).
+
+**Akceptacja.** Endpoint `POST /api/public/offers/:token/accept` jest z założenia
+wariantowy. Dla pożyczki `accepted_fee = snapshot.total` (całe wynagrodzenie),
+a frontend wysyła pseudo-wariant `'I'` — dzięki temu kontrakt API i kolumny
+`accepted_variant` / `offered_variants` zostają bez zmian.
+
+**Poza zakresem v1:** oferty pożyczkowe nie wchodzą do statystyk i prognozy
+(`/api/stats/*` liczy pipeline dotacyjny — success fee od dofinansowania).
 
 ---
 
