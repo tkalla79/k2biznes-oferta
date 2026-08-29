@@ -107,6 +107,17 @@ type FormState = {
   /** Ważność oferty (YYYY-MM-DD, puste = bezterminowo). Zapis tylko w edit —
       CreateOfferInput nie przyjmuje expiresAt. Audyt 2026-07 pkt 1. */
   expiresAt: string;
+  // Typ oferty
+  offerKind: 'grant' | 'loan';
+  // Pożyczka (loan) — cennik: opłata wstępna + % od kwoty pożyczki; parametry produktu per-oferta.
+  loanBaseFee: number; // opłata wstępna (zł)
+  loanSfPct: number; // wynagrodzenie wynikowe (%) — np. 1.5
+  loanProductName: string;
+  loanInterestRate: string;
+  loanTermMonths: string;
+  loanGraceMonths: string;
+  loanCommission: string;
+  loanOwnContribution: string;
   // Program
   programId: string;
   programLabel: string;
@@ -233,8 +244,16 @@ function initialFromOffer(offer: OfferDto): FormState {
         notes?: unknown;
         calcBullets?: unknown;
         recommendationBasis?: unknown;
+        loan?: unknown;
       }
     | null;
+  const loan =
+    c?.loan && typeof c.loan === 'object' ? (c.loan as Record<string, unknown>) : null;
+  const loanProduct =
+    loan?.product && typeof loan.product === 'object'
+      ? (loan.product as Record<string, unknown>)
+      : null;
+  const lstr = (v: unknown) => (typeof v === 'string' ? v : '');
   const altPrograms = Array.isArray(c?.altPrograms)
     ? (c!.altPrograms as unknown[])
         .filter((p): p is Record<string, unknown> => typeof p === 'object' && p !== null)
@@ -267,6 +286,16 @@ function initialFromOffer(offer: OfferDto): FormState {
     clientVoivodeship: offer.clientVoivodeship ?? '',
     // toLocaleDateString('sv-SE') = YYYY-MM-DD w lokalnej strefie (format input[date])
     expiresAt: offer.expiresAt ? new Date(offer.expiresAt).toLocaleDateString('sv-SE') : '',
+    offerKind: offer.offerKind === 'loan' ? 'loan' : 'grant',
+    loanBaseFee: typeof loan?.baseFee === 'number' ? loan.baseFee : 4000,
+    loanSfPct:
+      typeof loan?.sfPct === 'number' ? Math.round(loan.sfPct * 10000) / 100 : 1.5,
+    loanProductName: lstr(loanProduct?.name) || offer.programLabel,
+    loanInterestRate: lstr(loanProduct?.interestRate),
+    loanTermMonths: lstr(loanProduct?.termMonths),
+    loanGraceMonths: lstr(loanProduct?.graceMonths),
+    loanCommission: lstr(loanProduct?.commission),
+    loanOwnContribution: lstr(loanProduct?.ownContribution),
     programId: offer.programId ?? '',
     programLabel: offer.programLabel,
     programCustomName: offer.programCustomName ?? '',
@@ -303,6 +332,15 @@ function blankInitial(): FormState {
     clientCompanySize: '',
     clientVoivodeship: '',
     expiresAt: '',
+    offerKind: 'grant',
+    loanBaseFee: 4000,
+    loanSfPct: 1.5,
+    loanProductName: '',
+    loanInterestRate: '',
+    loanTermMonths: '',
+    loanGraceMonths: '',
+    loanCommission: '',
+    loanOwnContribution: '',
     programId: '',
     programLabel: '',
     programCustomName: '',
@@ -571,6 +609,7 @@ export default function OfferForm({
   }, [form.projectValue, form.fundingRate, form.returningClient, form.projectCount]);
 
   async function fetchPricing() {
+    if (form.offerKind === 'loan') return; // pożyczka liczona lokalnie (opłata + %)
     if (form.projectValue <= 0 || form.fundingRate <= 0) return;
     try {
       const res = await fetch('/api/simulator/pricing', {
@@ -716,19 +755,31 @@ export default function OfferForm({
 
     // Uwaga pilotaż 2026-07 (#2): nazwa programu pochodzi z pozycji oznaczonej
     // jako REKOMENDOWANA na liście „Inne możliwości wsparcia" (scalenie katalogów).
+    const isLoan = form.offerKind === 'loan';
     const recommendedAlt = form.altPrograms.find((p) => p.recommended && p.name.trim() !== '');
     const recommendedLabel = recommendedAlt?.name.trim() ?? '';
     if (!form.clientName.trim()) {
       setError('Nazwa klienta jest wymagana.');
       return;
     }
-    if (!recommendedLabel) {
-      setError('Oznacz jeden program na liście „Inne możliwości wsparcia" jako rekomendowany (to on trafia do nagłówka „Rekomendujemy").');
-      return;
-    }
-    if (!form.offeredVariants.includes(form.selectedVariant)) {
-      setError('Wybrany wariant musi być w zaznaczonych ofertowych.');
-      return;
+    if (isLoan) {
+      if (!form.loanProductName.trim()) {
+        setError('Podaj nazwę produktu pożyczkowego.');
+        return;
+      }
+      if (!(form.projectValue > 0)) {
+        setError('Podaj kwotę pożyczki.');
+        return;
+      }
+    } else {
+      if (!recommendedLabel) {
+        setError('Oznacz jeden program na liście „Inne możliwości wsparcia" jako rekomendowany (to on trafia do nagłówka „Rekomendujemy").');
+        return;
+      }
+      if (!form.offeredVariants.includes(form.selectedVariant)) {
+        setError('Wybrany wariant musi być w zaznaczonych ofertowych.');
+        return;
+      }
     }
     if (form.clientNip && !/^\d{10}$/.test(form.clientNip)) {
       setError('NIP musi mieć 10 cyfr.');
@@ -759,7 +810,7 @@ export default function OfferForm({
     if (form.recommendationBasis.trim()) content.recommendationBasis = form.recommendationBasis.trim();
     if (form.contentNotes.trim()) content.notes = form.contentNotes.trim();
 
-    const body = {
+    const baseBody = {
       clientName: form.clientName.trim(),
       // Ważność: tylko edit (create nie przyjmuje). Koniec dnia lokalnie → ISO;
       // walidacja backendu wymaga min +1h / max +365 dni. null = bezterminowo.
@@ -774,23 +825,47 @@ export default function OfferForm({
       clientIndustry: form.clientIndustry.trim() || undefined,
       clientCompanySize: form.clientCompanySize || undefined,
       clientVoivodeship: form.clientVoivodeship.trim() || undefined,
-      // #2: brak katalogu „Programy" — programId nie ustawiany; label z rekomendowanej pozycji.
       programId: undefined,
-      programLabel: recommendedLabel,
       programCustomName: form.programCustomName.trim() || undefined,
       projectValue: form.projectValue,
-      fundingRate: form.fundingRate,
-      returningClient: form.returningClient,
-      projectCount: form.projectCount,
-      selectedVariant: form.selectedVariant,
-      offeredVariants: form.offeredVariants,
       caseStudyId: form.caseStudyId || undefined,
       contactPersonId: form.contactPersonId || undefined,
       assignedConsultantId:
         canAssignConsultant && form.assignedConsultantId ? form.assignedConsultantId : undefined,
       content,
-      pricingOverride: buildPricingOverride(),
     };
+
+    const body = isLoan
+      ? {
+          ...baseBody,
+          offerKind: 'loan' as const,
+          // Pożyczka: nazwa produktu trafia jako programLabel (nagłówek oferty).
+          programLabel: form.loanProductName.trim(),
+          loan: {
+            baseFee: form.loanBaseFee,
+            sfPct: form.loanSfPct / 100, // % → ułamek
+            product: {
+              name: form.loanProductName.trim() || undefined,
+              interestRate: form.loanInterestRate.trim() || undefined,
+              termMonths: form.loanTermMonths.trim() || undefined,
+              graceMonths: form.loanGraceMonths.trim() || undefined,
+              commission: form.loanCommission.trim() || undefined,
+              ownContribution: form.loanOwnContribution.trim() || undefined,
+            },
+          },
+        }
+      : {
+          ...baseBody,
+          offerKind: 'grant' as const,
+          // #2: brak katalogu „Programy" — programId nie ustawiany; label z rekomendowanej pozycji.
+          programLabel: recommendedLabel,
+          fundingRate: form.fundingRate,
+          returningClient: form.returningClient,
+          projectCount: form.projectCount,
+          selectedVariant: form.selectedVariant,
+          offeredVariants: form.offeredVariants,
+          pricingOverride: buildPricingOverride(),
+        };
 
     try {
       const url = mode === 'create' ? '/api/offers' : `/api/offers/${offer!.id}`;
@@ -947,6 +1022,35 @@ export default function OfferForm({
         </div>
       )}
 
+      {/* SECTION 0: Typ oferty — steruje cennikiem i widokiem klienta */}
+      <Section title="Typ oferty">
+        <div style={modeToggleRow}>
+          <label style={radioRow}>
+            <input
+              type="radio"
+              name="offerKind"
+              checked={form.offerKind === 'grant'}
+              onChange={() => update('offerKind', 'grant')}
+            />
+            <span>Dotacja (segmenty, warianty I–IV)</span>
+          </label>
+          <label style={radioRow}>
+            <input
+              type="radio"
+              name="offerKind"
+              checked={form.offerKind === 'loan'}
+              onChange={() => update('offerKind', 'loan')}
+            />
+            <span>Pożyczka (opłata wstępna + % od kwoty pożyczki)</span>
+          </label>
+        </div>
+        <p style={hint}>
+          {form.offerKind === 'loan'
+            ? 'Pożyczka: jedno wynagrodzenie (opłata wstępna + success fee od kwoty pożyczki), bez wariantów i bez części miesięcznej. Parametry produktu ustawiasz poniżej — dotyczą tylko tej oferty.'
+            : 'Dotacja: cennik z konfiguracji segmentów, warianty I–IV, wynagrodzenie wykonawcze (miesięczne).'}
+        </p>
+      </Section>
+
       {/* SECTION 1: Klient */}
       <Section title="Klient">
         <Grid2>
@@ -1040,7 +1144,80 @@ export default function OfferForm({
         </Field>
       </Section>
 
-      {/* SECTION 02a (reorg): Programy wsparcia — rekomendowany + alternatywne */}
+      {/* SECTION 02-loan: Produkt pożyczkowy — parametry ustawiane per oferta */}
+      {form.offerKind === 'loan' && (
+        <Section title="Produkt pożyczkowy (sekcja 02)">
+          <p style={hint}>
+            Parametry dotyczą tylko tej oferty (brak katalogu produktów). Pola opisowe — wpisz tak,
+            jak mają się pokazać klientowi, np. „od 2% w skali roku”, „do 84 mies.”.
+          </p>
+          <Grid2>
+            <Field label="Nazwa produktu *">
+              <input
+                type="text"
+                maxLength={200}
+                value={form.loanProductName}
+                onChange={(e) => update('loanProductName', e.target.value)}
+                placeholder="np. Pożyczka na inwestycje w MŚP"
+                style={input}
+              />
+            </Field>
+            <Field label="Oprocentowanie">
+              <input
+                type="text"
+                maxLength={120}
+                value={form.loanInterestRate}
+                onChange={(e) => update('loanInterestRate', e.target.value)}
+                placeholder="np. od 2% w skali roku"
+                style={input}
+              />
+            </Field>
+            <Field label="Okres spłaty">
+              <input
+                type="text"
+                maxLength={120}
+                value={form.loanTermMonths}
+                onChange={(e) => update('loanTermMonths', e.target.value)}
+                placeholder="np. do 84 mies."
+                style={input}
+              />
+            </Field>
+            <Field label="Karencja">
+              <input
+                type="text"
+                maxLength={120}
+                value={form.loanGraceMonths}
+                onChange={(e) => update('loanGraceMonths', e.target.value)}
+                placeholder="np. do 12 mies."
+                style={input}
+              />
+            </Field>
+            <Field label="Prowizja">
+              <input
+                type="text"
+                maxLength={120}
+                value={form.loanCommission}
+                onChange={(e) => update('loanCommission', e.target.value)}
+                placeholder="np. 0 zł"
+                style={input}
+              />
+            </Field>
+            <Field label="Wkład własny">
+              <input
+                type="text"
+                maxLength={120}
+                value={form.loanOwnContribution}
+                onChange={(e) => update('loanOwnContribution', e.target.value)}
+                placeholder="np. brak wymogu"
+                style={input}
+              />
+            </Field>
+          </Grid2>
+        </Section>
+      )}
+
+      {/* SECTION 02a (reorg): Programy wsparcia — rekomendowany + alternatywne (tylko dotacja) */}
+      {form.offerKind === 'grant' && (
       <Section title="Programy wsparcia (Inne możliwości wsparcia)">
         <p style={hint}>
           Wybierz programy z biblioteki (<em>/admin/alt-programs</em>) i{' '}
@@ -1154,8 +1331,10 @@ export default function OfferForm({
           </div>
         )}
       </Section>
+      )}
 
-      {/* SECTION 02b (reorg): Opis rekomendowanego programu */}
+      {/* SECTION 02b (reorg): Opis rekomendowanego programu (tylko dotacja) */}
+      {form.offerKind === 'grant' && (
       <Section title="Opis rekomendowanego programu (na ofercie)">
         <p style={hint}>
           Pojawia się w sekcji „Rekomendujemy: <em>{form.altPrograms.find((p) => p.recommended)?.name || '<oznacz program jako rekomendowany>'}</em>”.
@@ -1168,11 +1347,12 @@ export default function OfferForm({
           minHeight={180}
         />
       </Section>
+      )}
 
       {/* SECTION 04a (reorg): Finanse */}
-      <Section title="Finanse projektu">
+      <Section title={form.offerKind === 'loan' ? 'Finansowanie (pożyczka)' : 'Finanse projektu'}>
         <Grid2>
-          <Field label="Wartość projektu (PLN) *">
+          <Field label={form.offerKind === 'loan' ? 'Kwota pożyczki (PLN) *' : 'Wartość projektu (PLN) *'}>
             <input
               type="number"
               required
@@ -1182,9 +1362,10 @@ export default function OfferForm({
               value={form.projectValue}
               onChange={(e) => update('projectValue', Number(e.target.value))}
               style={withAI('projectValue', input)}
-              placeholder="np. 3500000 lub 3500000.50"
+              placeholder={form.offerKind === 'loan' ? 'np. 500000' : 'np. 3500000 lub 3500000.50'}
             />
           </Field>
+          {form.offerKind === 'grant' && (
           <Field label={`Intensywność: ${(form.fundingRate * 100).toFixed(0)}%`}>
             <input
               type="range"
@@ -1196,6 +1377,8 @@ export default function OfferForm({
               style={{ width: '100%' }}
             />
           </Field>
+          )}
+          {form.offerKind === 'grant' && (
           <Field label="Liczba projektów">
             <select
               value={form.projectCount}
@@ -1209,6 +1392,8 @@ export default function OfferForm({
               ))}
             </select>
           </Field>
+          )}
+          {form.offerKind === 'grant' && (
           <Field label="Klient powracający">
             <label style={checkboxRow}>
               <input
@@ -1219,10 +1404,81 @@ export default function OfferForm({
               <span>Tak — rabat 20% na base fee</span>
             </label>
           </Field>
+          )}
         </Grid2>
       </Section>
 
-      {/* SECTION 04b: Pricing (live preview) */}
+      {/* SECTION 04b-loan: Wynagrodzenie za pożyczkę (live) */}
+      {form.offerKind === 'loan' && (
+        <Section title="Wynagrodzenie (pożyczka)">
+          <p style={hint}>
+            Opłata wstępna + wynagrodzenie wynikowe liczone od kwoty przyznanej pożyczki.
+            Bez wariantów i bez części miesięcznej. Domyślnie 4 000 zł + 1,5%.
+          </p>
+          <Grid2>
+            <Field label="Opłata wstępna (PLN)">
+              <input
+                type="number"
+                min={0}
+                step="any"
+                value={form.loanBaseFee}
+                onChange={(e) => update('loanBaseFee', Number(e.target.value))}
+                style={input}
+              />
+            </Field>
+            <Field label="Wynagrodzenie wynikowe (%)">
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step="any"
+                value={form.loanSfPct}
+                onChange={(e) => update('loanSfPct', Number(e.target.value))}
+                style={input}
+              />
+            </Field>
+          </Grid2>
+          <table style={tablePricing}>
+            <thead>
+              <tr>
+                <th style={thLeft}>Składnik</th>
+                <th style={thRight}>Kwota netto</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={td}>Opłata wstępna</td>
+                <td style={tdRight}>{fmtPLN(form.loanBaseFee || 0)}</td>
+              </tr>
+              <tr>
+                <td style={td}>
+                  Wynagrodzenie wynikowe ({(form.loanSfPct || 0).toFixed(2)}% z{' '}
+                  {fmtPLN(form.projectValue || 0)})
+                </td>
+                <td style={tdRight}>
+                  {fmtPLN(Math.round(((form.projectValue || 0) * (form.loanSfPct || 0)) / 100))}
+                </td>
+              </tr>
+              <tr style={rowSelected}>
+                <td style={td}>
+                  <strong>Razem</strong>
+                </td>
+                <td style={tdRight}>
+                  <strong>
+                    {fmtPLN(
+                      (form.loanBaseFee || 0) +
+                        Math.round(((form.projectValue || 0) * (form.loanSfPct || 0)) / 100),
+                    )}
+                  </strong>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </Section>
+      )}
+
+      {/* SECTION 04b: Pricing (live preview) — tylko dotacja */}
+      {form.offerKind === 'grant' && (
       <Section title="Pricing (live preview)">
         <div style={modeToggleRow}>
           <span style={{ fontSize: 13, color: '#6b7a92', fontWeight: 600 }}>Tryb cennika:</span>
@@ -1437,8 +1693,10 @@ export default function OfferForm({
           <p style={{ color: '#6b7a92', fontSize: 13 }}>Liczę pricing…</p>
         )}
       </Section>
+      )}
 
-      {/* SECTION 04c: Wynagrodzenie wykonawcze */}
+      {/* SECTION 04c: Wynagrodzenie wykonawcze — tylko dotacja (pożyczka nie ma części miesięcznej) */}
+      {form.offerKind === 'grant' && (
       <Section title="Wynagrodzenie wykonawcze (exec-fee)">
         <p style={hint}>
           Pojawia się pod tabelą wariantów na ofercie. Jeśli chcesz zachować
@@ -1489,6 +1747,7 @@ export default function OfferForm({
           />
         </Field>
       </Section>
+      )}
 
       {/* SECTION 04d (reorg): kafelek „Założenia oferty” i uwagi do wyceny */}
       <Section title="Kafelek „Założenia oferty” i uwagi do wyceny (sekcja 04)">

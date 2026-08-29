@@ -15,6 +15,17 @@
 // clientNip, clientIndustry, clientCompanySize, clientVoivodeship, projectValue,
 // fundingRate, returningClient, projectCount.
 export const TEMPLATE_FIELDS = [
+  // Typ oferty + parametry pożyczki (struktura oferty, nie dane klienta).
+  // Kwota pożyczki (projectValue) świadomie POMINIĘTA — jest per-klient.
+  'offerKind',
+  'loanBaseFee',
+  'loanSfPct',
+  'loanProductName',
+  'loanInterestRate',
+  'loanTermMonths',
+  'loanGraceMonths',
+  'loanCommission',
+  'loanOwnContribution',
   'programId',
   'programLabel',
   'programCustomName',
