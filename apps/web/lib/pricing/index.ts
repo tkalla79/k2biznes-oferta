@@ -67,10 +67,14 @@ const VARIANT_TEMPLATE: Array<{
     id: 'II',
     name: 'Wariant II',
     tag: 'Rozłożony SF',
+    // Kolejnosc chronologiczna: umowa o dofinansowanie jest podpisywana PRZED
+    // zaliczka i refundacja, bo to ona je uruchamia. Wczesniej rata "przy
+    // zaliczce / refundacji" stala przed rata "po podpisaniu umowy", co
+    // sugerowalo klientowi niemozliwa sekwencje (uwaga z pilotazu 2026-08).
     payment: [
       { pct: 50, when: 'po ogłoszeniu wyników' },
-      { pct: 25, when: 'przy zaliczce / refundacji' },
       { pct: 25, when: 'po podpisaniu umowy' },
+      { pct: 25, when: 'przy zaliczce / refundacji' },
     ],
   },
   {

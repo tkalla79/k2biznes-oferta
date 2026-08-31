@@ -1097,7 +1097,8 @@ export function calcPricing(
       payment: [{ pct: 50, when: 'po ogłoszeniu wyników' }, { pct: 50, when: 'po podpisaniu umowy' }],
       sfAmount: 0, total: 0 },
     { id: 'II', name: 'Wariant II', tag: 'Rozłożony SF', sfPct: segment.sfVariant2, base, monthly: segment.monthlyFee,
-      payment: [{ pct: 50, when: 'po ogłoszeniu wyników' }, { pct: 25, when: 'przy zaliczce / refundacji' }, { pct: 25, when: 'po podpisaniu umowy' }],
+      // Kolejność chronologiczna: umowa podpisywana PRZED zaliczką/refundacją.
+      payment: [{ pct: 50, when: 'po ogłoszeniu wyników' }, { pct: 25, when: 'po podpisaniu umowy' }, { pct: 25, when: 'przy zaliczce / refundacji' }],
       sfAmount: 0, total: 0 },
     { id: 'III', name: 'Wariant III', tag: '12 rat', sfPct: segment.sfVariant3, base, monthly: segment.monthlyFee,
       payment: [{ pct: 25, when: 'po ogłoszeniu wyników' }, { pct: 25, when: 'po podpisaniu umowy' }, { pct: 50, when: 'w 12 ratach po umowie' }],
