@@ -25,7 +25,7 @@ import ProcessTimeline from './ProcessTimeline';
 import AcceptForm from './AcceptForm';
 import PricingVariants from './PricingVariants';
 import LoanPricing from './LoanPricing';
-import { sanitizeRichText } from '@/lib/richtext';
+import { sanitizeRichText, sanitizeProse } from '@/lib/richtext';
 import { resolveLoanPricing } from '@/lib/pricing/loan';
 import type { LoanPricingResult } from '@/lib/pricing';
 import {
@@ -265,6 +265,10 @@ export default async function OfferPage({ params, searchParams }: Props) {
     ? content.calcBullets.filter((b) => typeof b === 'string' && b.trim() !== '')
     : [];
   const programDescriptionHtml = sanitizeRichText(content.programDescription);
+  // Sekcja 01: akapity + wyroznienia. Wczesniej jeden <p> z pre-wrap wpadal w
+  // `columns: 2`, wiec dluzszy opis lamal sie w polowie zdania na dwie kolumny
+  // i czytal sie jak sciana prozy (uwagi z pilotazu 2026-08).
+  const recommendationBasisHtml = sanitizeProse(content.recommendationBasis);
   const altPrograms =
     Array.isArray(content.altPrograms) && content.altPrograms.length > 0
       ? content.altPrograms
@@ -395,10 +399,11 @@ export default async function OfferPage({ params, searchParams }: Props) {
           </div>
           {/* N1 (2026-07-15): sekcja 01 = „Zdiagnozowane potrzeby i podstawa
               rekomendacji" na 2 kolumny. Powitanie (intro) i 4 punkty usunięte. */}
-          {content.recommendationBasis?.trim() && (
-            <div className="reco-basis">
-              <p style={{ whiteSpace: 'pre-wrap' }}>{content.recommendationBasis}</p>
-            </div>
+          {recommendationBasisHtml && (
+            <div
+              className="reco-basis"
+              dangerouslySetInnerHTML={{ __html: recommendationBasisHtml }}
+            />
           )}
         </section>
 

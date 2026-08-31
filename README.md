@@ -85,9 +85,13 @@ OFERTA_APP/
 Aktualna struktura treści oferty (po pilotażu UX, PR #75–#80). Widok klienta ma 8 sekcji;
 formularz administratora układa pola w **tej samej kolejności co sekcje oferty**.
 
-**Sekcja 01 — Wprowadzenie:** dwie kolumny — po lewej *zdiagnozowane potrzeby klienta*,
-po prawej *merytoryczna podstawa rekomendacji* (pole `recommendationBasis`, limit 1500 znaków).
-Usunięto dawny wstęp (`intro`) i 4 stałe punkty potrzeb.
+**Sekcja 01 — Wprowadzenie:** jeden blok *zdiagnozowanych potrzeb i podstawy rekomendacji*
+(pole `recommendationBasis`), edytowany **edytorem tekstu** — akapity, pogrubienia, listy.
+Renderuje się w jednej kolumnie o czytelnej mierze, z czerwoną belką z lewej, tak samo jak
+blok programu w sekcji 02. Do sierpnia 2026 było to pole tekstowe bez wyróżnień rzucane
+w `columns: 2`, co łamało dłuższy opis w połowie zdania. Starsze oferty z czystym tekstem
+renderują się dalej poprawnie (`sanitizeProse`). Usunięto dawny wstęp (`intro`) i 4 stałe
+punkty potrzeb.
 
 **Sekcja 02 — Proponowane rozwiązanie:** program rekomendowany renderuje się jako wyróżniony
 kafelek (badge „Rekomendowany”), pod nim jego opis, a niżej pozostałe programy wsparcia.
