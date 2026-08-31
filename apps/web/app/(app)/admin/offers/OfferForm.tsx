@@ -427,6 +427,12 @@ export default function OfferForm({
   const [aiFilled, setAiFilled] = useState<Set<string>>(new Set());
   const withAI = (key: string, base: React.CSSProperties): React.CSSProperties =>
     aiFilled.has(key) ? { ...base, boxShadow: '0 0 0 2px #ffd54a', borderColor: '#f0b400' } : base;
+  // Ten sam marker „uzupelnione przez AI" dla pol, ktore nie sa <input> —
+  // RichTextEditor nie przyjmuje `style`, wiec podswietlamy jego wrapper.
+  const aiHighlight: React.CSSProperties = {
+    boxShadow: '0 0 0 2px #ffd54a',
+    borderRadius: 8,
+  };
   // Wynik ostatniej ekstrakcji do panelu podsumowania (transparentność „sprawdź").
   const [draftResult, setDraftResult] = useState<{
     filled: string[];
@@ -1135,15 +1141,18 @@ export default function OfferForm({
 
       {/* SECTION 01 (reorg 2026-07-15): Wprowadzenie — zdiagnozowane potrzeby i podstawa rekomendacji */}
       <Section title="Wprowadzenie — zdiagnozowane potrzeby i podstawa rekomendacji (sekcja 01)">
-        <Field label="Zdiagnozowane potrzeby i podstawa rekomendacji (sekcja 01, tekst na 2 kolumny) — puste = pusta sekcja 01">
-          <textarea
-            value={form.recommendationBasis}
-            onChange={(e) => update('recommendationBasis', e.target.value)}
-            style={withAI('recommendationBasis', textarea)}
-            rows={5}
-            maxLength={2000}
-            placeholder="Opisz realne, zdiagnozowane potrzeby klienta i merytoryczną podstawę, z której wynika rekomendacja działania…"
-          />
+        <Field label="Zdiagnozowane potrzeby i podstawa rekomendacji (sekcja 01) — puste = pusta sekcja 01">
+          {/* Edytor tekstu zamiast textarea: sekcja 01 potrzebowala akapitow i
+              pogrubien (uwagi z pilotazu 2026-08). Stare oferty z czystym
+              tekstem renderuja sie dalej poprawnie — patrz sanitizeProse. */}
+          <div style={aiFilled.has('recommendationBasis') ? aiHighlight : undefined}>
+            <RichTextEditor
+              value={form.recommendationBasis}
+              onChange={(html) => update('recommendationBasis', html)}
+              placeholder="Opisz realne, zdiagnozowane potrzeby klienta i merytoryczną podstawę, z której wynika rekomendacja działania — pogrub to, co ma wpaść w oko."
+              minHeight={200}
+            />
+          </div>
         </Field>
       </Section>
 
