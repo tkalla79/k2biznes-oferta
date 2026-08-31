@@ -29,6 +29,11 @@ type Props = {
   gdprText: string;
   /** Disabled-mode: pokazujemy formularz w trybie podglądu (preview konsultanta). */
   previewOnly?: boolean;
+  /**
+   * Oferta pożyczkowa (offer_kind='loan'): brak wariantów i dofinansowania —
+   * podsumowanie mówi o kwocie pożyczki, a nie o wartości projektu i intensywności.
+   */
+  isLoan?: boolean;
 };
 
 const fmt = (n: number) =>
@@ -51,6 +56,7 @@ export default function AcceptForm({
   gdprClauseVersion,
   gdprText,
   previewOnly = false,
+  isLoan = false,
 }: Props) {
   const [variant, setVariant] = useState<Variant>(defaultVariant);
   const currentVariant = useMemo(
@@ -121,8 +127,13 @@ export default function AcceptForm({
         <h2>Oferta zaakceptowana</h2>
         <p>
           Dziękujemy za zaufanie. Skontaktujemy się w&nbsp;ciągu <strong>1 dnia roboczego</strong>,
-          aby umówić podpisanie umowy. Numer oferty: <strong>{result.offerNumber}</strong>, wariant{' '}
-          <strong>{result.variant}</strong>.
+          aby umówić podpisanie umowy. Numer oferty: <strong>{result.offerNumber}</strong>
+          {!isLoan && (
+            <>
+              , wariant <strong>{result.variant}</strong>
+            </>
+          )}
+          .
         </p>
       </div>
     );
@@ -141,18 +152,27 @@ export default function AcceptForm({
             <dt>Numer oferty</dt>
             <dd>{summary.offerNumber}</dd>
           </div>
-          <div>
-            <dt>Wartość projektu</dt>
-            <dd>{fmt(summary.projectValue)}</dd>
-          </div>
-          <div>
-            <dt>Dofinansowanie ({Math.round(summary.fundingRate * 100)}%)</dt>
-            <dd>{fmt(summary.funding)}</dd>
-          </div>
-          <div>
-            <dt>Wybrany wariant</dt>
-            <dd>Wariant {currentVariant?.id ?? variant}</dd>
-          </div>
+          {isLoan ? (
+            <div>
+              <dt>Wnioskowana kwota pożyczki</dt>
+              <dd>{fmt(summary.projectValue)}</dd>
+            </div>
+          ) : (
+            <>
+              <div>
+                <dt>Wartość projektu</dt>
+                <dd>{fmt(summary.projectValue)}</dd>
+              </div>
+              <div>
+                <dt>Dofinansowanie ({Math.round(summary.fundingRate * 100)}%)</dt>
+                <dd>{fmt(summary.funding)}</dd>
+              </div>
+              <div>
+                <dt>Wybrany wariant</dt>
+                <dd>Wariant {currentVariant?.id ?? variant}</dd>
+              </div>
+            </>
+          )}
           <div>
             <dt>Opłata wstępna</dt>
             <dd>{fmt(currentVariant?.base ?? 0)}</dd>

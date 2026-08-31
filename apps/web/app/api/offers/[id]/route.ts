@@ -7,6 +7,7 @@ import { requireSession, type Session } from '@/lib/auth/session';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { calcPricing } from '@/lib/pricing';
+import { calcLoanPricing } from '@/lib/pricing/loan';
 import { loadPricing } from '@/lib/pricing/load';
 import { UpdateOfferInput, shouldRecalcSnapshot } from '@/lib/validation/offers';
 import { toOfferDto, type OfferRow } from '@/lib/offers/mapper';
@@ -86,16 +87,19 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     assertCanWriteOffer(session, before);
 
     const patch = UpdateOfferInput.parse(await req.json());
+    const kind = patch.offerKind ?? (before.offer_kind === 'loan' ? 'loan' : 'grant');
 
-    // Walidacja consistency (selectedVariant ⊂ offeredVariants)
-    const nextOffered = patch.offeredVariants ?? before.offered_variants;
-    const nextSelected = patch.selectedVariant ?? before.selected_variant;
-    if (!nextOffered.includes(nextSelected)) {
-      throw new ApiError(
-        'VALIDATION_ERROR',
-        '`selectedVariant` musi być w `offeredVariants`.',
-        422,
-      );
+    // Walidacja consistency (selectedVariant ⊂ offeredVariants) — tylko dotacja.
+    if (kind !== 'loan') {
+      const nextOffered = patch.offeredVariants ?? before.offered_variants;
+      const nextSelected = patch.selectedVariant ?? before.selected_variant;
+      if (!nextOffered.includes(nextSelected)) {
+        throw new ApiError(
+          'VALIDATION_ERROR',
+          '`selectedVariant` musi być w `offeredVariants`.',
+          422,
+        );
+      }
     }
 
     // Status: konsultant nie może go ręcznie zmieniać (przez dedykowane endpointy)
@@ -123,7 +127,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (patch.contactPersonId !== undefined) update.contact_person_id = patch.contactPersonId;
     if (patch.assignedConsultantId !== undefined)
       update.assigned_consultant_id = patch.assignedConsultantId;
-    if (patch.content !== undefined) update.content = patch.content as Json;
+    if (patch.offerKind !== undefined) {
+      update.offer_kind = patch.offerKind;
+      if (patch.offerKind === 'loan') update.funding_rate = null;
+    }
+    // content + loan: zmiana danych pożyczki jest scalana do content.loan.
+    let effContent: Record<string, unknown> | undefined =
+      patch.content !== undefined ? { ...patch.content } : undefined;
+    if (kind === 'loan' && patch.loan !== undefined) {
+      const base = effContent ?? ((before.content as Record<string, unknown>) ?? {});
+      effContent = { ...base, loan: patch.loan };
+    }
+    if (effContent !== undefined) update.content = effContent as Json;
     if (patch.pricingOverride !== undefined)
       update.pricing_override = patch.pricingOverride as unknown as Json;
     if (patch.status !== undefined) update.status = patch.status;
@@ -145,17 +160,42 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           409,
         );
       }
-      const { segments, config } = await loadPricing();
-      update.pricing_snapshot = calcPricing(
-        {
-          projectValue: patch.projectValue ?? Number(before.project_value),
-          fundingRate: patch.fundingRate ?? Number(before.funding_rate),
-          returningClient: patch.returningClient ?? before.returning_client,
-          projectCount: patch.projectCount ?? before.project_count,
-        },
-        segments,
-        config,
-      ) as unknown as Json;
+      if (kind === 'loan') {
+        const beforeLoan =
+          ((before.content as Record<string, unknown>)?.loan as
+            | { baseFee?: number; sfPct?: number }
+            | undefined) ?? {};
+        const loan = patch.loan ?? beforeLoan;
+        update.pricing_snapshot = calcLoanPricing({
+          loanAmount: patch.projectValue ?? Number(before.project_value),
+          baseFee: loan.baseFee,
+          sfPct: loan.sfPct,
+        }) as unknown as Json;
+      } else {
+        // Przelaczenie pozyczka -> dotacja: before.funding_rate jest NULL, wiec bez
+        // jawnej wartosci calcPricing dostalby 0 i rzucil surowy blad (500).
+        // Zwracamy czytelny 422.
+        const effFundingRate =
+          patch.fundingRate ?? (before.funding_rate == null ? null : Number(before.funding_rate));
+        if (effFundingRate == null || !(effFundingRate > 0)) {
+          throw new ApiError(
+            'VALIDATION_ERROR',
+            'Oferta dotacyjna wymaga intensywności dofinansowania (fundingRate).',
+            422,
+          );
+        }
+        const { segments, config } = await loadPricing();
+        update.pricing_snapshot = calcPricing(
+          {
+            projectValue: patch.projectValue ?? Number(before.project_value),
+            fundingRate: effFundingRate,
+            returningClient: patch.returningClient ?? before.returning_client,
+            projectCount: patch.projectCount ?? before.project_count,
+          },
+          segments,
+          config,
+        ) as unknown as Json;
+      }
     }
 
     const sb = createAdminClient();

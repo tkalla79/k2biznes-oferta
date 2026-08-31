@@ -44,7 +44,7 @@ Po otrzymaniu credentials z Etapu 1:
 # 1. Link nowy projekt
 SUPABASE_ACCESS_TOKEN=sbp_xxx supabase link --project-ref <NEW_REF>
 
-# 2. Push wszystkich migracji z supabase/migrations/ (16 na 2026-07-22)
+# 2. Push wszystkich migracji z supabase/migrations/ (17 na 2026-08-29)
 SUPABASE_ACCESS_TOKEN=sbp_xxx SUPABASE_DB_PASSWORD=<DB_PASS> \
   supabase db push --linked
 

@@ -185,3 +185,72 @@ export const FAQ_ITEMS = [
     a: 'Każda współpraca rozpoczyna się od podpisania NDA. Dane przechowujemy w zaszyfrowanej formie na serwerach zlokalizowanych w UE.',
   },
 ];
+
+// =============================================================================
+// Oferta pożyczkowa (offer_kind='loan') — teksty domyślne.
+//
+// Pożyczka to finansowanie ZWROTNE: inny język niż dotacja (decyzja pożyczkowa
+// zamiast oceny wniosku, karencja i oprocentowanie zamiast intensywności,
+// brak protestu i brak etapu rozliczania w modelu miesięcznym).
+// =============================================================================
+
+export const LOAN_SCOPE_PREP = [
+  {
+    t: 'Analiza potrzeb i zdolności pożyczkowej',
+    d: 'Weryfikujemy kondycję finansową firmy i dobieramy produkt oraz kwotę pod realną zdolność pożyczkową, tak aby wniosek miał szansę na pozytywną decyzję.',
+  },
+  {
+    t: 'Dobór instrumentu i struktury finansowania',
+    d: 'Analizujemy planowaną inwestycję pod kątem warunków produktu — zakresu kwalifikowanych wydatków, okresu spłaty i karencji — i proponujemy optymalną strukturę.',
+  },
+  {
+    t: 'Opracowanie kompletnej dokumentacji',
+    d: 'Przygotowujemy wniosek o udzielenie pożyczki wraz z załącznikami, biznesplanem, prognozami finansowymi i harmonogramem inwestycji.',
+  },
+  {
+    t: 'Prowadzenie sprawy do decyzji',
+    d: 'Odpowiadamy na pytania instytucji finansującej, uzupełniamy dokumenty i prowadzimy sprawę aż do decyzji pożyczkowej.',
+  },
+  {
+    t: 'Przygotowanie do umowy',
+    d: 'Po pozytywnej decyzji pomagamy skompletować dokumenty niezbędne do podpisania umowy pożyczki i uruchomienia środków.',
+  },
+];
+
+export const LOAN_PROCESS = [
+  { t: 'Spotkanie z klientem', d: 'Omawiamy planowaną inwestycję, potrzeby finansowe i zakres współpracy.' },
+  { t: 'Wysłanie oferty', d: 'Do 2 dni roboczych po spotkaniu klient otrzymuje spersonalizowaną ofertę.' },
+  { t: 'Akceptacja oferty', d: 'Klient potwierdza zakres współpracy i gotowość do podpisania umowy.' },
+  { t: 'Wniosek o pożyczkę', d: 'Kompletujemy dokumentację i składamy wniosek do instytucji finansującej.' },
+  {
+    t: 'Decyzja i wypłata środków',
+    d: 'Po pozytywnej decyzji pożyczkowej podpisywana jest umowa, a środki trafiają do firmy.',
+  },
+];
+
+export const LOAN_FAQ_ITEMS = [
+  {
+    q: 'Czym pożyczka różni się od dotacji?',
+    a: 'Pożyczkę trzeba zwrócić, ale na warunkach preferencyjnych — z niższym oprocentowaniem niż kredyt komercyjny i zwykle z karencją w spłacie kapitału. W zamian dostępność jest szersza i szybsza niż w konkursach dotacyjnych, a środki można przeznaczyć na inwestycję zaraz po podpisaniu umowy.',
+  },
+  {
+    q: 'Kiedy płacę wynagrodzenie wynikowe?',
+    a: 'Dopiero po pozytywnej decyzji pożyczkowej — liczone jest od kwoty faktycznie przyznanej pożyczki. Jeśli pożyczka nie zostanie przyznana, wynagrodzenie wynikowe nie jest należne; opłata wstępna pokrywa koszt przygotowania dokumentacji.',
+  },
+  {
+    q: 'Ile trwa proces do decyzji?',
+    a: 'Zwykle od kilku do kilkunastu tygodni — zależnie od kompletności dokumentów po stronie firmy oraz od instytucji finansującej. Prowadzimy sprawę do końca i informujemy o każdym etapie.',
+  },
+  {
+    q: 'Jakie dokumenty będą potrzebne?',
+    a: 'Przede wszystkim sprawozdania finansowe, dokumenty rejestrowe firmy oraz opis i kosztorys planowanej inwestycji. Pełną listę przekazujemy na starcie współpracy i pomagamy ją skompletować.',
+  },
+  {
+    q: 'Kto jest właścicielem dokumentacji po zakończeniu współpracy?',
+    a: 'Klient. Cała dokumentacja oraz materiały powstałe w ramach usługi są własnością klienta — przekazujemy je w formie edytowalnej.',
+  },
+  {
+    q: 'Jak wygląda ochrona danych i informacji poufnych?',
+    a: 'Każda współpraca rozpoczyna się od podpisania NDA. Dane przechowujemy w zaszyfrowanej formie na serwerach zlokalizowanych w UE.',
+  },
+];

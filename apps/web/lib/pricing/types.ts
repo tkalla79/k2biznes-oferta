@@ -59,3 +59,25 @@ export type PricingResult = {
   base: number;
   variants: PricingVariant[];
 };
+
+// =============================================================================
+// Pożyczki (tryb `loan`) — opłata wstępna + % od kwoty pożyczki, bez wariantów.
+// =============================================================================
+
+export type LoanPricingInput = {
+  loanAmount: number;
+  baseFee?: number; // domyślnie LOAN_BASE_FEE (4000)
+  sfPct?: number; // 0..1, domyślnie LOAN_SF_PCT (0.015)
+};
+
+export type LoanPricingResult = {
+  kind: 'loan';
+  loanAmount: number;
+  baseFee: number;
+  sfPct: number;
+  sfAmount: number; // sfPct * loanAmount
+  total: number; // baseFee + sfAmount
+};
+
+/** Snapshot cennika oferty: dotacyjny (segmentowy) albo pożyczkowy. */
+export type OfferPricingResult = PricingResult | LoanPricingResult;

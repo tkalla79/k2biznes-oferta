@@ -13,6 +13,8 @@ Spina rozproszone runbooks w jedną nawigowalną dokumentację.
 
 **Architektura w jednym zdaniu:** konsultant K2 loguje się do `/admin/*` (MFA wymagane), tworzy ofertę, wysyła linkiem klientowi → klient otwiera `/o/[token]` anonimowo, akceptuje online → konsultant widzi `accepted` w panelu.
 
+**Dwa typy oferty** (kolumna `offers.offer_kind`): **dotacja** (`grant`, domyślna — silnik segmentowy, warianty I–IV, część miesięczna) oraz **pożyczka** (`loan` — opłata wstępna + % od kwoty pożyczki, jeden wariant, bez części miesięcznej). Typ wybiera się na górze formularza oferty; steruje polami w panelu i układem u klienta.
+
 **Stack:**
 - **Frontend + backend** w jednym: Next.js 14 App Router + TypeScript strict
 - **DB + Auth + Storage:** Supabase Cloud (Postgres 17, eu-central-1, project `yuyyejwnryuynbosqwwa`)
@@ -69,7 +71,7 @@ Spina rozproszone runbooks w jedną nawigowalną dokumentację.
 ### Kluczowe tabele DB (per BACKEND_SPEC sekcja 3)
 
 - `profiles` — userzy + role (super_admin / admin / consultant)
-- `offers` — wszystkie oferty (snapshot + override pricing, content jsonb)
+- `offers` — wszystkie oferty (snapshot + override pricing, content jsonb). Kolumna `offer_kind` = `grant` (dotacja) lub `loan` (pożyczka); dla pożyczki `funding_rate` jest NULL, a kwota pożyczki siedzi w `project_value`, stawki i parametry produktu w `content.loan`
 - `pricing_segments` — 5 progów wartości projektu (s500k → s5mplus)
 - `pricing_config` — discounty + floor values
 - `programs` — katalog 8 programów dotacyjnych
@@ -335,6 +337,27 @@ w ofercie"), nie tutaj.
   może ją nadpisać per-rekord (`content.altPrograms`).
 - `/admin/templates` — zapisane zestawy treści/ustawień do szybkiego startu
   nowej oferty.
+
+### Oferta pożyczkowa (tryb `loan`)
+
+Na górze formularza oferty jest przełącznik **Typ oferty: Dotacja | Pożyczka**.
+
+- **Pożyczka** chowa pola dotacyjne (intensywność, liczba projektów, klient
+  powracający, biblioteka programów, warianty I–IV, wynagrodzenie wykonawcze),
+  a pokazuje: nazwę produktu pożyczkowego + parametry (oprocentowanie, okres
+  spłaty, karencja, prowizja, wkład własny), kwotę pożyczki i cennik.
+- **Cennik**: opłata wstępna (domyślnie 4 000 zł) + wynagrodzenie wynikowe
+  (domyślnie 1,5 % kwoty pożyczki). Obie wartości edytowalne per oferta —
+  w praktyce negocjowane.
+- **Parametry produktu ustawiane są per oferta** — nie ma katalogu produktów
+  pożyczkowych (warunki funduszy zmieniają się między naborami).
+- U klienta oferta renderuje się innym układem: karta produktu z warunkami
+  finansowania (sekcja 02), cennik bez wariantów (sekcja 04), zakres i FAQ w
+  języku finansowania zwrotnego, akceptacja bez wyboru wariantu.
+- Oferty pożyczkowe **nie wchodzą** do pipeline/prognozy na `/admin` (v1) —
+  dashboard liczy tylko dotacje.
+
+Techniczne szczegóły (schemat, snapshot, akceptacja): BACKEND_SPEC sekcje 3.2.3 i 6.2.
 
 ### Regeneracja sekretów (rotacja co 90 dni)
 

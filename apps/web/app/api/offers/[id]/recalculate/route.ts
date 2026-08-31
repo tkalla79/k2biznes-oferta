@@ -12,6 +12,7 @@ import { requireSession } from '@/lib/auth/session';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { calcPricing } from '@/lib/pricing';
+import { calcLoanPricing, isLoanPricing } from '@/lib/pricing/loan';
 import { loadPricing } from '@/lib/pricing/load';
 import { toOfferDto } from '@/lib/offers/mapper';
 import { deletePdfsForOffer } from '@/lib/pdf/storage';
@@ -47,17 +48,31 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
       }
     }
 
-    const { segments, config } = await loadPricing({ forceRefresh: true });
-    const snapshot = calcPricing(
-      {
-        projectValue: Number(before.project_value),
-        fundingRate: Number(before.funding_rate),
-        returningClient: before.returning_client,
-        projectCount: before.project_count,
-      },
-      segments,
-      config,
-    );
+    const isLoan = before.offer_kind === 'loan';
+    let snapshot;
+    if (isLoan) {
+      const loan =
+        ((before.content as Record<string, unknown>)?.loan as
+          | { baseFee?: number; sfPct?: number }
+          | undefined) ?? {};
+      snapshot = calcLoanPricing({
+        loanAmount: Number(before.project_value),
+        baseFee: loan.baseFee,
+        sfPct: loan.sfPct,
+      });
+    } else {
+      const { segments, config } = await loadPricing({ forceRefresh: true });
+      snapshot = calcPricing(
+        {
+          projectValue: Number(before.project_value),
+          fundingRate: Number(before.funding_rate),
+          returningClient: before.returning_client,
+          projectCount: before.project_count,
+        },
+        segments,
+        config,
+      );
+    }
 
     const { data: updated, error: e1 } = await sb
       .from('offers')
@@ -72,13 +87,17 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
       console.error('[recalc] pdf invalidation failed:', e.message),
     );
 
+    const snapMeta = isLoanPricing(snapshot)
+      ? { kind: 'loan', total: snapshot.total }
+      : { kind: 'grant', segment: snapshot.segment.id, base: snapshot.base };
+
     await Promise.allSettled([
       sb.from('offer_events').insert({
         offer_id: updated.id,
         type: 'updated',
         actor_id: session.userId,
         actor_type: session.role === 'consultant' ? 'consultant' : 'admin',
-        payload: { reason: 'recalculate', segment: snapshot.segment.id },
+        payload: { reason: 'recalculate', ...snapMeta },
       }),
       logAudit({
         action: 'offer.recalculate',
@@ -86,8 +105,8 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
         resourceId: updated.id,
         actorId: session.userId,
         actorEmail: session.email,
-        before: { funding: Number(before.project_value) * Number(before.funding_rate) },
-        after: { segment: snapshot.segment.id, base: snapshot.base },
+        before: { offerKind: before.offer_kind },
+        after: snapMeta,
       }),
     ]);
 

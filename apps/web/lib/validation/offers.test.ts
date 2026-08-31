@@ -203,3 +203,18 @@ describe('SORT_FIELDS whitelist', () => {
     expect(SORT_FIELDS.has('pricingSnapshot')).toBe(false);
   });
 });
+
+describe('shouldRecalcSnapshot — zmiana typu oferty', () => {
+  it('zmiana offerKind wymusza przeliczenie snapshotu', () => {
+    expect(shouldRecalcSnapshot({ offerKind: 'loan' })).toBe(true);
+    expect(shouldRecalcSnapshot({ offerKind: 'grant' })).toBe(true);
+  });
+
+  it('zmiana danych pożyczki wymusza przeliczenie', () => {
+    expect(shouldRecalcSnapshot({ loan: { baseFee: 2000, sfPct: 0.02 } })).toBe(true);
+  });
+
+  it('zmiana samej treści nie wymusza przeliczenia', () => {
+    expect(shouldRecalcSnapshot({ content: { notes: 'x' } })).toBe(false);
+  });
+});

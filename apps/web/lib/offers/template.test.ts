@@ -8,6 +8,15 @@ const mockForm = {
   clientIndustry: 'produkcja',
   clientCompanySize: 'small',
   clientVoivodeship: 'opolskie',
+  offerKind: 'grant',
+  loanBaseFee: 4000,
+  loanSfPct: 1.5,
+  loanProductName: '',
+  loanInterestRate: '',
+  loanTermMonths: '',
+  loanGraceMonths: '',
+  loanCommission: '',
+  loanOwnContribution: '',
   projectValue: 4_000_000,
   fundingRate: 0.65,
   returningClient: true,
@@ -38,6 +47,15 @@ const blank = {
   clientIndustry: '',
   clientCompanySize: '',
   clientVoivodeship: '',
+  offerKind: 'grant',
+  loanBaseFee: 4000,
+  loanSfPct: 1.5,
+  loanProductName: '',
+  loanInterestRate: '',
+  loanTermMonths: '',
+  loanGraceMonths: '',
+  loanCommission: '',
+  loanOwnContribution: '',
   projectValue: 3_000_000,
   fundingRate: 0.7,
   returningClient: false,
@@ -117,5 +135,37 @@ describe('applyTemplate', () => {
     const form = applyTemplate(blank, { programLabel: 'X', __obce: 'hack' } as Record<string, unknown>);
     expect(form.programLabel).toBe('X');
     expect(form).not.toHaveProperty('__obce');
+  });
+});
+
+describe('szablon pożyczkowy', () => {
+  const loanForm = {
+    ...mockForm,
+    offerKind: 'loan',
+    projectValue: 500_000, // kwota pożyczki — per klient, NIE do szablonu
+    loanBaseFee: 4000,
+    loanSfPct: 1.5,
+    loanProductName: 'Pożyczka na inwestycje w MŚP',
+    loanInterestRate: 'od 2% w skali roku',
+    loanTermMonths: 'do 84 mies.',
+    loanGraceMonths: 'do 12 mies.',
+    loanCommission: '0 zł',
+    loanOwnContribution: 'brak wymogu',
+  };
+  it('zapisuje typ oferty i parametry produktu, ale nie kwotę pożyczki', () => {
+    const t = extractTemplate(loanForm);
+    expect(t.offerKind).toBe('loan');
+    expect(t.loanProductName).toBe('Pożyczka na inwestycje w MŚP');
+    expect(t.loanSfPct).toBe(1.5);
+    expect(t).not.toHaveProperty('projectValue'); // kwota jest per-klient
+  });
+
+  it('po nałożeniu na blank oferta wraca jako pożyczka z parametrami', () => {
+    const form = applyTemplate(blank, extractTemplate(loanForm));
+    expect(form.offerKind).toBe('loan');
+    expect(form.loanInterestRate).toBe('od 2% w skali roku');
+    expect(form.loanBaseFee).toBe(4000);
+    expect(form.projectValue).toBe(3_000_000); // z blanku, nie z szablonu
+    expect(form.clientName).toBe('');
   });
 });

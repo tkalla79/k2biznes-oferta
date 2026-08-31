@@ -19,7 +19,11 @@ export default function ScopeAccordion({
 }) {
   const [tab, setTab] = useState<'prep' | 'exec'>('prep');
   const [open, setOpen] = useState<number>(0);
-  const list = tab === 'prep' ? prep : exec;
+  // Oferta pożyczkowa nie ma etapu obsługi/rozliczania (brak części miesięcznej)
+  // — przy pustym `exec` chowamy tę zakładkę zamiast pokazywać pustą listę.
+  const hasExec = exec.length > 0;
+  const activeTab = hasExec ? tab : 'prep';
+  const list = activeTab === 'prep' ? prep : exec;
 
   // Tryb PDF/print: oba zakresy (przygotowanie + obsługa) w całości rozwinięte —
   // klikalne taby/akordeon renderowałyby w DOM tylko aktywny tab.
@@ -28,7 +32,9 @@ export default function ScopeAccordion({
       <div className="scope-print">
         {[
           { title: 'Przygotowanie dokumentacji', tag: 'w cenie oferty', items: prep },
-          { title: 'Obsługa i rozliczanie projektu', tag: 'opcjonalne', items: exec },
+          ...(hasExec
+            ? [{ title: 'Obsługa i rozliczanie projektu', tag: 'opcjonalne', items: exec }]
+            : []),
         ].map((block) => (
           <div className="scope-print-block" key={block.title}>
             <h3 className="scope-print-h">
@@ -58,7 +64,7 @@ export default function ScopeAccordion({
       <div className="tabs">
         <button
           type="button"
-          className={tab === 'prep' ? 'on' : ''}
+          className={activeTab === 'prep' ? 'on' : ''}
           onClick={() => {
             setTab('prep');
             setOpen(0);
@@ -68,21 +74,23 @@ export default function ScopeAccordion({
           <span className="tab-label">Przygotowanie dokumentacji</span>
           <span className="tab-tag">w cenie oferty</span>
         </button>
-        <button
-          type="button"
-          className={tab === 'exec' ? 'on' : ''}
-          onClick={() => {
-            setTab('exec');
-            setOpen(0);
-          }}
-        >
-          <span className="tab-num">02</span>
-          <span className="tab-label">Obsługa i rozliczanie projektu</span>
-          <span className="tab-tag opt">opcjonalne</span>
-        </button>
+        {hasExec && (
+          <button
+            type="button"
+            className={activeTab === 'exec' ? 'on' : ''}
+            onClick={() => {
+              setTab('exec');
+              setOpen(0);
+            }}
+          >
+            <span className="tab-num">02</span>
+            <span className="tab-label">Obsługa i rozliczanie projektu</span>
+            <span className="tab-tag opt">opcjonalne</span>
+          </button>
+        )}
       </div>
       <div className="scope-intro">
-        {tab === 'prep' ? (
+        {activeTab === 'prep' ? (
           <p>Szczegółowy zakres prac na etapie przygotowania kompletnej dokumentacji aplikacyjnej dla Projektu.</p>
         ) : (
           <p>
@@ -93,7 +101,7 @@ export default function ScopeAccordion({
       </div>
       <ul className="scope-list">
         {list.map((s, i) => (
-          <li key={`${tab}-${i}`} className={open === i ? 'open' : ''}>
+          <li key={`${activeTab}-${i}`} className={open === i ? 'open' : ''}>
             <button
               type="button"
               className="scope-head"

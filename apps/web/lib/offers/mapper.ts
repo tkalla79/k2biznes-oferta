@@ -5,6 +5,7 @@
  */
 import type { Database } from '@k2/database/types';
 import type { PricingResult } from '@/lib/pricing';
+import { isLoanPricing } from '@/lib/pricing/loan';
 import { applyOverride, parsePricingOverride, type PricingOverride } from '@/lib/pricing/override';
 import { publicStorageUrl } from '@/lib/storage';
 
@@ -28,15 +29,18 @@ export type OfferDto = {
   clientCompanySize: string | null;
   clientVoivodeship: string | null;
 
+  offerKind: 'grant' | 'loan';
+
   programId: string | null;
   programLabel: string;
   programCustomName: string | null;
 
   projectValue: number;
-  fundingRate: number;
+  fundingRate: number; // dla pożyczki (loan) = 0 (funding_rate w DB = null)
   returningClient: boolean;
   projectCount: number;
 
+  // Dla loan wartość ma kształt LoanPricingResult (kind:'loan') — rozróżniaj przez isLoanPricing.
   pricingSnapshot: PricingResult;
   pricingOverride: PricingOverride | null;
 
@@ -88,12 +92,14 @@ export function toOfferDto(row: OfferRow, appUrl: string): OfferDto {
     clientCompanySize: row.client_company_size,
     clientVoivodeship: row.client_voivodeship,
 
+    offerKind: (row.offer_kind === 'loan' ? 'loan' : 'grant'),
+
     programId: row.program_id,
     programLabel: row.program_label,
     programCustomName: row.program_custom_name,
 
     projectValue: Number(row.project_value),
-    fundingRate: Number(row.funding_rate),
+    fundingRate: Number(row.funding_rate ?? 0),
     returningClient: row.returning_client,
     projectCount: row.project_count,
 
@@ -249,8 +255,11 @@ export function toPublicOfferDto(
 ): PublicOfferDto {
   const full = toOfferDto(row, '');
   // Apply override przed wystawieniem publicznym — klient widzi finalne wartości,
-  // nie rozróżnia auto-calc vs ręczne (sekcja 6.5 spec).
-  const renderedSnapshot = applyOverride(full.pricingSnapshot, full.pricingOverride);
+  // nie rozróżnia auto-calc vs ręczne (sekcja 6.5 spec). Pożyczka (loan) nie ma
+  // wariantów ani override — snapshot idzie bez zmian.
+  const renderedSnapshot = isLoanPricing(full.pricingSnapshot)
+    ? full.pricingSnapshot
+    : applyOverride(full.pricingSnapshot, full.pricingOverride);
   const {
     createdBy: _createdBy,
     assignedConsultantId: _assignedConsultantId,

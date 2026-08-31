@@ -28,8 +28,12 @@ export type WebhookOfferPayload = {
     clientNip: string | null;
     clientIndustry: string | null;
     programLabel: string;
+    /** Typ oferty: dotacja vs pozyczka (kolumna offers.offer_kind). */
+    offerKind: 'grant' | 'loan';
     projectValue: number;
-    fundingRate: number;
+    /** null dla ofert pozyczkowych (intensywnosc dofinansowania nie wystepuje). */
+    fundingRate: number | null;
+    /** Dotacja: kwota dofinansowania. Pozyczka: wnioskowana kwota pozyczki. */
     funding: number;
     selectedVariant: string;
     acceptedVariant: string | null;

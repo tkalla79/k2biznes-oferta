@@ -18,6 +18,8 @@ export type OfferAcceptedConsultantProps = {
   clientCompanyName: string;
   programLabel: string;
   acceptedVariant: string;
+  /** Oferta pożyczkowa: brak wariantów — wiersz „Wybrany wariant" pomijany. */
+  isLoan?: boolean;
   acceptedFee: string;
   clientName: string;
   /** PR #3 review: nullable — guard renderowania linii email gdy klient nie podał. */
@@ -32,7 +34,8 @@ export default function OfferAcceptedConsultant(p: OfferAcceptedConsultantProps)
     <Html lang="pl">
       <Head />
       <Preview>
-        ✅ {p.offerNumber} zaakceptowana — {p.clientCompanyName}, wariant {p.acceptedVariant}
+        ✅ {p.offerNumber} zaakceptowana — {p.clientCompanyName}
+        {p.isLoan ? ' (pożyczka)' : `, wariant ${p.acceptedVariant}`}
       </Preview>
       <Body style={body}>
         <Container style={container}>
@@ -47,7 +50,7 @@ export default function OfferAcceptedConsultant(p: OfferAcceptedConsultantProps)
           <Section style={card}>
             <Row label="Klient" value={p.clientCompanyName} />
             <Row label="Program" value={p.programLabel} />
-            <Row label="Wybrany wariant" value={p.acceptedVariant} />
+            {!p.isLoan && <Row label="Wybrany wariant" value={p.acceptedVariant} />}
             <Row label="Success fee" value={p.acceptedFee} bold />
             <Row
               label="Akceptujący"

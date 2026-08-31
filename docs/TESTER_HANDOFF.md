@@ -68,7 +68,12 @@ Email: Resend (3000 maili / mc, free tier).
 ### Scenariusz 2: Podgląd draftu
 
 1. W `/admin/offers/[id]/edit` klik **"Podgląd (draft) ↗"** w prawym górnym rogu
-2. Otwiera nowe okno z `/o/<token>?__preview=1`
+2. Otwiera nowe okno z `/o/<token>?__preview=1` — **na tym samym hoście co panel**.
+   Sprawdź to w pasku adresu, jeśli testujesz na deploymencie preview Vercela.
+   Wcześniej link budowany był z `NEXT_PUBLIC_APP_URL`, więc z preview prowadził
+   na domenę produkcyjną i pokazywał ofertę renderowaną kodem z `main` — nowa
+   funkcja wyglądała wtedy na zepsutą, choć była poprawna (incydent 2026-08-31,
+   oferta pożyczkowa). Link absolutny (z env) zostaje tylko w mailach do klienta.
 3. Powinieneś zobaczyć:
    - Żółty banner "Podgląd wersji roboczej — klient nie widzi tej oferty…"
    - 9 sekcji: Wprowadzenie / Proponowane rozwiązanie / Zakres / Wycena /
@@ -186,6 +191,33 @@ Email: Resend (3000 maili / mc, free tier).
 6. Uwaga środowiskowa: bez `ANTHROPIC_API_KEY` przycisk zwraca komunikat o niedostępności (503) —
    to oczekiwane, nie bug.
 
+### Scenariusz 14: Oferta pożyczkowa (tryb `loan`)
+
+1. `/admin/offers/new` → na górze formularza przełącz **Typ oferty** na **Pożyczka**.
+2. Sprawdź, że **zniknęły** pola dotacyjne: intensywność, liczba projektów, klient
+   powracający, biblioteka programów, opis programu, tabela wariantów I–IV,
+   wynagrodzenie wykonawcze.
+3. Uzupełnij: nazwę firmy, **nazwę produktu pożyczkowego** (np. „Pożyczka na
+   inwestycje w MŚP"), **kwotę pożyczki** (np. 500 000) oraz parametry produktu
+   (oprocentowanie, okres spłaty, karencja, prowizja, wkład własny).
+4. W sekcji cennika sprawdź wyliczenie na żywo: przy domyślnych **4 000 zł + 1,5 %**
+   i kwocie 500 000 zł ma wyjść **7 500 zł** wynagrodzenia wynikowego i **11 500 zł**
+   razem. Zmień stawki (np. 2 000 zł / 2 %) — kwoty mają się przeliczyć od razu.
+5. Zapisz („Stwórz ofertę"). Otwórz **Podgląd** i sprawdź widok klienta:
+   - hero pokazuje **Produkt:** (nie „Program:"),
+   - sekcja 02 to **karta produktu** z warunkami finansowania (bez „Innych
+     możliwości wsparcia"),
+   - sekcja 03 nie ma zakładki „Obsługa i rozliczanie projektu",
+   - sekcja 04 to **jedna tabela** (opłata wstępna + wynagrodzenie wynikowe +
+     razem), bez wariantów i bez kwoty miesięcznej,
+   - sekcja 07 (FAQ) mówi o pożyczce (decyzja pożyczkowa, karencja), nie o dotacji.
+6. Wyślij ofertę do siebie i **zaakceptuj jako klient** (link w incognito):
+   formularz nie ma wyboru wariantu, podsumowanie pokazuje **kwotę pożyczki**
+   (nie „wartość projektu" i „dofinansowanie"), a po akceptacji status zmienia
+   się na `accepted`.
+7. **Regresja dotacji:** utwórz drugą ofertę z typem **Dotacja** i potwierdź, że
+   wszystko działa jak wcześniej (warianty, intensywność, exec-fee).
+
 ---
 
 ## 3. Znane ograniczenia / out of scope
@@ -293,10 +325,11 @@ Spec wraz z kontraktami API: `docs/BACKEND_SPEC.md`.
 | 2026-04-28 | MVP (PR #22) | Scenariusze 1-7 |
 | 2026-06-09 | po PR #44 | + Scenariusze 8-12: MFA, reset hasła+rate-limit, RODO flow, expires_at, email-failed marker |
 | 2026-07-22 | etap 3 (po PR #82) | Scalenie katalogów programów (Scenariusz 5), biblioteka programów wsparcia w tworzeniu oferty (Scenariusz 1), + Scenariusz 13: wypełnianie z transkrypcji (AI) |
+| 2026-08-29 | tryb pożyczkowy (PR #84) | + Scenariusz 14: oferta pożyczkowa (formularz, widok klienta, akceptacja) + regresja dotacji |
 
 Przy dodaniu nowej funkcji (nowy PR z user-facing zmianą) — dopisz scenariusz
 w sekcji 2 i bumpnij tę tabelę.
 
 ---
 
-**Wersja dokumentu**: 2026-07-22 · etap 3 (po PR #82)
+**Wersja dokumentu**: 2026-08-29 · tryb pożyczkowy (po PR #84)

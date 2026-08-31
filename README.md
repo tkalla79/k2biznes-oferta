@@ -113,6 +113,27 @@ oznacza je do sprawdzenia, nic nie zapisuje ani nie wysyła; transkryptu nie prz
 Wymaga `ANTHROPIC_API_KEY` w środowisku (dev: `.env.local`, prod: Vercel). Bez klucza endpoint
 zwraca `503`. Czysta normalizacja wyjścia modelu: [`lib/offers/draft.ts`](apps/web/lib/offers/draft.ts) (+ testy).
 
+## Tryb pożyczkowy (oferty na pożyczki preferencyjne)
+
+Obok ofert dotacyjnych narzędzie obsługuje **oferty pożyczkowe** — kolumna
+`offers.offer_kind` (`grant` | `loan`, domyślnie `grant`). Typ wybiera się na
+górze formularza oferty i steruje polami w panelu oraz układem u klienta.
+
+| | Dotacja (`grant`) | Pożyczka (`loan`) |
+|---|---|---|
+| Cennik | segmenty + warianty I–IV + część miesięczna | **opłata wstępna + % od kwoty pożyczki** |
+| Domyślne stawki | z `pricing_segments` | **4 000 zł + 1,5 %** (edytowalne per oferta) |
+| Warianty | I–IV, wybór przy akceptacji | jeden, bez wyboru |
+| Podstawa SF | wartość dofinansowania | **kwota przyznanej pożyczki** |
+| Katalog | biblioteka `alt_programs` | **parametry produktu per oferta** (bez katalogu) |
+
+Kwota pożyczki zapisywana jest w `project_value` (reużyta kolumna, `funding_rate`
+= NULL), a stawki i parametry produktu (oprocentowanie, okres spłaty, karencja,
+prowizja, wkład własny) w `content.loan`. Silnik: [`lib/pricing/loan.ts`](apps/web/lib/pricing/loan.ts)
+(+ testy). Szczegóły: [BACKEND_SPEC](docs/BACKEND_SPEC.md) sekcje 3.2.3 i 6.2.
+
+Statystyki i prognoza na `/admin` liczą **tylko dotacje** (v1).
+
 ## Quickstart
 
 ### Wymagania
