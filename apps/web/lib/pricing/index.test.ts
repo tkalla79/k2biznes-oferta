@@ -178,3 +178,30 @@ describe('expectedValue', () => {
     expect(() => expectedValue({ variant: r.variants[0], probability: 1.5 })).toThrow();
   });
 });
+
+describe('harmonogram platnosci wariantow', () => {
+  const r = calcPricing({ projectValue: 3_000_000, fundingRate: 0.6 }, SEGMENTS, CFG);
+  const when = (id: string) => r.variants.find((v) => v.id === id)!.payment.map((p) => p.when);
+
+  it('kazdy wariant sumuje sie do 100%', () => {
+    for (const v of r.variants) {
+      expect(v.payment.reduce((s, p) => s + p.pct, 0)).toBe(100);
+    }
+  });
+
+  it('wariant II: umowa PRZED zaliczka/refundacja (kolejnosc chronologiczna)', () => {
+    const w = when('II');
+    expect(w).toEqual([
+      'po ogłoszeniu wyników',
+      'po podpisaniu umowy',
+      'przy zaliczce / refundacji',
+    ]);
+    expect(w.indexOf('po podpisaniu umowy')).toBeLessThan(w.indexOf('przy zaliczce / refundacji'));
+  });
+
+  it('we wszystkich wariantach oglosznie wynikow jest pierwsze', () => {
+    for (const v of r.variants) {
+      expect(v.payment[0].when).toBe('po ogłoszeniu wyników');
+    }
+  });
+});
