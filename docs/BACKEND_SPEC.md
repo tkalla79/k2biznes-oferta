@@ -1194,12 +1194,27 @@ Snapshot pożyczkowy (`pricing_snapshot`) ma kształt:
 { "kind": "loan", "loanAmount": 500000, "baseFee": 4000, "sfPct": 0.015, "sfAmount": 7500, "total": 11500 }
 ```
 
-Rozróżnienie w kodzie: `isLoanPricing(snapshot)` (`lib/pricing/loan.ts`).
+Rozróżnienie w kodzie: **źródłem prawdy o typie oferty jest kolumna
+`offers.offer_kind`, nie kształt snapshotu.** `isLoanPricing(snapshot)` służy
+tylko do zawężenia typu, a `resolveLoanPricing(snapshot, projectValue)`
+odtwarza brakujące liczby (snapshot bywa niekompletny: oferta przełączona
+między typami, ręczna edycja, starsza oferta). Widok klienta i maile używają
+`resolveLoanPricing` — zamiast pokazać ofertę bez cennika albo wywalić render.
 
 **Akceptacja.** Endpoint `POST /api/public/offers/:token/accept` jest z założenia
 wariantowy. Dla pożyczki `accepted_fee = snapshot.total` (całe wynagrodzenie),
 a frontend wysyła pseudo-wariant `'I'` — dzięki temu kontrakt API i kolumny
 `accepted_variant` / `offered_variants` zostają bez zmian.
+
+**Mail „oferta wysłana".** `lib/email/summary.ts` (`buildOfferSummary`) buduje
+podsumowanie osobno dla obu modeli: dotacja to kwota dofinansowania +
+rekomendowany wariant, pożyczka to wnioskowana kwota pożyczki + łączne
+wynagrodzenie (wiersz „Rekomendowany wariant" znika z maila). Guard na
+niepoprawny snapshot obowiązuje tylko dotację — dla pożyczki brak `variants`
+jest normą, nie błędem.
+
+**Webhooki CRM.** Payload niesie `offerKind`; dla pożyczki `fundingRate=null`,
+a `funding` = wnioskowana kwota pożyczki (sekcja 10.3).
 
 **Poza zakresem v1:** oferty pożyczkowe nie wchodzą do statystyk i prognozy
 (`/api/stats/*` liczy pipeline dotacyjny — success fee od dofinansowania).
@@ -1424,7 +1439,10 @@ Webhook enqueuje się w `webhook_jobs` przy:
     "offerNumber": "K2/2026/04/012",
     "clientName": "...",
     "programLabel": "...",
+    "offerKind": "grant",
     "projectValue": 4000000,
+    "fundingRate": 0.7,
+    "funding": 2800000,
     "acceptedVariant": "II",
     "acceptedFee": 143000
   },
@@ -1438,6 +1456,15 @@ Webhook enqueuje się w `webhook_jobs` przy:
   }
 }
 ```
+
+`offerKind` rozstrzyga interpretację pól finansowych:
+
+| pole | `grant` (dotacja) | `loan` (pożyczka) |
+| --- | --- | --- |
+| `fundingRate` | intensywność dofinansowania (0,1–0,95) | `null` |
+| `funding` | kwota dofinansowania z `pricing_snapshot.funding` | wnioskowana kwota pożyczki (= `projectValue`) |
+| `acceptedVariant` | `I`–`IV` | zawsze `I` (pożyczka nie ma wariantów) |
+| `acceptedFee` | łączne wynagrodzenie wybranego wariantu | opłata wstępna + wynagrodzenie wynikowe |
 
 Headery wysyłane z requestem:
 ```

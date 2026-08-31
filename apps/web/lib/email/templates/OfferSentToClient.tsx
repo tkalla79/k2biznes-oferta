@@ -17,6 +17,11 @@ import {
 export type OfferSentToClientProps = {
   clientName: string;
   programLabel: string;
+  /**
+   * Oferta pożyczkowa (offers.offer_kind='loan'): brak wariantów i intensywności
+   * dofinansowania — inne etykiety podsumowania i inna zapowiedź treści oferty.
+   */
+  isLoan?: boolean;
   fundingAmount: string;
   variantName: string;
   variantTotal: string;
@@ -54,7 +59,7 @@ export default function OfferSentToClient(p: OfferSentToClientProps) {
             Dzień dobry,
           </Text>
           <Text style={paragraph}>
-            przesyłam ofertę na pozyskanie dofinansowania w programie{' '}
+            {p.isLoan ? 'przesyłam ofertę na pozyskanie finansowania zwrotnego: ' : 'przesyłam ofertę na pozyskanie dofinansowania w programie '}
             <strong>{p.programLabel}</strong>.
           </Text>
 
@@ -64,13 +69,17 @@ export default function OfferSentToClient(p: OfferSentToClientProps) {
 
           <Section style={summary}>
             <Text style={summaryRow}>
-              <span style={label}>Kwota dofinansowania:</span>
+              <span style={label}>
+                {p.isLoan ? 'Wnioskowana kwota pożyczki:' : 'Kwota dofinansowania:'}
+              </span>
               <span style={value}>{p.fundingAmount}</span>
             </Text>
-            <Text style={summaryRow}>
-              <span style={label}>Rekomendowany wariant:</span>
-              <span style={value}>{p.variantName}</span>
-            </Text>
+            {!p.isLoan && (
+              <Text style={summaryRow}>
+                <span style={label}>Rekomendowany wariant:</span>
+                <span style={value}>{p.variantName}</span>
+              </Text>
+            )}
             <Text style={summaryRow}>
               <span style={label}>Łączne wynagrodzenie:</span>
               <span style={value}>{p.variantTotal}</span>
@@ -84,9 +93,9 @@ export default function OfferSentToClient(p: OfferSentToClientProps) {
           </Section>
 
           <Text style={paragraph}>
-            W ofercie znajdą Państwo szczegółowy opis programu, trzy warianty
-            wynagrodzenia oraz nasze referencje. Można ją przeglądać w wygodnej
-            chwili
+            {p.isLoan
+              ? 'W ofercie znajdą Państwo warunki produktu, zakres naszych prac, wynagrodzenie oraz nasze referencje. Można ją przeglądać w wygodnej chwili'
+              : 'W ofercie znajdą Państwo szczegółowy opis programu, trzy warianty wynagrodzenia oraz nasze referencje. Można ją przeglądać w wygodnej chwili'}
             {p.expiresLabel
               ? ` — link jest aktywny do ${p.expiresLabel}.`
               : ' — link nie ma terminu ważności.'}

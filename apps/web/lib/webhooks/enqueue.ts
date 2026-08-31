@@ -99,6 +99,9 @@ async function buildPayload(args: {
     .eq('id', consultantId)
     .maybeSingle();
 
+  // Pozyczka nie ma segmentow/wariantow ani intensywnosci dofinansowania —
+  // `funding` niesie wnioskowana kwote pozyczki, `fundingRate` jest null.
+  const isLoan = offer.offer_kind === 'loan';
   const snapshot = offer.pricing_snapshot as unknown as PricingResult;
 
   const payload: WebhookOfferPayload = {
@@ -113,9 +116,10 @@ async function buildPayload(args: {
       clientNip: offer.client_nip,
       clientIndustry: offer.client_industry,
       programLabel: offer.program_label,
+      offerKind: isLoan ? 'loan' : 'grant',
       projectValue: Number(offer.project_value),
-      fundingRate: Number(offer.funding_rate),
-      funding: snapshot.funding,
+      fundingRate: isLoan || offer.funding_rate == null ? null : Number(offer.funding_rate),
+      funding: isLoan ? Number(offer.project_value) : snapshot.funding,
       selectedVariant: offer.selected_variant,
       acceptedVariant: offer.accepted_variant,
       acceptedFee: offer.accepted_fee == null ? null : Number(offer.accepted_fee),

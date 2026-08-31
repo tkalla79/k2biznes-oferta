@@ -15,7 +15,7 @@ import OfferSentToClient, {
 import OfferAcceptedConsultant from '@/lib/email/templates/OfferAcceptedConsultant';
 import OfferRejectedConsultant from '@/lib/email/templates/OfferRejectedConsultant';
 import type { OfferRow } from '@/lib/offers/mapper';
-import type { PricingResult } from '@/lib/pricing';
+import { buildOfferSummary } from './summary';
 import type { Json } from '@k2/database/types';
 
 const fmtPLN = (n: number) =>
@@ -76,15 +76,9 @@ export async function notifyClientOfferSent(args: {
   const { offer, recipientEmail, customMessage } = args;
   const sb = createAdminClient();
 
-  // Code review PR #3: guard na pricing_snapshot. Format jest typu jsonb i mimo
-  // że schema ma NOT NULL, tu defensywnie sprawdzamy strukturę przed castem.
-  const snapshotRaw = offer.pricing_snapshot;
-  if (
-    !snapshotRaw ||
-    typeof snapshotRaw !== 'object' ||
-    Array.isArray(snapshotRaw) ||
-    !Array.isArray((snapshotRaw as { variants?: unknown }).variants)
-  ) {
+  // Podsumowanie finansowe (dotacja vs pożyczka) — patrz buildOfferSummary.
+  const summary = buildOfferSummary(offer);
+  if (!summary) {
     console.error('[notifications] invalid pricing_snapshot for offer', offer.id);
     await logEmailEvent(offer.id, {
       outcome: 'failed',
@@ -94,7 +88,6 @@ export async function notifyClientOfferSent(args: {
     });
     return { ok: false, error: 'invalid pricing_snapshot — email nie został wysłany' };
   }
-  const snapshot = snapshotRaw as unknown as PricingResult;
 
   // Konsultant — z `assigned_consultant_id` lub `created_by`.
   const consultantId = offer.assigned_consultant_id ?? offer.created_by;
@@ -109,8 +102,6 @@ export async function notifyClientOfferSent(args: {
     console.warn('[notifications] no consultant profile for offer', offer.id, 'consultantId:', consultantId);
   }
 
-  const variant = snapshot.variants.find((v) => v.id === offer.selected_variant);
-
   // H6 audit: dynamiczny tekst wygaśnięcia zamiast hardkodowanego "30 dni".
   const expiresLabel = offer.expires_at
     ? new Date(offer.expires_at).toLocaleDateString('pl-PL', {
@@ -123,9 +114,10 @@ export async function notifyClientOfferSent(args: {
   const props: OfferSentToClientProps = {
     clientName: offer.client_name,
     programLabel: offer.program_label,
-    fundingAmount: fmtPLN(snapshot.funding),
-    variantName: variant ? `${variant.name} — ${variant.tag}` : `Wariant ${offer.selected_variant}`,
-    variantTotal: variant ? fmtPLN(variant.total) : '—',
+    isLoan: summary.isLoan,
+    fundingAmount: summary.fundingAmount,
+    variantName: summary.variantName,
+    variantTotal: summary.variantTotal,
     consultantName: consultant?.full_name ?? 'Zespół K2Biznes',
     consultantEmail: consultant?.email ?? 'kontakt@k2biznes.pl',
     consultantPhone: consultant?.phone ?? null,
@@ -181,6 +173,7 @@ export async function notifyConsultantOfferAccepted(offer: OfferRow): Promise<vo
     offerNumber: offer.offer_number,
     clientCompanyName: offer.client_name,
     programLabel: offer.program_label,
+    isLoan: offer.offer_kind === 'loan',
     acceptedVariant: offer.accepted_variant ?? offer.selected_variant,
     acceptedFee: fmtPLN(Number(offer.accepted_fee ?? 0)),
     clientName: offer.accepted_by_name ?? '—',
@@ -194,7 +187,9 @@ export async function notifyConsultantOfferAccepted(offer: OfferRow): Promise<vo
   const { html, text } = await renderEmail(createElement(OfferAcceptedConsultant, props));
   const result = await sendEmail({
     to: consultant.email,
-    subject: `Oferta ${offer.offer_number} zaakceptowana — ${offer.client_name}, wariant ${props.acceptedVariant}`,
+    subject: props.isLoan
+      ? `Oferta ${offer.offer_number} zaakceptowana — ${offer.client_name} (pożyczka)`
+      : `Oferta ${offer.offer_number} zaakceptowana — ${offer.client_name}, wariant ${props.acceptedVariant}`,
     html,
     text,
     tags: [
