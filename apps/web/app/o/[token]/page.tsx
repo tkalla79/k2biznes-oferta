@@ -168,6 +168,16 @@ export default async function OfferPage({ params, searchParams }: Props) {
     ? (dto.pricingSnapshot as unknown as LoanPricingResult)
     : null;
 
+  // Snapshot dotacyjny ma `variants`, pożyczkowy nie. Czytamy defensywnie: przy
+  // niespójności offer_kind vs kształt snapshotu (np. oferta przełączona między
+  // typami) render nie może się wywalić na undefined.variants — pokazujemy tyle,
+  // ile da się odczytać, zamiast całej strony błędu u klienta.
+  const snapshotVariants = Array.isArray(
+    (dto.pricingSnapshot as { variants?: unknown }).variants,
+  )
+    ? dto.pricingSnapshot.variants
+    : [];
+
   // Variants — z pricing_snapshot, filtrowane przez offered_variants. Wybrany na końcu.
   // Pożyczka nie ma wariantów: budujemy jeden pseudo-wariant, żeby sekcja akceptacji
   // (AcceptForm + endpoint, które są wariantowe) działała bez zmian kontraktu.
@@ -185,10 +195,12 @@ export default async function OfferPage({ params, searchParams }: Props) {
           payment: [],
         },
       ]
-    : dto.pricingSnapshot.variants.filter((v) => dto.offeredVariants.includes(v.id));
+    : snapshotVariants.filter((v) => dto.offeredVariants.includes(v.id));
   const selectedVariant =
     variants.find((v) => v.id === dto.selectedVariant) ?? variants[0] ?? null;
-  const funding = loanPricing ? loanPricing.loanAmount : dto.pricingSnapshot.funding;
+  const funding = loanPricing
+    ? loanPricing.loanAmount
+    : (dto.pricingSnapshot.funding ?? dto.projectValue * dto.fundingRate);
 
   // Treść z offer.content (intro/footer textareas z OfferForm) lub default.
   const content = (dto.content ?? {}) as {
