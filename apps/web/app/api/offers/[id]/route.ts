@@ -172,11 +172,23 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           sfPct: loan.sfPct,
         }) as unknown as Json;
       } else {
+        // Przelaczenie pozyczka -> dotacja: before.funding_rate jest NULL, wiec bez
+        // jawnej wartosci calcPricing dostalby 0 i rzucil surowy blad (500).
+        // Zwracamy czytelny 422.
+        const effFundingRate =
+          patch.fundingRate ?? (before.funding_rate == null ? null : Number(before.funding_rate));
+        if (effFundingRate == null || !(effFundingRate > 0)) {
+          throw new ApiError(
+            'VALIDATION_ERROR',
+            'Oferta dotacyjna wymaga intensywności dofinansowania (fundingRate).',
+            422,
+          );
+        }
         const { segments, config } = await loadPricing();
         update.pricing_snapshot = calcPricing(
           {
             projectValue: patch.projectValue ?? Number(before.project_value),
-            fundingRate: patch.fundingRate ?? Number(before.funding_rate),
+            fundingRate: effFundingRate,
             returningClient: patch.returningClient ?? before.returning_client,
             projectCount: patch.projectCount ?? before.project_count,
           },

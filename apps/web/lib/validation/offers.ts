@@ -151,7 +151,11 @@ export function shouldRecalcSnapshot(patch: UpdateOfferInput): boolean {
     patch.fundingRate !== undefined ||
     patch.returningClient !== undefined ||
     patch.projectCount !== undefined ||
-    patch.loan !== undefined
+    patch.loan !== undefined ||
+    // Zmiana typu oferty zmienia caly model cennika (segmenty+warianty vs
+    // oplata+% od kwoty). Bez przeliczenia snapshot zostalby w starym ksztalcie,
+    // a widok klienta dostalby dane niezgodne z offer_kind.
+    patch.offerKind !== undefined
   );
 }
 
