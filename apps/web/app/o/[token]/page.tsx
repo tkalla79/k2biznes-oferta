@@ -26,7 +26,7 @@ import AcceptForm from './AcceptForm';
 import PricingVariants from './PricingVariants';
 import LoanPricing from './LoanPricing';
 import { sanitizeRichText } from '@/lib/richtext';
-import { isLoanPricing } from '@/lib/pricing/loan';
+import { resolveLoanPricing } from '@/lib/pricing/loan';
 import type { LoanPricingResult } from '@/lib/pricing';
 import {
   PROGRAM_BULLETS,
@@ -164,8 +164,13 @@ export default async function OfferPage({ params, searchParams }: Props) {
 
   // Typ oferty: dotacja (segmenty + warianty) vs pożyczka (opłata wstępna + % od kwoty).
   const isLoan = dto.offerKind === 'loan';
-  const loanPricing = isLoanPricing(dto.pricingSnapshot)
-    ? (dto.pricingSnapshot as unknown as LoanPricingResult)
+  // Zrodlem prawdy o typie oferty jest `offer_kind`, nie ksztalt snapshotu.
+  // Snapshot pozyczkowy moze byc niekompletny (starsza oferta, przelaczenie typu,
+  // reczna edycja w Studio), wiec brakujace liczby odtwarzamy z wartosci oferty
+  // i stawek domyslnych. Wczesniej poleganie na samym `kind` konczylo sie albo
+  // crashem na `variants.filter`, albo oferta bez cennika.
+  const loanPricing: LoanPricingResult | null = isLoan
+    ? resolveLoanPricing(dto.pricingSnapshot, dto.projectValue)
     : null;
 
   // Snapshot dotacyjny ma `variants`, pożyczkowy nie. Czytamy defensywnie: przy
@@ -232,15 +237,27 @@ export default async function OfferPage({ params, searchParams }: Props) {
     };
   };
   // Parametry produktu pożyczkowego — pokazujemy tylko te uzupełnione.
-  const loanProduct = content.loan?.product ?? {};
+  // `content` to jsonb bez gwarancji typów po stronie bazy (dane mogą wejść też
+  // przez Studio albo szablon, gdzie Zod nie chroni), więc normalizujemy każde
+  // pole do stringa. Inaczej liczba w polu produktu wysadza render na `.trim()`.
+  const rawLoanProduct = (content.loan?.product ?? {}) as Record<string, unknown>;
+  const pstr = (v: unknown): string =>
+    typeof v === 'string' ? v : v == null ? '' : String(v);
+  const loanProduct = {
+    interestRate: pstr(rawLoanProduct.interestRate),
+    termMonths: pstr(rawLoanProduct.termMonths),
+    graceMonths: pstr(rawLoanProduct.graceMonths),
+    commission: pstr(rawLoanProduct.commission),
+    ownContribution: pstr(rawLoanProduct.ownContribution),
+  };
   const loanTerms: Array<{ label: string; value: string }> = isLoan
     ? [
         { label: 'Kwota pożyczki', value: fmt(dto.projectValue) },
-        { label: 'Oprocentowanie', value: loanProduct.interestRate ?? '' },
-        { label: 'Okres spłaty', value: loanProduct.termMonths ?? '' },
-        { label: 'Karencja', value: loanProduct.graceMonths ?? '' },
-        { label: 'Prowizja', value: loanProduct.commission ?? '' },
-        { label: 'Wkład własny', value: loanProduct.ownContribution ?? '' },
+        { label: 'Oprocentowanie', value: loanProduct.interestRate },
+        { label: 'Okres spłaty', value: loanProduct.termMonths },
+        { label: 'Karencja', value: loanProduct.graceMonths },
+        { label: 'Prowizja', value: loanProduct.commission },
+        { label: 'Wkład własny', value: loanProduct.ownContribution },
       ].filter((t) => t.value.trim() !== '')
     : [];
   // Punktory kafelka (sekcja 04) — renderowane tylko gdy niepuste.
@@ -532,13 +549,13 @@ export default async function OfferPage({ params, searchParams }: Props) {
                   <div className="cr-label">Wnioskowana kwota pożyczki</div>
                   <div className="cr-val cr-val-accent">{fmt(dto.projectValue)}</div>
                 </div>
-                {loanProduct.interestRate?.trim() && (
+                {loanProduct.interestRate.trim() !== '' && (
                   <div className="cr-item">
                     <div className="cr-label">Oprocentowanie</div>
                     <div className="cr-val">{loanProduct.interestRate}</div>
                   </div>
                 )}
-                {loanProduct.termMonths?.trim() && (
+                {loanProduct.termMonths.trim() !== '' && (
                   <div className="cr-item">
                     <div className="cr-label">Okres spłaty</div>
                     <div className="cr-val">{loanProduct.termMonths}</div>

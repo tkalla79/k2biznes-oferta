@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calcLoanPricing, isLoanPricing, LOAN_BASE_FEE, LOAN_SF_PCT } from './loan';
+import { calcLoanPricing, isLoanPricing, resolveLoanPricing, LOAN_BASE_FEE, LOAN_SF_PCT } from './loan';
 
 describe('calcLoanPricing', () => {
   it('używa stawek domyślnych (4000 + 1,5%)', () => {
@@ -39,3 +39,35 @@ describe('calcLoanPricing', () => {
     expect(isLoanPricing(null)).toBe(false);
   });
 });
+
+describe('resolveLoanPricing (odporność na niekompletny snapshot)', () => {
+  it('używa liczb ze pełnego snapshotu pożyczkowego', () => {
+    const snap = calcLoanPricing({ loanAmount: 500_000 });
+    const r = resolveLoanPricing(snap, 999);
+    expect(r).toEqual(snap);
+  });
+
+  it('snapshot dotacyjny (bez pól pożyczkowych) -> odtwarza z kwoty oferty i stawek domyślnych', () => {
+    const grantSnap = { funding: 350_000, base: 15_000, variants: [{ id: 'I' }] };
+    const r = resolveLoanPricing(grantSnap, 500_000);
+    expect(r.kind).toBe('loan');
+    expect(r.loanAmount).toBe(500_000);
+    expect(r.baseFee).toBe(LOAN_BASE_FEE);
+    expect(r.sfPct).toBe(LOAN_SF_PCT);
+    expect(r.sfAmount).toBe(7500);
+    expect(r.total).toBe(11_500);
+  });
+
+  it('pusty / null snapshot nie rzuca', () => {
+    expect(() => resolveLoanPricing(null, 200_000)).not.toThrow();
+    expect(resolveLoanPricing({}, 200_000).total).toBe(4000 + 3000);
+  });
+
+  it('częściowy snapshot: uzupełnia tylko brakujące pola', () => {
+    const r = resolveLoanPricing({ baseFee: 2000, sfPct: 0.02 }, 200_000);
+    expect(r.baseFee).toBe(2000);
+    expect(r.sfPct).toBe(0.02);
+    expect(r.sfAmount).toBe(4000);
+    expect(r.total).toBe(6000);
+  });
+})

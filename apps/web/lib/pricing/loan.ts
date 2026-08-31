@@ -39,3 +39,28 @@ export function calcLoanPricing(input: LoanPricingInput): LoanPricingResult {
 export function isLoanPricing(p: OfferPricingResult | null | undefined): p is LoanPricingResult {
   return !!p && (p as LoanPricingResult).kind === 'loan';
 }
+
+/**
+ * Odtwarza cennik pożyczkowy dla oferty, w której `offer_kind='loan'`.
+ *
+ * Źródłem prawdy o typie oferty jest kolumna `offer_kind`, a nie kształt
+ * `pricing_snapshot`. Snapshot bywa niekompletny (oferta przełączona między
+ * typami, ręczna edycja w Studio, starsza oferta), dlatego brakujące liczby
+ * odtwarzamy z kwoty oferty i stawek domyślnych — zamiast pokazywać klientowi
+ * ofertę bez cennika albo wywalać render.
+ */
+export function resolveLoanPricing(
+  snapshot: unknown,
+  loanAmountFallback: number,
+): LoanPricingResult {
+  const s = (snapshot ?? {}) as Partial<LoanPricingResult>;
+  const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+
+  const loanAmount = num(s.loanAmount) ?? loanAmountFallback;
+  const baseFee = num(s.baseFee) ?? LOAN_BASE_FEE;
+  const sfPct = num(s.sfPct) ?? LOAN_SF_PCT;
+  const sfAmount = num(s.sfAmount) ?? Math.round(loanAmount * sfPct * 100) / 100;
+  const total = num(s.total) ?? Math.round((baseFee + sfAmount) * 100) / 100;
+
+  return { kind: 'loan', loanAmount, baseFee, sfPct, sfAmount, total };
+}
