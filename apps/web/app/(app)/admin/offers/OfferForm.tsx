@@ -10,6 +10,7 @@ import {
 } from '@/lib/pricing/override';
 import type { PaymentMilestone } from '@/lib/pricing/types';
 import { extractTemplate, applyTemplate } from '@/lib/offers/template';
+import { formatApiError } from '@/lib/api/issues';
 import RichTextEditor from '@/components/RichTextEditor';
 import { NEEDS as DEFAULT_NEEDS } from '@/app/o/[token]/staticContent';
 
@@ -877,7 +878,9 @@ export default function OfferForm({
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json?.error?.message ?? `${method} failed.`);
+        // 422 z API niesie details.issues — bez tego konsultant widzial samo
+        // "Nieprawidlowe dane wejsciowe." i nie wiedzial, ktore pole poprawic.
+        setError(formatApiError(json, `${method} failed.`));
         return;
       }
       if (mode === 'create') {
