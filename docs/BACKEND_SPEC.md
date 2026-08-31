@@ -1803,17 +1803,40 @@ Zwróć top 3-5 dopasowań w formacie JSON.
 
 Wartości to **single source of truth dla silnika pricingu** (`lib/pricing.ts`). Tabela `pricing_segments` musi zawierać dokładnie te wiersze, inaczej testy z sekcji 6.1 nie przejdą.
 
-> ⚠️ **TODO biznes (Tomasz Kalla):** wartości oznaczone `???` muszą zostać uzupełnione przed merge do `main`. Wiersz `s5m` (oznaczony ✅) jest reprodukowany z testów jednostkowych w sekcji 6.1 i jest pewny. Pozostałe segmenty wymagają decyzji biznesowej.
+> ✅ **Zweryfikowane biznesowo (Tomasz Kalla, 2026-08-31).** Tabela C.1 nie ma już
+> pozycji `???`. Uwaga na kolejność: `seed.sql` odpala się tylko przy
+> `supabase db reset`, więc bazy już działające trzeba zaktualizować ręcznie —
+> patrz zapytanie pod tabelą.
 
 ### C.1 `pricing_segments`
 
 | id | label | funding_min | funding_max | base_fee | sf_var1 | sf_var2 | sf_var3 | monthly_fee | order |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| `s500k`   | do 500 tys. (mikro)              | 0          | 500_000     | ???    | ???    | ???    | ???    | ???   | 1 |
-| `s1m`     | 500 tys. – 1M (małe)             | 500_000    | 1_000_000   | ???    | ???    | ???    | ???    | ???   | 2 |
-| `s2m`     | 1M – 2M (małe/średnie)           | 1_000_000  | 2_000_000   | ???    | ???    | ???    | ???    | ???   | 3 |
-| `s5m`  ✅ | 2M – 5M (SMART MŚP)              | 2_000_000  | 5_000_000   | 15_000 | 0.0450 | 0.0550 | 0.0700 | 4_000 | 4 |
-| `s5mplus` | 5M+ (duże projekty)              | 5_000_000  | NULL        | ???    | ???    | ???    | ???    | ???   | 5 |
+| `s500k`   | do 500 tys. (mikro)              | 0          | 500_000     | 15_000 | 0.0600 | 0.0700 | 0.0800 | 3_000 | 1 |
+| `s1m`     | 500 tys. – 1M (małe)             | 500_000    | 1_000_000   | 15_000 | 0.0550 | 0.0650 | 0.0750 | 3_000 | 2 |
+| `s2m`     | 1M – 2M (małe/średnie)           | 1_000_000  | 2_000_000   | 15_000 | 0.0500 | 0.0600 | 0.0700 | 3_000 | 3 |
+| `s5m`     | 2M – 5M (SMART MŚP)              | 2_000_000  | 5_000_000   | 15_000 | 0.0450 | 0.0550 | 0.0700 | 3_000 | 4 |
+| `s5mplus` | 5M+ (duże projekty)              | 5_000_000  | NULL        | 15_000 | 0.0400 | 0.0500 | 0.0600 | 3_000 | 5 |
+
+Cała tabela jest **zweryfikowana biznesowo** (T. Kalla, 2026-08-31). Dwie stawki są
+**stałe i nie zależą od wielkości dofinansowania**: `base_fee` (opłata wstępna,
+15 000 zł) oraz `monthly_fee` (rozliczanie projektu, 3 000 zł miesięcznie). Od
+segmentu zależy wyłącznie `sf_variant_*`. Wcześniejsze placeholdery pochodziły
+z liniowej ekstrapolacji z `s5m` (opłata 8/10/12/15/20 tys., rozliczanie
+2/2,5/3/4/5 tys.) i zaniżały albo zawyżały obie stawki poza segmentem `s5m`.
+
+Aktualizacja bazy, na której seed już się wykonał:
+
+```sql
+update pricing_segments
+set base_fee = 15000, monthly_fee = 3000
+where base_fee <> 15000 or monthly_fee <> 3000;
+```
+
+Po zmianie stawek unieważnij cache silnika (`invalidatePricingCache`, sekcja 4.4) —
+loader trzyma segmenty w pamięci 5 minut. Snapshoty istniejących ofert zostają
+nietknięte: `pricing_snapshot` jest zamrożony, przeliczenie wymaga świadomego
+`POST /api/offers/:id/recalculate`.
 
 ### C.2 `pricing_config` (singleton)
 

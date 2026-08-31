@@ -14,22 +14,25 @@ on conflict (id) do nothing;
 
 -- -----------------------------------------------------------------------------
 -- 2. pricing_segments (Appendix C.1)
---    s5m jest reprodukowany z testów Vitest z sekcji 6.1 i jest pewny (real).
---    Pozostałe 4 mają PLACEHOLDER values dobrane przez liniową ekstrapolację
---    z s5m. Biznes musi zweryfikować przed pierwszym wysłaniem oferty.
+--    base_fee: 15 000 zł w KAŻDYM segmencie. Opłata wstępna jest stała i nie
+--    zależy od wielkości dofinansowania (reguła biznesowa, T. Kalla 2026-08-31).
+--    Wcześniejsza ekstrapolacja liniowa z s5m (8/10/12/15/20 tys.) była błędna:
+--    oferta z dofinansowaniem poniżej 2 mln zł wyliczała opłatę niższą niż
+--    faktycznie stosowana.
+--    monthly_fee: 3 000 zł w KAŻDYM segmencie. Rozliczanie projektu jest
+--    stałą stawką miesięczną i też nie zależy od wielkości projektu
+--    (reguła biznesowa, T. Kalla 2026-08-31).
+--    sf_variant_*: zweryfikowane, zależą od segmentu — zostają jak niżej.
 -- -----------------------------------------------------------------------------
 
 insert into pricing_segments (id, label, funding_min, funding_max, base_fee,
                               sf_variant_1, sf_variant_2, sf_variant_3,
                               monthly_fee, display_order) values
-  -- PLACEHOLDER (do weryfikacji przez biznes — niższe widełki, mniejsza marża)
-  ('s500k',   'do 500 tys. (mikro)',     0,         500000,     8000, 0.0600, 0.0700, 0.0800, 2000,    1),
-  ('s1m',     '500 tys. – 1M',           500000,   1000000,    10000, 0.0550, 0.0650, 0.0750, 2500,    2),
-  ('s2m',     '1M – 2M',                1000000,   2000000,    12000, 0.0500, 0.0600, 0.0700, 3000,    3),
-  -- REAL — s5m jest punktem odniesienia z BACKEND_SPEC sekcja 6.1
-  ('s5m',     '2M – 5M (SMART MŚP)',    2000000,   5000000,    15000, 0.0450, 0.0550, 0.0700, 4000,    4),
-  -- PLACEHOLDER (większe projekty, wyższy ryczałt, niższy success fee)
-  ('s5mplus', '5M+ (duże projekty)',    5000000,      null,    20000, 0.0400, 0.0500, 0.0600, 5000,    5)
+  ('s500k',   'do 500 tys. (mikro)',     0,         500000,    15000, 0.0600, 0.0700, 0.0800, 3000,    1),
+  ('s1m',     '500 tys. – 1M',           500000,   1000000,    15000, 0.0550, 0.0650, 0.0750, 3000,    2),
+  ('s2m',     '1M – 2M',                1000000,   2000000,    15000, 0.0500, 0.0600, 0.0700, 3000,    3),
+  ('s5m',     '2M – 5M (SMART MŚP)',    2000000,   5000000,    15000, 0.0450, 0.0550, 0.0700, 3000,    4),
+  ('s5mplus', '5M+ (duże projekty)',    5000000,      null,    15000, 0.0400, 0.0500, 0.0600, 3000,    5)
 on conflict (id) do nothing;
 
 -- -----------------------------------------------------------------------------
