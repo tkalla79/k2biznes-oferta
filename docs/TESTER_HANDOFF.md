@@ -68,7 +68,12 @@ Email: Resend (3000 maili / mc, free tier).
 ### Scenariusz 2: Podgląd draftu
 
 1. W `/admin/offers/[id]/edit` klik **"Podgląd (draft) ↗"** w prawym górnym rogu
-2. Otwiera nowe okno z `/o/<token>?__preview=1`
+2. Otwiera nowe okno z `/o/<token>?__preview=1` — **na tym samym hoście co panel**.
+   Sprawdź to w pasku adresu, jeśli testujesz na deploymencie preview Vercela.
+   Wcześniej link budowany był z `NEXT_PUBLIC_APP_URL`, więc z preview prowadził
+   na domenę produkcyjną i pokazywał ofertę renderowaną kodem z `main` — nowa
+   funkcja wyglądała wtedy na zepsutą, choć była poprawna (incydent 2026-08-31,
+   oferta pożyczkowa). Link absolutny (z env) zostaje tylko w mailach do klienta.
 3. Powinieneś zobaczyć:
    - Żółty banner "Podgląd wersji roboczej — klient nie widzi tej oferty…"
    - 9 sekcji: Wprowadzenie / Proponowane rozwiązanie / Zakres / Wycena /

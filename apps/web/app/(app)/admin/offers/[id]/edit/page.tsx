@@ -76,8 +76,14 @@ export default async function EditOfferPage({ params }: { params: { id: string }
           </p>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
+          {/* Link relatywny, NIE dto.clientUrl. clientUrl budowany jest z
+              NEXT_PUBLIC_APP_URL, wiec na deploymencie preview kierowal na
+              domene produkcyjna — konsultant testujacy nowa funkcje ogladal
+              ofertę renderowaną STARYM kodem z main (2026-08-31: tak wygladal
+              „crash" widoku oferty pożyczkowej). Podgląd musi zostać na tym
+              samym hoście co panel; wersja absolutna zostaje w mailach. */}
           <a
-            href={offer.status === 'draft' ? `${dto.clientUrl}?__preview=1` : dto.clientUrl}
+            href={offer.status === 'draft' ? `/o/${offer.client_token}?__preview=1` : `/o/${offer.client_token}`}
             target="_blank"
             rel="noopener noreferrer"
             style={linkPreview}
