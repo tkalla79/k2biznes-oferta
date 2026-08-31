@@ -1809,11 +1809,16 @@ Wartości to **single source of truth dla silnika pricingu** (`lib/pricing.ts`).
 
 | id | label | funding_min | funding_max | base_fee | sf_var1 | sf_var2 | sf_var3 | monthly_fee | order |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| `s500k`   | do 500 tys. (mikro)              | 0          | 500_000     | ???    | ???    | ???    | ???    | ???   | 1 |
-| `s1m`     | 500 tys. – 1M (małe)             | 500_000    | 1_000_000   | ???    | ???    | ???    | ???    | ???   | 2 |
-| `s2m`     | 1M – 2M (małe/średnie)           | 1_000_000  | 2_000_000   | ???    | ???    | ???    | ???    | ???   | 3 |
+| `s500k`   | do 500 tys. (mikro)              | 0          | 500_000     | 15_000 ✅ | ???    | ???    | ???    | ???   | 1 |
+| `s1m`     | 500 tys. – 1M (małe)             | 500_000    | 1_000_000   | 15_000 ✅ | ???    | ???    | ???    | ???   | 2 |
+| `s2m`     | 1M – 2M (małe/średnie)           | 1_000_000  | 2_000_000   | 15_000 ✅ | ???    | ???    | ???    | ???   | 3 |
 | `s5m`  ✅ | 2M – 5M (SMART MŚP)              | 2_000_000  | 5_000_000   | 15_000 | 0.0450 | 0.0550 | 0.0700 | 4_000 | 4 |
-| `s5mplus` | 5M+ (duże projekty)              | 5_000_000  | NULL        | ???    | ???    | ???    | ???    | ???   | 5 |
+| `s5mplus` | 5M+ (duże projekty)              | 5_000_000  | NULL        | 15_000 ✅ | ???    | ???    | ???    | ???   | 5 |
+
+**`base_fee` jest stałe: 15 000 zł w każdym segmencie** (reguła biznesowa, T. Kalla
+2026-08-31). Opłata wstępna nie zależy od wielkości dofinansowania. Wcześniejsze
+placeholdery (8/10/12/15/20 tys., ekstrapolacja liniowa z `s5m`) zaniżały ją dla
+ofert z dofinansowaniem poniżej 2 mln zł.
 
 ### C.2 `pricing_config` (singleton)
 
