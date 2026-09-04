@@ -1350,7 +1350,7 @@ export default function OfferForm({
       <Section title="Opis rekomendowanego programu (na ofercie)">
         <p style={hint}>
           Pojawia się w sekcji „Rekomendujemy: <em>{form.altPrograms.find((p) => p.recommended)?.name || '<oznacz program jako rekomendowany>'}</em>”.
-          Pozostaw puste, by użyć opisu z biblioteki (rekomendowanej pozycji) lub domyślnych punktów.
+          Pozostaw puste, by użyć opisu z biblioteki (rekomendowanej pozycji). Bez opisu i bez pozycji z biblioteki blok się nie pojawi — nie wstawiamy klientowi treści domyślnych.
         </p>
         <RichTextEditor
           value={form.programDescription}

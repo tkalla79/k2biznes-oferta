@@ -29,7 +29,6 @@ import { sanitizeRichText, sanitizeProse } from '@/lib/richtext';
 import { resolveLoanPricing } from '@/lib/pricing/loan';
 import type { LoanPricingResult } from '@/lib/pricing';
 import {
-  ALT_PROGRAMS,
   SCOPE_PREP,
   SCOPE_EXEC,
   PROCESS,
@@ -268,10 +267,12 @@ export default async function OfferPage({ params, searchParams }: Props) {
   // `columns: 2`, wiec dluzszy opis lamal sie w polowie zdania na dwie kolumny
   // i czytal sie jak sciana prozy (uwagi z pilotazu 2026-08).
   const recommendationBasisHtml = sanitizeProse(content.recommendationBasis);
-  const altPrograms =
-    Array.isArray(content.altPrograms) && content.altPrograms.length > 0
-      ? content.altPrograms
-      : ALT_PROGRAMS;
+  // INCYDENT 2026-09-03 (ta sama klasa co PROGRAM_BULLETS): gdy konsultant nie
+  // dodal zadnej pozycji z biblioteki, ten fallback pokazywal klientowi cztery
+  // zaszyte w kodzie programy razem z terminami naborow ("IV kw. 2026").
+  // Klient czytal to jako rekomendacje dla siebie, choc nikt mu ich nie dal,
+  // a daty starzaly sie w repo. Pusta biblioteka = brak blokow alternatyw.
+  const altPrograms = Array.isArray(content.altPrograms) ? content.altPrograms : [];
   // Uwaga pilotaż 2026-07 (#2): jeden z altPrograms może być oznaczony jako
   // rekomendowany — jego nazwa/termin/opis zasilają blok „Rekomendujemy".
   // Backward-compat: gdy żaden nieoznaczony (stare oferty / domyślne) —
