@@ -29,37 +29,6 @@ export const NEEDS = [
   },
 ];
 
-export const ALT_PROGRAMS = [
-  {
-    name: 'Ścieżka SMART',
-    program: 'FENG 2021–2027',
-    nabor: 'IV kw. 2026',
-    desc: 'Kompleksowy rozwój firm poprzez projekty B+R, wdrożenie innowacji, infrastrukturę, kompetencje i internacjonalizację.',
-    url: 'https://www.k2biznes.pl/sciezka-smart/',
-  },
-  {
-    name: 'FENG Działanie 2.32',
-    program: 'Cyfryzacja MŚP',
-    nabor: 'I kw. 2026',
-    desc: 'Wsparcie transformacji cyfrowej: oprogramowanie, sprzęt IT, cyberbezpieczeństwo, szkolenia dla pracowników.',
-    url: 'https://www.k2biznes.pl/cyfryzacja-msp/',
-  },
-  {
-    name: 'Fundusze regionalne',
-    program: 'FE dla Opolskiego',
-    nabor: 'nabór ciągły',
-    desc: 'Dotacje na inwestycje produkcyjne i OZE dla firm z województwa opolskiego. Wyższa intensywność pomocy.',
-    url: 'https://www.k2biznes.pl/fundusze-regionalne/',
-  },
-  {
-    name: 'NCBR BRIdge Alfa',
-    program: 'Finansowanie B+R',
-    nabor: 'konkursy kwartalne',
-    desc: 'Finansowanie prac badawczo-rozwojowych dla projektów na wczesnym etapie rozwoju technologicznego.',
-    url: 'https://www.k2biznes.pl/ncbr-bridge-alfa/',
-  },
-];
-
 export const SCOPE_PREP = [
   {
     t: 'Analiza potrzeb i potencjału pomysłu',
