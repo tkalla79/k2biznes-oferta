@@ -339,6 +339,29 @@ w ofercie"), nie tutaj.
 - `/admin/templates` — zapisane zestawy treści/ustawień do szybkiego startu
   nowej oferty.
 
+### Wysyłka oferty — kto dostaje maila
+
+Trzy adresy, każdy z innego miejsca:
+
+| Pole | Kto | Skąd |
+|---|---|---|
+| **Do** | klient | adres wpisany w dialogu „Wyślij ofertę" |
+| **Reply-To** | konsultant prowadzący | konto z `assigned_consultant_id` (albo autor oferty) |
+| **Kopia (CC)** | osoba wskazana w ofercie do kontaktu | wybór w formularzu oferty → jej email z `/admin/contact-persons` |
+
+Kopia jest **jawna**, nie ukryta — osobę kontaktową klient i tak widzi w ofercie,
+a chodzi o wspólny wątek: odpowiedź „do wszystkich" trafia do konsultanta i do
+osoby kontaktowej naraz.
+
+Dialog wysyłki mówi **przed** kliknięciem, kto dostanie kopię, a komunikat po
+wysyłce podaje adres, który faktycznie poszedł. Jeśli widzisz „osoba kontaktowa
+nie ma adresu email w katalogu" — uzupełnij mail w `/admin/contact-persons`,
+bo bez niego kopia nie poleci. Kopia nie idzie też wtedy, gdy w ofercie nie
+wybrano osoby kontaktowej albo gdy jest nią sam odbiorca oferty.
+
+Ślad: `offer_events` (`email_sent` → `payload.cc`, `sent` → `payload.ccEmails`)
+i `audit_log` przy akcji `offer.send`.
+
 ### Zmiana cennika dotacyjnego
 
 `/admin/pricing` (tylko super_admin; admin dostaje redirect na `/admin`). Do tej

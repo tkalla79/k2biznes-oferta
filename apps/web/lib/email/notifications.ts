@@ -16,6 +16,7 @@ import OfferAcceptedConsultant from '@/lib/email/templates/OfferAcceptedConsulta
 import OfferRejectedConsultant from '@/lib/email/templates/OfferRejectedConsultant';
 import type { OfferRow } from '@/lib/offers/mapper';
 import { buildOfferSummary } from './summary';
+import { resolveOfferCc } from './cc';
 import type { Json } from '@k2/database/types';
 
 const fmtPLN = (n: number) =>
@@ -72,7 +73,10 @@ export async function notifyClientOfferSent(args: {
   // Email-reliability 2026-07: zwracamy wynik wysyłki — send route przekazuje
   // go do UI, żeby konsultant OD RAZU widział "email nie dotarł" (wcześniej
   // fail był połykany i widoczny dopiero markerem na liście).
-}): Promise<SendResult> {
+  //
+  // `cc` w zwrotce mówi, kto FAKTYCZNIE dostał kopię — UI pokazuje to
+  // konsultantowi, żeby "kopia poszła" nie było założeniem.
+}): Promise<SendResult & { cc: string[] }> {
   const { offer, recipientEmail, customMessage } = args;
   const sb = createAdminClient();
 
@@ -86,20 +90,39 @@ export async function notifyClientOfferSent(args: {
       to: recipientEmail,
       reason: 'invalid_pricing_snapshot',
     });
-    return { ok: false, error: 'invalid pricing_snapshot — email nie został wysłany' };
+    return { ok: false, error: 'invalid pricing_snapshot — email nie został wysłany', cc: [] };
   }
 
   // Konsultant — z `assigned_consultant_id` lub `created_by`.
   const consultantId = offer.assigned_consultant_id ?? offer.created_by;
-  const { data: consultant } = await sb
-    .from('profiles')
-    .select('full_name, email, phone')
-    .eq('id', consultantId)
-    .maybeSingle();
+  const [{ data: consultant }, { data: contactPerson }] = await Promise.all([
+    sb.from('profiles').select('full_name, email, phone').eq('id', consultantId).maybeSingle(),
+    // Osoba wskazana w ofercie do kontaktu — dostaje kopię maila (CC).
+    offer.contact_person_id
+      ? sb
+          .from('contact_persons')
+          .select('name, email')
+          .eq('id', offer.contact_person_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
 
   if (!consultant) {
     // Code review PR #3: spójne z notifyConsultant* — warn gdy brak profilu.
     console.warn('[notifications] no consultant profile for offer', offer.id, 'consultantId:', consultantId);
+  }
+
+  const cc = resolveOfferCc({ contactEmail: contactPerson?.email, recipientEmail });
+  if (offer.contact_person_id && cc.length === 0) {
+    // Osoba kontaktowa jest w ofercie, ale kopia nie poleciała (brak maila w
+    // katalogu, śmieć w kolumnie albo ten sam adres co odbiorca). Cisza w tym
+    // miejscu wygląda dokładnie jak wysłana kopia — dlatego log.
+    console.warn(
+      '[notifications] contact person without usable email — no CC for offer',
+      offer.id,
+      'contactPersonId:',
+      offer.contact_person_id,
+    );
   }
 
   // H6 audit: dynamiczny tekst wygaśnięcia zamiast hardkodowanego "30 dni".
@@ -129,6 +152,10 @@ export async function notifyClientOfferSent(args: {
   const { html, text } = await renderEmail(createElement(OfferSentToClient, props));
   const result = await sendEmail({
     to: recipientEmail,
+    // Kopia do osoby wskazanej w ofercie do kontaktu (reguła biznesowa 2026-09).
+    // Jawne CC, nie BCC: tę osobę klient i tak widzi w ofercie, a wspólny wątek
+    // jest tu celem — patrz `lib/email/cc.ts`.
+    cc,
     // Q3 audit: Reply-To = konsultant prowadzący, nie generic kontakt@.
     // Klient odpowiadając na ofertę trafia bezpośrednio do osoby prowadzącej.
     replyTo: consultant?.email ?? undefined,
@@ -145,9 +172,10 @@ export async function notifyClientOfferSent(args: {
     outcome: result.ok ? 'sent' : 'failed',
     template: 'OfferSentToClient',
     to: recipientEmail,
+    cc,
     result,
   });
-  return result;
+  return { ...result, cc };
 }
 
 // =============================================================================

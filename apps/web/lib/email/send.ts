@@ -20,6 +20,11 @@ export type EmailMessage = {
   /** Plain-text fallback (też z @react-email/render). */
   text?: string;
   replyTo?: string;
+  /**
+   * Jawna kopia (CC) — widoczna dla odbiorcy. Puste/pominiete = brak CC.
+   * Kto trafia do CC przy ofercie: patrz `lib/email/cc.ts`.
+   */
+  cc?: string[];
   /** Headers do trackingu po stronie Resend (np. tag X-K2-Event). */
   tags?: Array<{ name: string; value: string }>;
 };
@@ -89,6 +94,7 @@ export async function sendEmail(msg: EmailMessage): Promise<SendResult> {
       const info = await smtp.sendMail({
         from: DEFAULT_FROM,
         to: msg.to,
+        ...(msg.cc?.length ? { cc: msg.cc } : {}),
         replyTo: msg.replyTo ?? DEFAULT_REPLY_TO,
         subject: msg.subject,
         html: msg.html,
@@ -108,7 +114,9 @@ export async function sendEmail(msg: EmailMessage): Promise<SendResult> {
   if (!c) {
     // 3. Dev/test bez SMTP/Resend — log do stdout (z PII redaction).
     console.log(
-      `[email:dev_log] to=${redactEmail(msg.to)} subject="${msg.subject}" html_bytes=${msg.html.length}`,
+      `[email:dev_log] to=${redactEmail(msg.to)}` +
+        (msg.cc?.length ? ` cc=${msg.cc.map(redactEmail).join(',')}` : '') +
+        ` subject="${msg.subject}" html_bytes=${msg.html.length}`,
     );
     return { ok: true, id: `dev_log_${Date.now()}`, mode: 'dev_log' };
   }
@@ -116,6 +124,7 @@ export async function sendEmail(msg: EmailMessage): Promise<SendResult> {
   const { data, error } = await c.emails.send({
     from: DEFAULT_FROM,
     to: msg.to,
+    ...(msg.cc?.length ? { cc: msg.cc } : {}),
     replyTo: msg.replyTo ?? DEFAULT_REPLY_TO,
     subject: msg.subject,
     html: msg.html,

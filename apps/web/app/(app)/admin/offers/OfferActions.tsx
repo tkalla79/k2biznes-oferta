@@ -6,6 +6,13 @@ import type { Database } from '@k2/database/types';
 
 type OfferStatus = Database['public']['Enums']['offer_status'];
 
+/**
+ * Osoba wskazana w ofercie do kontaktu — dostaje kopię (CC) maila z ofertą.
+ * `null` = w ofercie nie wybrano nikogo; `email: null` = wybrano osobę, która
+ * nie ma maila w katalogu (wtedy kopia nie poleci i UI to mówi wprost).
+ */
+type CcRecipient = { name: string; email: string | null } | null;
+
 type Props = {
   offerId: string;
   offerNumber: string;
@@ -13,6 +20,7 @@ type Props = {
   clientName: string;
   status: OfferStatus;
   canDelete: boolean;
+  ccRecipient: CcRecipient;
 };
 
 /**
@@ -29,6 +37,7 @@ export default function OfferActions({
   clientName,
   status,
   canDelete,
+  ccRecipient,
 }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -148,6 +157,7 @@ export default function OfferActions({
           offerNumber={offerNumber}
           clientName={clientName}
           isReSend={status === 'sent' || status === 'viewed'}
+          ccRecipient={ccRecipient}
           onClose={() => setSendOpen(false)}
           onSent={(email) => {
             setSendOpen(false);
@@ -155,7 +165,12 @@ export default function OfferActions({
             // dopiero markerem na liście. Status oferty = sent mimo faila.
             setMsg(
               email.delivered
-                ? { kind: 'ok', text: 'Oferta wysłana — email dostarczony do wysyłki.' }
+                ? {
+                    kind: 'ok',
+                    text:
+                      'Oferta wysłana — email dostarczony do wysyłki.' +
+                      (email.cc.length ? ` Kopia: ${email.cc.join(', ')}.` : ''),
+                  }
                 : {
                     kind: 'err',
                     text: `Oferta oznaczona jako wysłana, ale EMAIL NIE DOTARŁ: ${email.error ?? 'nieznany błąd'}. Sprawdź konfigurację (Ustawienia → Test wysyłki email) i wyślij ponownie.`,
@@ -178,6 +193,7 @@ function SendDialog({
   offerNumber,
   clientName,
   isReSend,
+  ccRecipient,
   onClose,
   onSent,
 }: {
@@ -185,8 +201,9 @@ function SendDialog({
   offerNumber: string;
   clientName: string;
   isReSend: boolean;
+  ccRecipient: CcRecipient;
   onClose: () => void;
-  onSent: (email: { delivered: boolean; error?: string }) => void;
+  onSent: (email: { delivered: boolean; error?: string; cc: string[] }) => void;
 }) {
   const [recipientEmail, setRecipientEmail] = useState('');
   const [recipientName, setRecipientName] = useState('');
@@ -234,6 +251,7 @@ function SendDialog({
       onSent({
         delivered: json?.data?.emailDelivered !== false,
         error: json?.data?.emailError,
+        cc: Array.isArray(json?.data?.emailCc) ? (json.data.emailCc as string[]) : [],
       });
     } catch (e) {
       setError((e as Error).message);
@@ -261,6 +279,25 @@ function SendDialog({
               {offerNumber}
             </code>
           </p>
+
+          <div style={ccHint}>
+            {ccRecipient?.email ? (
+              <>
+                Kopia (CC) pójdzie do osoby kontaktowej z oferty:{' '}
+                <strong>{ccRecipient.name}</strong> — {ccRecipient.email}
+              </>
+            ) : ccRecipient ? (
+              <>
+                Osoba kontaktowa w ofercie (<strong>{ccRecipient.name}</strong>) nie ma adresu
+                email w katalogu, więc <strong>kopia nie zostanie wysłana</strong>. Uzupełnij go
+                w Osobach kontaktowych.
+              </>
+            ) : (
+              <>
+                W ofercie nie wybrano osoby kontaktowej, więc mail pójdzie bez kopii.
+              </>
+            )}
+          </div>
 
           <Field label="Email odbiorcy *">
             <input
@@ -443,6 +480,15 @@ const closeBtn: React.CSSProperties = {
   color: '#6b7a92',
   lineHeight: 1,
   padding: 0,
+};
+const ccHint: React.CSSProperties = {
+  padding: '9px 12px',
+  background: '#f4f7fc',
+  border: '1px solid #e0e7f3',
+  borderRadius: 6,
+  fontSize: 12.5,
+  color: '#3a4254',
+  lineHeight: 1.55,
 };
 const input: React.CSSProperties = {
   width: '100%',
