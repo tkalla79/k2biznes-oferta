@@ -29,7 +29,6 @@ import { sanitizeRichText, sanitizeProse } from '@/lib/richtext';
 import { resolveLoanPricing } from '@/lib/pricing/loan';
 import type { LoanPricingResult } from '@/lib/pricing';
 import {
-  PROGRAM_BULLETS,
   ALT_PROGRAMS,
   SCOPE_PREP,
   SCOPE_EXEC,
@@ -461,24 +460,26 @@ export default async function OfferPage({ params, searchParams }: Props) {
             </div>
           )}
           {/* N2: opis rekomendowanego programu POD kafelkiem (nasza diagnoza + program).
-              Puste = domyślne punkty. */}
-          <div className="program-hero">
-            {programDescriptionHtml ? (
+              Puste = brak bloku.
+
+              INCYDENT 2026-09-03: gdy opis programu byl pusty, ten blok
+              renderowal PROGRAM_BULLETS - cztery zaszyte w kodzie zdania
+              ("intensywnosc pomocy", "refundacja do 80% kosztow
+              kwalifikowanych", "sciezka zaakceptowana przez BGK"). Klient
+              widzial je jako nasze twierdzenia o SWOIM finansowaniu, mimo ze
+              nikt ich nie napisal i dla wiekszosci ofert byly nieprawdziwe -
+              w ofercie pozyczkowej (Fundacja Rozwoju Slaska, 2% w skali roku,
+              finansowanie do 100% wartosci brutto) kazde z osobna.
+              Aplikacja nie wymysla tresci za konsultanta: brak opisu =
+              brak bloku. */}
+          {programDescriptionHtml && (
+            <div className="program-hero">
               <div
                 className="program-description"
                 dangerouslySetInnerHTML={{ __html: programDescriptionHtml }}
               />
-            ) : (
-              <div className="program-points">
-                {PROGRAM_BULLETS.map((b, i) => (
-                  <div className="bullet" key={i}>
-                    <span className="marker">›</span>
-                    <span className="text">{b}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
           {/* Uwaga pilotaż 2026-07 (#2): tylko pozycje alternatywne (bez rekomendowanej);
               ukryte gdy brak alternatyw. */}
           {!isLoan && alternativeAlts.length > 0 && (

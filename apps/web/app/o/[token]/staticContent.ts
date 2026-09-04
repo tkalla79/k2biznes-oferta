@@ -29,13 +29,6 @@ export const NEEDS = [
   },
 ];
 
-export const PROGRAM_BULLETS = [
-  'Wysoka intensywność pomocy dla inwestycji ekologicznych',
-  'Możliwość refundacji do 80% kosztów kwalifikowanych',
-  'Komplementarność z audytem energetycznym klienta',
-  'Ścieżka zaakceptowana przez BGK – sprawdzony proces',
-];
-
 export const ALT_PROGRAMS = [
   {
     name: 'Ścieżka SMART',
