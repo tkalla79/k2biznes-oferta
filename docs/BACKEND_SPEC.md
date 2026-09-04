@@ -824,6 +824,8 @@ ADMIN
   POST   /api/admin/users/invite              – zaproś użytkownika
   PATCH  /api/admin/users/:id/role            – zmień rolę
   PATCH  /api/admin/users/:id/status          – dezaktywuj / przywróć konto (super_admin)
+  GET    /api/admin/pricing                   – odczyt cennika dotacyjnego (super_admin)
+  PATCH  /api/admin/pricing                   – zapis segmentów + parametrów (super_admin, audit pricing.update)
   GET    /api/admin/audit-log
   *      /api/admin/alt-programs              – CRUD biblioteki alt-programów (etap 2)
   *      /api/admin/templates                 – CRUD szablonów oferty (etap 2)
@@ -1221,6 +1223,43 @@ a `funding` = wnioskowana kwota pożyczki (sekcja 10.3).
 
 **Poza zakresem v1:** oferty pożyczkowe nie wchodzą do statystyk i prognozy
 (`/api/stats/*` liczy pipeline dotacyjny — success fee od dofinansowania).
+
+### 6.3 Edycja cennika z panelu (`/admin/pricing`)
+
+Cennik dotacyjny to dane, nie kod: `calcPricing` czyta `pricing_segments` +
+`pricing_config` przez `lib/pricing/load.ts`. Komentarz w loaderze od początku
+zakładał, że stawki zmienia super_admin z panelu, ale ekranu nie było i jedyną
+drogą był SQL w Supabase — bez walidacji i bez śladu w `audit_log`.
+
+Ekran `/admin/pricing` (super_admin; admin dostaje redirect na `/admin`) edytuje
+wszystkie segmenty i parametry globalne, a `PATCH /api/admin/pricing` zapisuje je
+**jednym żądaniem**. To celowe: widełki segmentów muszą pozostać spójne, a zapis
+wiersz po wierszu przepuszczałby stany przejściowe z dziurą w widełkach, na
+której `pickSegment` się wywala.
+
+Walidacja (`lib/validation/pricing.ts`, `UpdatePricingInput`) pilnuje niezmienników,
+których SQL nie pilnował:
+
+| Reguła | Dlaczego |
+|---|---|
+| pierwszy segment startuje od `0` | kwoty poniżej progu nie miałyby segmentu |
+| `funding_max > funding_min` | odwrócone widełki = segment nieosiągalny |
+| `next.funding_min === s.funding_max` | zero dziur i zero nachodzenia |
+| tylko ostatni segment ma `funding_max = null` | jeden segment „bez limitu", na końcu |
+| brak duplikatów `id` / `display_order` | inaczej zapis nadpisałby ten sam wiersz dwa razy |
+| `sf_variant_*` w przedziale `0..1` | pole w UI jest w procentach (4,5), API przyjmuje ułamek (0,045) |
+
+Endpoint odrzuca też segmenty o nieznanym `id` (422) — ekran edytuje istniejący
+układ, dodanie nowego segmentu to osobna decyzja biznesowa. Po zapisie woła
+`invalidatePricingCache()` (loader trzyma segmenty 5 minut, bez tego konsultant
+liczyłby jeszcze na starych stawkach) i zapisuje `pricing.update` w `audit_log`
+z pełnym `before`/`after`.
+
+Zmiana **nie przelicza istniejących ofert** — mają zamrożony `pricing_snapshot`,
+żeby klient nie zobaczył innej ceny niż w mailu. Przeliczenie wymaga świadomego
+`POST /api/offers/:id/recalculate`.
+
+Cennik pożyczkowy (6.2) jest per oferta i tego ekranu nie dotyczy.
 
 ---
 
