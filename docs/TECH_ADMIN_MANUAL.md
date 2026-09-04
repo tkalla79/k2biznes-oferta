@@ -72,7 +72,7 @@ Spina rozproszone runbooks w jedną nawigowalną dokumentację.
 
 - `profiles` — userzy + role (super_admin / admin / consultant)
 - `offers` — wszystkie oferty (snapshot + override pricing, content jsonb). Kolumna `offer_kind` = `grant` (dotacja) lub `loan` (pożyczka); dla pożyczki `funding_rate` jest NULL, a kwota pożyczki siedzi w `project_value`, stawki i parametry produktu w `content.loan`
-- `pricing_segments` — 5 progów wartości projektu (s500k → s5mplus)
+- `pricing_segments` — 5 progów **kwoty dofinansowania** (s500k → s5mplus); edycja z `/admin/pricing`
 - `pricing_config` — discounty + floor values
 - `programs` — katalog 8 programów dotacyjnych
 - `case_studies` — 5 realnych studiów przypadku
@@ -105,6 +105,7 @@ Spina rozproszone runbooks w jedną nawigowalną dokumentację.
 | `/admin/alt-programs` | Biblioteka programów wsparcia (scalona, etap 3) — źródło programów oferty | admin+ |
 | `/admin/templates` | Szablony oferty (etap 2) | admin+ |
 | `/admin/ustawienia` | Statystyki firmowe `company_stats` (etap 2) | super_admin |
+| `/admin/pricing` | Cennik dotacyjny — segmenty + parametry globalne | super_admin |
 | `/admin/users` | Lista userów + role | super_admin |
 | `/admin/gdpr` | Wnioski o usunięcie danych | admin+ |
 | `/o/[token]` | Publiczna oferta (klient) | brak (token = auth) |
@@ -337,6 +338,41 @@ w ofercie"), nie tutaj.
   może ją nadpisać per-rekord (`content.altPrograms`).
 - `/admin/templates` — zapisane zestawy treści/ustawień do szybkiego startu
   nowej oferty.
+
+### Zmiana cennika dotacyjnego
+
+`/admin/pricing` (tylko super_admin; admin dostaje redirect na `/admin`). Do tej
+pory stawki zmieniało się SQL-em w Supabase — bez walidacji i bez śladu w
+`audit_log`. Teraz to formularz.
+
+Co można ustawić:
+
+- **Segmenty** — nazwa, widełki „od/do", opłata wstępna, wynagrodzenie wynikowe
+  dla wariantów I/II/III (w procentach: wpisujesz `4,5`, nie `0,045`) oraz
+  rozliczanie miesięczne.
+- **Parametry globalne** — rabat dla klienta powracającego, rabat za kolejne
+  projekty, minimalne wynagrodzenie wynikowe, minimalna opłata wstępna.
+
+Dwie rzeczy warto wiedzieć zanim zaczniesz klikać:
+
+1. **Segment dobiera się po kwocie dofinansowania, nie po wartości projektu.**
+   Projekt 4 mln przy 60 % to 2,4 mln dofinansowania — segment `s5m`, nie `s5mplus`.
+2. **Widełki muszą się stykać.** Koniec jednego segmentu jest początkiem
+   następnego, pierwszy startuje od 0, ostatni ma puste „do". Zapis, który
+   zostawiłby dziurę albo nachodzenie, jest odrzucany z konkretnym komunikatem
+   („segment X kończy się na …, a Y zaczyna od …") — bo na takiej dziurze silnik
+   wyceny wywala się dopiero przy zapisie oferty, u konsultanta.
+
+Zapis idzie jednym żądaniem (cały cennik naraz), przestawia stawki **od razu dla
+nowych wycen** i loguje `pricing.update` w `audit_log` z pełnym before/after.
+
+Czego zapis **nie** robi: nie przelicza istniejących ofert. Mają zamrożony
+`pricing_snapshot`, żeby klient nie zobaczył innej ceny niż w mailu. Przeliczenie
+konkretnej oferty to świadome `POST /api/offers/:id/recalculate`.
+
+Ekran edytuje istniejące segmenty — nie dodaje i nie usuwa. Dodanie szóstego
+progu zmienia cały układ widełek, więc to decyzja biznesowa plus migracja, nie
+przycisk. Cennik pożyczkowy jest per oferta i tego ekranu nie dotyczy.
 
 ### Oferta pożyczkowa (tryb `loan`)
 

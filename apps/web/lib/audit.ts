@@ -52,7 +52,11 @@ export type AuditAction =
   | 'alt_program.delete'
   | 'offer_template.create'
   | 'offer_template.delete'
-  | 'settings.update';
+  | 'settings.update'
+  // Cennik: edycja segmentow i configu z panelu (2026-09). Wczesniej stawki
+  // zmienialo sie SQL-em, bez sladu w audycie - a jedno pole przestawia
+  // wycene wszystkich nowych ofert.
+  | 'pricing.update';
 
 export type AuditEntry = {
   action: AuditAction;

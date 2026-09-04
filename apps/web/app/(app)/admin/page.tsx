@@ -53,6 +53,9 @@ export default async function AdminDashboard() {
         <Link href="/admin/faq" style={{ color: '#6b7a92', textDecoration: 'none' }}>
           FAQ
         </Link>
+        <Link href="/admin/pricing" style={{ color: '#6b7a92', textDecoration: 'none' }}>
+          Cennik
+        </Link>
         <Link href="/admin/users" style={{ color: '#6b7a92', textDecoration: 'none' }}>
           Użytkownicy
         </Link>
