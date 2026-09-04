@@ -11,6 +11,7 @@
 import Link from 'next/link';
 import { requireSession } from '@/lib/auth/session';
 import { createAdminClient } from '@/lib/supabase/admin';
+import OfferRowActions from './OfferRowActions';
 import OffersFilters from './OffersFilters';
 import type { Database } from '@k2/database/types';
 
@@ -35,6 +36,10 @@ export default async function OffersListPage({
   const programId = parseStr(searchParams.programId, 80);
   const page = Math.max(1, Number.parseInt(parseStr(searchParams.page, 10) ?? '1', 10) || 1);
   const sort = parseSort(searchParams.sort);
+  // Kosz: widok usunietych ofert. Tylko admin+ — konsultant nigdy nie widzi
+  // wierszy z ustawionym `deleted_at`.
+  const isAdmin = session.role === 'admin' || session.role === 'super_admin';
+  const showDeleted = isAdmin && parseStr(searchParams.deleted, 4) === '1';
 
   const sb = createAdminClient();
 
@@ -51,8 +56,8 @@ export default async function OffersListPage({
     .select(
       'id, offer_number, status, client_name, program_label, project_value, funding_rate, accepted_fee, accepted_variant, sent_at, accepted_at, created_at, view_count, client_token, created_by',
       { count: 'exact' },
-    )
-    .is('deleted_at', null);
+    );
+  q = showDeleted ? q.not('deleted_at', 'is', null) : q.is('deleted_at', null);
 
   if (session.role === 'consultant') {
     q = q.or(`created_by.eq.${session.userId},assigned_consultant_id.eq.${session.userId}`);
@@ -135,8 +140,17 @@ export default async function OffersListPage({
               ? searchParams.sort[0]
               : searchParams.sort
             : 'createdAt:desc',
+          deleted: showDeleted,
         }}
+        canSeeDeleted={isAdmin}
       />
+
+      {showDeleted && (
+        <div style={trashBanner}>
+          Widok usuniętych ofert. Wiersze zostają w bazie dla audytu —{' '}
+          {'„Przywróć”'} cofa usunięcie i oferta wraca na listę.
+        </div>
+      )}
 
       <section style={panel}>
         {offers && offers.length > 0 ? (
@@ -200,6 +214,14 @@ export default async function OffersListPage({
                     >
                       Podgląd ↗
                     </a>
+                    {isAdmin && (
+                      <OfferRowActions
+                        offerId={o.id}
+                        offerNumber={o.offer_number}
+                        clientName={o.client_name}
+                        isDeleted={showDeleted}
+                      />
+                    )}
                   </td>
                 </tr>
               ))}
@@ -366,6 +388,16 @@ const btnNewOffer: React.CSSProperties = {
   borderRadius: 6,
 };
 const lead: React.CSSProperties = { color: '#6b7a92', fontSize: 13, marginTop: 0, marginBottom: 24 };
+
+const trashBanner: React.CSSProperties = {
+  margin: '0 0 16px',
+  padding: '10px 14px',
+  background: '#fdf6e3',
+  border: '1px solid #e8dcb5',
+  borderRadius: 8,
+  fontSize: 13,
+  color: '#6b5a1f',
+};
 
 const panel: React.CSSProperties = {
   background: '#fff',

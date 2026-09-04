@@ -15,12 +15,34 @@ type User = {
 
 const ROLES: User['role'][] = ['consultant', 'admin', 'super_admin'];
 
+const btnStatusBase: React.CSSProperties = {
+  padding: '5px 10px',
+  fontSize: 12,
+  fontWeight: 600,
+  borderRadius: 6,
+  cursor: 'pointer',
+  background: '#fff',
+};
+const btnBlock: React.CSSProperties = {
+  ...btnStatusBase,
+  color: '#a3202b',
+  border: '1px solid #e8c2c6',
+};
+const btnRestore: React.CSSProperties = {
+  ...btnStatusBase,
+  color: '#1f7a4c',
+  border: '1px solid #bfe0cd',
+};
+
 export default function UsersTable({
   users,
   currentUserId,
+  offerCounts = {},
 }: {
   users: User[];
   currentUserId: string;
+  /** Liczba niesunietych ofert per user — do ostrzezenia przy dezaktywacji. */
+  offerCounts?: Record<string, number>;
 }) {
   const router = useRouter();
   const [updating, setUpdating] = useState<string | null>(null);
@@ -48,6 +70,41 @@ export default function UsersTable({
     }
   }
 
+  async function changeStatus(u: User, nextActive: boolean) {
+    const offers = offerCounts[u.id] ?? 0;
+    const who = u.full_name ? `${u.full_name} (${u.email})` : u.email;
+    const question = nextActive
+      ? `Przywrócić konto ${who}?\n\nOsoba znów będzie mogła się zalogować.`
+      : `Zablokować konto ${who}?\n\n` +
+        'Logowanie przestanie działać natychmiast, a aktywne sesje zostaną wygaszone. ' +
+        'Autorstwo ofert i wpisy audytowe zostają.' +
+        (offers > 0
+          ? `\n\nUWAGA: ta osoba ma przypisane ${offers} ofert. Zostaną bez opiekuna — ` +
+            'rozważ przepisanie ich najpierw na kogoś innego.'
+          : '');
+    if (!confirm(question)) return;
+
+    setUpdating(u.id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/users/${u.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: nextActive }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json?.error?.message ?? 'Błąd.');
+        return;
+      }
+      router.refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setUpdating(null);
+    }
+  }
+
   if (users.length === 0) {
     return <p style={{ color: '#6b7a92', fontSize: 14 }}>Brak użytkowników.</p>;
   }
@@ -61,12 +118,15 @@ export default function UsersTable({
             <th style={th}>Email</th>
             <th style={th}>Imię</th>
             <th style={th}>Rola</th>
+            <th style={th}>Oferty</th>
             <th style={th}>Utworzony</th>
+            <th style={th} />
           </tr>
         </thead>
         <tbody>
           {users.map((u) => {
             const isMe = u.id === currentUserId;
+            const isActive = u.is_active && !u.deleted_at;
             return (
               <tr key={u.id}>
                 <td style={td}>
@@ -88,8 +148,23 @@ export default function UsersTable({
                     ))}
                   </select>
                 </td>
+                <td style={tdMuted}>{offerCounts[u.id] ?? 0}</td>
                 <td style={tdMuted}>
                   {new Date(u.created_at).toLocaleDateString('pl-PL')}
+                </td>
+                <td style={{ ...td, textAlign: 'right' }}>
+                  {isMe ? (
+                    <span style={{ fontSize: 12, color: '#9aa7bb' }}>—</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => changeStatus(u, !isActive)}
+                      disabled={updating === u.id}
+                      style={isActive ? btnBlock : btnRestore}
+                    >
+                      {updating === u.id ? '…' : isActive ? 'Zablokuj' : 'Przywróć'}
+                    </button>
+                  )}
                 </td>
               </tr>
             );
