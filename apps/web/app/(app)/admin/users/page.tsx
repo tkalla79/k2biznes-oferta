@@ -35,7 +35,22 @@ export default async function UsersAdminPage() {
     .select('id, email, full_name, role, is_active, deleted_at, created_at')
     .order('created_at', { ascending: false });
 
+  // Liczba ofert per osoba — pokazywana przy dezaktywacji, zeby bylo widac,
+  // czy trzeba je najpierw przepisac na kogos innego. Wolumen jest maly
+  // (kilkadziesiat ofert), wiec liczymy w pamieci zamiast agregatem w SQL.
+  const { data: offerOwners } = await sb
+    .from('offers')
+    .select('created_by, assigned_consultant_id')
+    .is('deleted_at', null);
+
+  const offerCounts: Record<string, number> = {};
+  for (const o of offerOwners ?? []) {
+    const owner = o.assigned_consultant_id ?? o.created_by;
+    if (owner) offerCounts[owner] = (offerCounts[owner] ?? 0) + 1;
+  }
+
   const active = (profiles ?? []).filter((p) => p.is_active && !p.deleted_at);
+  const inactive = (profiles ?? []).filter((p) => !p.is_active || p.deleted_at);
 
   return (
     <main style={main}>
@@ -52,8 +67,25 @@ export default async function UsersAdminPage() {
 
       <section style={panel}>
         <h2 style={h2}>Aktywni ({active.length})</h2>
-        <UsersTable users={active} currentUserId={session.userId} />
+        <UsersTable users={active} currentUserId={session.userId} offerCounts={offerCounts} />
       </section>
+
+      {inactive.length > 0 && (
+        <section style={panel}>
+          <h2 style={h2}>Nieaktywni ({inactive.length})</h2>
+          <p style={lead}>
+            Konta zablokowane: nie da się na nie zalogować, ale autorstwo ofert i wpisy
+            audytowe zostają. Trwałego usunięcia nie ma świadomie — klucz obcy na
+            <code> offers.created_by </code> chroni historię przed zniknięciem razem z
+            osobą. {'„Przywróć”'} odblokowuje konto.
+          </p>
+          <UsersTable
+            users={inactive}
+            currentUserId={session.userId}
+            offerCounts={offerCounts}
+          />
+        </section>
+      )}
     </main>
   );
 }

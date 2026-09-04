@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { SigninInput, MagicLinkInput, InviteUserInput, UpdateRoleInput } from './auth';
+import { SigninInput, MagicLinkInput, InviteUserInput, UpdateRoleInput,
+  UpdateUserStatusInput,
+} from './auth';
 
 describe('SigninInput', () => {
   it('akceptuje email + password', () => {
@@ -49,5 +51,24 @@ describe('UpdateRoleInput', () => {
   });
   it('odrzuca rolę spoza enum', () => {
     expect(() => UpdateRoleInput.parse({ role: 'guest' as never })).toThrow();
+  });
+});
+
+describe('UpdateUserStatusInput', () => {
+  it('przyjmuje isActive true/false', () => {
+    expect(UpdateUserStatusInput.parse({ isActive: false })).toEqual({ isActive: false });
+    expect(UpdateUserStatusInput.parse({ isActive: true })).toEqual({ isActive: true });
+  });
+
+  it('odrzuca brak pola i wartości nie-boolowskie', () => {
+    expect(() => UpdateUserStatusInput.parse({})).toThrow();
+    expect(() => UpdateUserStatusInput.parse({ isActive: 'false' })).toThrow();
+    expect(() => UpdateUserStatusInput.parse({ isActive: 0 })).toThrow();
+  });
+
+  it('ignoruje nadmiarowe pola — nie da się przemycić np. roli', () => {
+    expect(UpdateUserStatusInput.parse({ isActive: false, role: 'super_admin' })).toEqual({
+      isActive: false,
+    });
   });
 });

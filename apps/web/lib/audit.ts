@@ -20,6 +20,12 @@ export type AuditAction =
   | 'offer.accept'
   | 'offer.reject'
   | 'profile.role.update'
+  // Panel: dezaktywacja i przywracanie konta oraz cofniecie soft delete oferty
+  // (2026-09). Trwalego usuniecia nie ma - `offers.created_by` ma
+  // `on delete restrict`, zeby historia nie znikala razem z osoba.
+  | 'profile.deactivate'
+  | 'profile.restore'
+  | 'offer.restore'
   | 'auth.mfa.enroll'
   | 'auth.mfa.verify'
   | 'auth.mfa.unenroll'

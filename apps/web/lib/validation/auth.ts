@@ -28,6 +28,17 @@ export const UpdateRoleInput = z.object({
 });
 export type UpdateRoleInput = z.infer<typeof UpdateRoleInput>;
 
+/**
+ * Dezaktywacja i przywracanie konta (PATCH /api/admin/users/:id/status).
+ * Świadomie NIE ma tu opcji trwałego usunięcia: `offers.created_by` ma
+ * `on delete restrict`, żeby historia ofert nie znikała razem z osobą.
+ */
+export const UpdateUserStatusInput = z.object({
+  isActive: z.boolean(),
+});
+
+export type UpdateUserStatusInput = z.infer<typeof UpdateUserStatusInput>;
+
 export const ForgotPasswordInput = z.object({
   email: z.string().email().max(200),
 });

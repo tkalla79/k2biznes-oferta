@@ -378,6 +378,51 @@ echo "Nowy salt: $NEW_SALT"
 
 `PDF_BYPASS_SECRET`, `CRON_SECRET`, `WEBHOOK_HMAC_SECRET` można rotować tym samym sposobem, ale wymaga koordynacji z zewnętrznymi systemami (CRM webhooks).
 
+### Sprzątanie ofert (testowe, stare, nieudane)
+
+Wszystko z panelu, bez SQL-a. Lista `/admin/offers`, przycisk **Usuń** w wierszu
+(admin+). Oferta znika z list i z widoku klienta (`/o/{token}` zwraca 404), ale
+wiersz zostaje w bazie — usunięcie jest **odwracalne**.
+
+Podejrzenie i przywrócenie: przełącznik **Usunięte** w filtrach pokazuje kosz,
+przycisk **Przywróć** cofa operację (`POST /api/offers/:id/restore`). Konsultant
+nie widzi ani przełącznika, ani usuniętych ofert.
+
+Trwałego usuwania nie ma świadomie: `pricing_snapshot` i `offer_events` są
+podstawą audytu, a oferta zaakceptowana to dokument handlowy. Jeśli kiedyś
+naprawdę trzeba wyczyścić wiersz, to zadanie na SQL z ręką na pulsie, nie
+przycisk w panelu.
+
+### Konta: blokowanie i przywracanie
+
+`/admin/users` (tylko super_admin). Sekcje **Aktywni** i **Nieaktywni**, przycisk
+**Zablokuj** / **Przywróć** w wierszu. Kolumna **Oferty** pokazuje, ile ofert ma
+dana osoba przypisanych.
+
+Blokada działa natychmiast: logowanie przestaje przechodzić (brama sesji sprawdza
+`is_active` i `deleted_at`), a aktywne sesje są wygaszane globalnym sign-outem.
+Poprawne hasło też nie pomoże — o tym warto pamiętać przy diagnozie „nie mogę się
+zalogować", bo objaw jest identyczny jak przy złym haśle.
+
+Czego panel nie robi i nie będzie robił: **fizycznego usunięcia konta**.
+`offers.created_by` ma `on delete restrict`, więc osoba z choćby jedną ofertą jest
+nieusuwalna z założenia — inaczej historia ofert znikałaby razem z pracownikiem.
+Blokada zachowuje autorstwo i wpisy audytowe.
+
+Dwie pułapki:
+
+- **Oferty bez opiekuna.** Blokada nie przepisuje ofert. Panel ostrzega liczbą przy
+  potwierdzeniu; przepisanie robi się per oferta w formularzu edycji.
+- **Ten sam email dwa razy.** Przywrócenie zwróci 409, jeśli w międzyczasie powstało
+  nowe aktywne konto na ten adres. Indeks `uq_profiles_email_active` obowiązuje tylko
+  dla wierszy bez `deleted_at`, więc adres da się nadać ponownie po blokadzie.
+
+Osobna sprawa: **MFA**. Zablokowanie konta nie zdejmuje TOTP, a zapomniany
+authenticator blokuje zarówno logowanie, jak i reset hasła (strona resetu wymaga
+kodu, jeśli konto ma zweryfikowany czynnik). Panel nie ma dziś resetu MFA — trzeba
+usunąć wiersz w `auth.mfa_factors` przez SQL. Po usunięciu aplikacja sama wymusi
+rejestrację nowego czynnika przy pierwszym wejściu na `/admin`.
+
 ---
 
 ## 7. Monitoring

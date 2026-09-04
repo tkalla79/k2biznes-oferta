@@ -28,9 +28,18 @@ const SORT_OPTIONS = [
 export default function OffersFilters({
   programs,
   initial,
+  canSeeDeleted = false,
 }: {
   programs: ProgramOpt[];
-  initial: { status: Status[]; clientName: string; programId: string; sort: string };
+  initial: {
+    status: Status[];
+    clientName: string;
+    programId: string;
+    sort: string;
+    deleted: boolean;
+  };
+  // Kosz widzi tylko admin+ — konsultantowi nie pokazujemy nawet przelacznika.
+  canSeeDeleted?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -38,10 +47,12 @@ export default function OffersFilters({
   const [clientName, setClientName] = useState(initial.clientName);
   const [programId, setProgramId] = useState(initial.programId);
   const [sort, setSort] = useState(initial.sort);
+  const [deleted, setDeleted] = useState(initial.deleted);
 
   function applyFilters(updates?: Partial<{
     statuses: Set<Status>;
     clientName: string;
+    deleted: boolean;
     programId: string;
     sort: string;
   }>) {
@@ -50,11 +61,13 @@ export default function OffersFilters({
     const finalClient = updates?.clientName ?? clientName;
     const finalProgram = updates?.programId ?? programId;
     const finalSort = updates?.sort ?? sort;
+    const finalDeleted = updates?.deleted ?? deleted;
 
     if (finalStatuses.size > 0) sp.set('status', Array.from(finalStatuses).join(','));
     if (finalClient.trim()) sp.set('clientName', finalClient.trim());
     if (finalProgram) sp.set('programId', finalProgram);
     if (finalSort !== 'createdAt:desc') sp.set('sort', finalSort);
+    if (finalDeleted) sp.set('deleted', '1');
 
     startTransition(() => {
       const qs = sp.toString();
@@ -75,6 +88,7 @@ export default function OffersFilters({
     setClientName('');
     setProgramId('');
     setSort('createdAt:desc');
+    setDeleted(false);
     startTransition(() => router.push('/admin/offers'));
   }
 
@@ -87,7 +101,7 @@ export default function OffersFilters({
   }
 
   const hasFilters =
-    statuses.size > 0 || clientName.trim() || programId || sort !== 'createdAt:desc';
+    statuses.size > 0 || clientName.trim() || programId || sort !== 'createdAt:desc' || deleted;
 
   return (
     <section style={panel}>
@@ -104,6 +118,21 @@ export default function OffersFilters({
               {opt.label}
             </button>
           ))}
+          {canSeeDeleted && (
+            <button
+              type="button"
+              onClick={() => {
+                const next = !deleted;
+                setDeleted(next);
+                applyFilters({ deleted: next });
+              }}
+              style={deleted ? chipTrashActive : chipTrash}
+              disabled={pending}
+              title="Oferty usunięte — zostają w bazie i można je przywrócić"
+            >
+              Usunięte
+            </button>
+          )}
         </div>
       </div>
 
@@ -204,6 +233,21 @@ const chipActive: React.CSSProperties = {
   ...chip,
   background: '#1B2A4A',
   color: '#fff',
+};
+// Kosz odcinamy wizualnie od filtrow statusu — to inny wymiar niz status
+// oferty i nie chcemy, zeby ktos wlaczyl go przez pomylke.
+const chipTrash: React.CSSProperties = {
+  ...chip,
+  marginLeft: 10,
+  color: '#a3202b',
+  border: '1px dashed #e8c2c6',
+  background: '#fff',
+};
+const chipTrashActive: React.CSSProperties = {
+  ...chipTrash,
+  background: '#a3202b',
+  color: '#fff',
+  borderStyle: 'solid',
 };
 const input: React.CSSProperties = {
   flex: '1 1 240px',

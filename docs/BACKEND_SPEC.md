@@ -798,6 +798,7 @@ OFFERS (consultant+)
   GET    /api/offers/:id                      – szczegóły
   PATCH  /api/offers/:id                      – edycja
   DELETE /api/offers/:id                      – soft delete (admin+)
+  POST   /api/offers/:id/restore              – cofnij soft delete (admin+)
   POST   /api/offers/:id/send                 – wyślij do klienta (mail)
   POST   /api/offers/:id/duplicate            – klon
   POST   /api/offers/:id/recalculate          – przelicz pricing_snapshot
@@ -822,6 +823,7 @@ ADMIN
   POST   /api/admin/programs                  – CRUD dla programów (super_admin)
   POST   /api/admin/users/invite              – zaproś użytkownika
   PATCH  /api/admin/users/:id/role            – zmień rolę
+  PATCH  /api/admin/users/:id/status          – dezaktywuj / przywróć konto (super_admin)
   GET    /api/admin/audit-log
   *      /api/admin/alt-programs              – CRUD biblioteki alt-programów (etap 2)
   *      /api/admin/templates                 – CRUD szablonów oferty (etap 2)
@@ -1289,6 +1291,31 @@ export async function PATCH(req, { params }) {
 ```
 
 Trigger po `INSERT` do `auth.users` (sekcja 7.3) również wstawia `role` do `raw_app_meta_data`.
+
+#### 7.5.1 Dezaktywacja i przywracanie konta
+
+`PATCH /api/admin/users/:id/status` z `{ isActive: boolean }`, tylko `super_admin`.
+Panel: `/admin/users`, sekcje „Aktywni" i „Nieaktywni", przycisk w wierszu.
+
+**Dezaktywacja nie jest usunięciem i nie da się jej zamienić na usunięcie.**
+`offers.created_by` ma `on delete restrict` (sekcja 3.2.3), więc fizyczne usunięcie
+osoby, która wystawiła choć jedną ofertę, jest zablokowane na poziomie schematu —
+celowo, żeby historia ofert nie znikała razem z człowiekiem. Dezaktywacja:
+
+1. `profiles.is_active = false`, `deleted_at = now()`. Brama sesji
+   (`lib/auth/session.ts`) odrzuca oba stany, więc logowanie przestaje działać
+   natychmiast — także z poprawnym hasłem.
+2. `auth.admin.signOut(id, 'global')` — wygaszenie aktywnych sesji i tokenów
+   odświeżania, bez czekania na wygaśnięcie JWT.
+3. `audit_log` (`profile.deactivate` / `profile.restore`) + `invalidateRoleCache`.
+
+Guardy: super_admin nie może zablokować własnego konta (straciłby dostęp do panelu,
+w którym mógłby to cofnąć). Przywrócenie zwraca **409**, gdy w międzyczasie powstało
+nowe aktywne konto na ten sam email — `uq_profiles_email_active` obowiązuje tylko dla
+wierszy bez `deleted_at`.
+
+Panel pokazuje przy każdej osobie liczbę przypisanych ofert, a przy blokowaniu
+ostrzega, jeśli jest różna od zera: oferty zostają bez opiekuna i trzeba je przepisać.
 
 ### 7.6 MFA + session policy
 
