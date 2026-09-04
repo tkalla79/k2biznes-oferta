@@ -36,7 +36,12 @@ export default async function EditOfferPage({ params }: { params: { id: string }
     sb.from('offers').select('*').eq('id', params.id).is('deleted_at', null).maybeSingle(),
     sb.from('programs').select('id, label, group_name').eq('is_active', true).order('display_order'),
     sb.from('case_studies').select('id, client, title').eq('is_active', true).order('display_order'),
-    sb.from('contact_persons').select('id, name, role').eq('is_active', true).order('display_order'),
+    // `email` — potrzebny do informacji, kto dostanie kopię (CC) maila z ofertą.
+    sb
+      .from('contact_persons')
+      .select('id, name, role, email')
+      .eq('is_active', true)
+      .order('display_order'),
     sb.from('alt_programs').select('id, name, program, nabor, desc, url').eq('is_active', true).order('display_order'),
     // assignedConsultantId select tylko dla admina; consultant nie może zmienić
     // właściciela. Pusta lista pomijana w UI.
@@ -64,6 +69,17 @@ export default async function EditOfferPage({ params }: { params: { id: string }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
   const dto = toOfferDto(offer, appUrl);
+
+  // Kopia maila z ofertą idzie do osoby wskazanej w ofercie do kontaktu.
+  // Szukamy jej w liście aktywnych — osoba zdezaktywowana po wybraniu w ofercie
+  // wypada z listy, a wtedy dialog uczciwie powie „bez kopii" zamiast obiecywać
+  // wysyłkę na adres, którego nie zna.
+  const offerContact = offer.contact_person_id
+    ? (contactPersons ?? []).find((c) => c.id === offer.contact_person_id)
+    : undefined;
+  const ccRecipient = offerContact
+    ? { name: offerContact.name, email: offerContact.email }
+    : null;
 
   return (
     <main style={main}>
@@ -103,6 +119,7 @@ export default async function EditOfferPage({ params }: { params: { id: string }
         clientName={offer.client_name}
         status={offer.status}
         canDelete={isAdmin}
+        ccRecipient={ccRecipient}
       />
 
       <OfferForm

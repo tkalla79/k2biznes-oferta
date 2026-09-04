@@ -921,14 +921,17 @@ const CreateOfferInput = z.object({
 }
 ```
 
-**Response 200:** zaktualizowana oferta (`status = 'sent'`, `sentAt`).
+**Response 200:** zaktualizowana oferta (`status = 'sent'`, `sentAt`) +
+`emailDelivered: boolean`, `emailCc: string[]` (kto dostał kopię) oraz
+`emailError` gdy wysyłka padła.
 
 **Server logic:**
 1. Verify RLS (konsultant tylko swoje).
 2. Walidacja: `status in ('draft', 'sent')`.
 3. Update offer (`status = 'sent'`, `sent_at = now()`, `expires_at` jeśli podane).
-4. Resend: send email (template `OfferSentToClient`) z linkiem `https://app.k2biznes.pl/o/<client_token>`.
-5. Event log `sent`.
+4. Resend: send email (template `OfferSentToClient`) z linkiem `https://app.k2biznes.pl/o/<client_token>`,
+   Reply-To = konsultant prowadzący, CC = osoba kontaktowa z oferty (sekcja 8.1.1).
+5. Event log `sent` (payload: `recipientEmail`, `ccEmails`).
 6. (Opcjonalnie) CRM webhook job `offer.sent`.
 
 #### `GET /api/public/offers/:token`
@@ -1379,6 +1382,35 @@ Plik `packages/email-templates/`.
 
 - Subject: `Oferta K2Biznes dla {clientName} — {programLabel}`
 - Body: Branding K2, krótki opis programu, kwoty, CTA "Zobacz ofertę" → `https://app.k2biznes.pl/o/{token}`, stopka z danymi osoby kontaktowej.
+
+#### 8.1.1 Adresaci: To, Reply-To, CC
+
+| Pole | Kto | Skąd |
+|---|---|---|
+| `To` | klient | `recipientEmail` z formularza wysyłki |
+| `Reply-To` | konsultant prowadzący | `profiles.email` z `assigned_consultant_id ?? created_by` |
+| `CC` | osoba wskazana w ofercie do kontaktu | `offers.contact_person_id` → `contact_persons.email` |
+
+CC to reguła biznesowa (T. Kalla, 2026-09): osoba kontaktowa ma widzieć, co
+poszło do klienta. **Jawne CC, nie BCC** — tę osobę klient i tak widzi w sekcji
+kontaktowej oferty, więc kopia niczego nie ujawnia, a daje wspólny wątek:
+odpowiedź „do wszystkich" trafia i do konsultanta (Reply-To), i do osoby
+kontaktowej.
+
+Wyliczanie adresu jest w `lib/email/cc.ts` (`resolveOfferCc`) — czysta funkcja,
+bo cała treść siedzi w przypadkach brzegowych, a każdy z nich kończy się brakiem
+CC, nie błędem wysyłki:
+
+- oferta bez `contact_person_id` → brak CC;
+- osoba kontaktowa bez maila w katalogu (kolumna jest nullable) → brak CC + `console.warn`;
+- śmieć w kolumnie `email` (np. numer telefonu) → brak CC, adres nie leci do Resend;
+- osoba kontaktowa = odbiorca oferty → brak CC (ten sam adres dwa razy w jednej wiadomości).
+
+Kto faktycznie dostał kopię, widać w trzech miejscach: `offer_events.email_sent`
+(`payload.cc`), `offer_events.sent` i `audit_log` (`payload.ccEmails`), oraz w
+odpowiedzi endpointu (`emailCc`) — UI pokazuje to konsultantowi po wysyłce, a
+dialog wysyłki mówi o tym **przed** kliknięciem („Kopia (CC) pójdzie do…", albo
+wprost: osoba kontaktowa nie ma maila / nie wybrano jej w ofercie).
 
 ### 8.2 `OfferAcceptedConsultant` (system → konsultant)
 

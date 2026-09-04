@@ -86,7 +86,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     // robimy `offer_events.email_sent` insert. Email-reliability 2026-07: wynik
     // wraca w response — konsultant widzi OD RAZU "email nie dotarł" zamiast
     // cichego sukcesu i markera na liście dopiero po fakcie.
-    let emailResult: { ok: boolean; error?: string };
+    let emailResult: { ok: boolean; error?: string; cc: string[] };
     try {
       emailResult = await notifyClientOfferSent({
         offer: updated,
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     } catch (e) {
       console.error('[offers.send] email failed:', (e as Error).message);
       // Nie throw — status = sent już zapisany. Konsultant może retry przez UI.
-      emailResult = { ok: false, error: (e as Error).message };
+      emailResult = { ok: false, error: (e as Error).message, cc: [] };
     }
 
     // Event 'sent' + audit + CRM webhook — H1 audit: webhook MUSI być awaited
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         type: 'sent',
         actor_id: session.userId,
         actor_type: session.role === 'consultant' ? 'consultant' : 'admin',
-        payload: { recipientEmail: body.recipientEmail },
+        payload: { recipientEmail: body.recipientEmail, ccEmails: emailResult.cc },
       }),
       logAudit({
         action: 'offer.send',
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         actorId: session.userId,
         actorEmail: session.email,
         before: { status: offer.status },
-        after: { status: 'sent', recipientEmail: body.recipientEmail },
+        after: { status: 'sent', recipientEmail: body.recipientEmail, ccEmails: emailResult.cc },
       }),
       enqueueOfferWebhook({ event: 'offer.sent', offer: updated }).catch((e: Error) =>
         console.error('[send] enqueue webhook failed:', e.message),
@@ -130,6 +130,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       data: {
         ...toOfferDto(updated, appUrl),
         emailDelivered: emailResult.ok,
+        // Kto dostał kopię — UI mówi to konsultantowi wprost, zamiast kazać mu
+        // zakładać, że osoba kontaktowa ma w katalogu mail.
+        emailCc: emailResult.cc,
         ...(emailResult.ok ? {} : { emailError: emailResult.error }),
       },
     });
