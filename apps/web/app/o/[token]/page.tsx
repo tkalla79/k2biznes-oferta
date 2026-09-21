@@ -25,9 +25,12 @@ import ProcessTimeline from './ProcessTimeline';
 import AcceptForm from './AcceptForm';
 import PricingVariants from './PricingVariants';
 import LoanPricing from './LoanPricing';
+import ExecPricing from './ExecPricing';
 import { sanitizeRichText, sanitizeProse } from '@/lib/richtext';
 import { resolveLoanPricing } from '@/lib/pricing/loan';
-import type { LoanPricingResult } from '@/lib/pricing';
+import { resolveExecPricing } from '@/lib/pricing/exec';
+import { normalizeOfferKind } from '@/lib/offers/kind';
+import type { ExecPricingResult, LoanPricingResult } from '@/lib/pricing';
 import {
   SCOPE_PREP,
   SCOPE_EXEC,
@@ -36,6 +39,8 @@ import {
   LOAN_SCOPE_PREP,
   LOAN_PROCESS,
   LOAN_FAQ_ITEMS,
+  EXEC_PROCESS,
+  EXEC_FAQ_ITEMS,
 } from './staticContent';
 
 export const dynamic = 'force-dynamic';
@@ -160,8 +165,15 @@ export default async function OfferPage({ params, searchParams }: Props) {
   const faqRows = (faqRes.data ?? []) as Array<{ id: string; question: string; answer: string }>;
   const isPrint = searchParams.print === 'true';
 
-  // Typ oferty: dotacja (segmenty + warianty) vs pożyczka (opłata wstępna + % od kwoty).
-  const isLoan = dto.offerKind === 'loan';
+  // Typ oferty: dotacja (segmenty + warianty), pożyczka (opłata wstępna + % od
+  // kwoty) albo sam zakres 2 (stawka miesięczna za realizację i rozliczenie
+  // projektu, który ma już decyzję o dofinansowaniu).
+  const offerKind = normalizeOfferKind(dto.offerKind);
+  const isLoan = offerKind === 'loan';
+  const isExec = offerKind === 'exec';
+  // Wspólne dla obu typów bez wariantów — używane tam, gdzie liczy się tylko
+  // „czy jest z czego wybierać", a nie który to dokładnie model.
+  const isGrant = offerKind === 'grant';
   // Zrodlem prawdy o typie oferty jest `offer_kind`, nie ksztalt snapshotu.
   // Snapshot pozyczkowy moze byc niekompletny (starsza oferta, przelaczenie typu,
   // reczna edycja w Studio), wiec brakujace liczby odtwarzamy z wartosci oferty
@@ -169,6 +181,11 @@ export default async function OfferPage({ params, searchParams }: Props) {
   // crashem na `variants.filter`, albo oferta bez cennika.
   const loanPricing: LoanPricingResult | null = isLoan
     ? resolveLoanPricing(dto.pricingSnapshot, dto.projectValue)
+    : null;
+  // Ta sama zasada co przy pożyczce: snapshot bywa niekompletny, a oferta bez
+  // cennika jest gorsza niż cennik odtworzony z wartości domyślnych.
+  const execPricing: ExecPricingResult | null = isExec
+    ? resolveExecPricing(dto.pricingSnapshot, dto.projectValue)
     : null;
 
   // Snapshot dotacyjny ma `variants`, pożyczkowy nie. Czytamy defensywnie: przy
@@ -184,8 +201,22 @@ export default async function OfferPage({ params, searchParams }: Props) {
   // Variants — z pricing_snapshot, filtrowane przez offered_variants. Wybrany na końcu.
   // Pożyczka nie ma wariantów: budujemy jeden pseudo-wariant, żeby sekcja akceptacji
   // (AcceptForm + endpoint, które są wariantowe) działała bez zmian kontraktu.
-  const variants = loanPricing
+  const variants = execPricing
     ? [
+        {
+          id: 'I' as const,
+          name: 'Wynagrodzenie',
+          tag: '',
+          sfPct: 0,
+          sfAmount: 0,
+          base: 0,
+          monthly: execPricing.monthlyFee,
+          total: execPricing.total,
+          payment: [],
+        },
+      ]
+    : loanPricing
+      ? [
         {
           id: 'I' as const,
           name: 'Wynagrodzenie',
@@ -198,7 +229,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
           payment: [],
         },
       ]
-    : snapshotVariants.filter((v) => dto.offeredVariants.includes(v.id));
+      : snapshotVariants.filter((v) => dto.offeredVariants.includes(v.id));
   const selectedVariant =
     variants.find((v) => v.id === dto.selectedVariant) ?? variants[0] ?? null;
   const funding = loanPricing
@@ -356,9 +387,19 @@ export default async function OfferPage({ params, searchParams }: Props) {
               {fmtDate(offer.sent_at ?? offer.created_at)}
             </div>
             <h1 className="hero-title">
-              Wsparcie doradcze<br />
-              w zakresie przygotowania<br />
-              <em>dokumentacji projektu</em>
+              {isExec ? (
+                <>
+                  Wsparcie doradcze<br />
+                  w zakresie realizacji<br />
+                  <em>i rozliczenia projektu</em>
+                </>
+              ) : (
+                <>
+                  Wsparcie doradcze<br />
+                  w zakresie przygotowania<br />
+                  <em>dokumentacji projektu</em>
+                </>
+              )}
             </h1>
             <div className="hero-for">
               Oferta przygotowana dla
@@ -521,9 +562,18 @@ export default async function OfferPage({ params, searchParams }: Props) {
           {/* Pożyczka: zakres do decyzji pożyczkowej; brak etapu rozliczania
               (nie ma części miesięcznej w modelu wynagrodzenia). */}
           <ScopeAccordion
-            prep={isLoan ? LOAN_SCOPE_PREP : SCOPE_PREP}
-            exec={isLoan ? [] : SCOPE_EXEC}
+            prep={isExec ? SCOPE_EXEC : isLoan ? LOAN_SCOPE_PREP : SCOPE_PREP}
+            exec={isGrant ? SCOPE_EXEC : []}
             print={isPrint}
+            {...(isExec
+              ? {
+                  prepLabel: 'Obsługa i rozliczanie projektu',
+                  prepTag: 'w cenie oferty',
+                  prepIntro:
+                    'Szczegółowy zakres prac przy realizacji i rozliczeniu projektu, ' +
+                    'który ma już decyzję o dofinansowaniu.',
+                }
+              : {})}
           />
         </section>
 
@@ -532,12 +582,22 @@ export default async function OfferPage({ params, searchParams }: Props) {
           <div className="section-head">
             <div className="section-kicker">04 · Model wynagrodzenia</div>
             <h2>
-              Partnerski model: <em>success fee</em>
+              {isExec ? (
+                <>
+                  Przejrzysty model: <em>stawka miesięczna</em>
+                </>
+              ) : (
+                <>
+                  Partnerski model: <em>success fee</em>
+                </>
+              )}
             </h2>
             <p className="section-lead">
-              {isLoan
-                ? 'Współpracę proponujemy w modelu opartym na opłacie wstępnej oraz wynagrodzeniu wynikowym, liczonym od kwoty przyznanej pożyczki. Nasz sukces zależy od sukcesu Państwa wniosku.'
-                : 'Współpracę proponujemy w modelu opartym na opłacie wstępnej oraz wynagrodzeniu wynikowym. Nasz sukces zależy od sukcesu Państwa projektu.'}
+              {isExec
+                ? 'Projekt ma już decyzję o dofinansowaniu, więc nie ma tu wynagrodzenia wynikowego ani opłaty wstępnej — jest stała stawka miesięczna za prowadzenie i rozliczanie projektu.'
+                : isLoan
+                  ? 'Współpracę proponujemy w modelu opartym na opłacie wstępnej oraz wynagrodzeniu wynikowym, liczonym od kwoty przyznanej pożyczki. Nasz sukces zależy od sukcesu Państwa wniosku.'
+                  : 'Współpracę proponujemy w modelu opartym na opłacie wstępnej oraz wynagrodzeniu wynikowym. Nasz sukces zależy od sukcesu Państwa projektu.'}
             </p>
           </div>
 
@@ -550,7 +610,22 @@ export default async function OfferPage({ params, searchParams }: Props) {
                 <h3>Wartości przyjęte w tej ofercie</h3>
               </div>
             </div>
-            {isLoan ? (
+            {isExec && execPricing ? (
+              <div className="calc-readonly">
+                <div className="cr-item">
+                  <div className="cr-label">Kwota przyznanego dofinansowania</div>
+                  <div className="cr-val cr-val-accent">{fmt(execPricing.grantAmount)}</div>
+                </div>
+                <div className="cr-item">
+                  <div className="cr-label">Okres obsługi</div>
+                  <div className="cr-val">{execPricing.months} mies.</div>
+                </div>
+                <div className="cr-item">
+                  <div className="cr-label">Stawka miesięczna</div>
+                  <div className="cr-val">{fmt(execPricing.monthlyFee)}</div>
+                </div>
+              </div>
+            ) : isLoan ? (
               <div className="calc-readonly">
                 <div className="cr-item">
                   <div className="cr-label">Wnioskowana kwota pożyczki</div>
@@ -599,7 +674,9 @@ export default async function OfferPage({ params, searchParams }: Props) {
             )}
           </div>
 
-          {loanPricing ? (
+          {execPricing ? (
+            <ExecPricing pricing={execPricing} />
+          ) : loanPricing ? (
             <LoanPricing pricing={loanPricing} />
           ) : (
             <PricingVariants
@@ -636,7 +713,10 @@ export default async function OfferPage({ params, searchParams }: Props) {
               Przejrzysty proces współpracy — od pierwszego kontaktu po podpisanie umowy.
             </p>
           </div>
-          <ProcessTimeline steps={isLoan ? LOAN_PROCESS : PROCESS} print={isPrint} />
+          <ProcessTimeline
+            steps={isExec ? EXEC_PROCESS : isLoan ? LOAN_PROCESS : PROCESS}
+            print={isPrint}
+          />
         </section>
 
         {/* ==================== 07. ONAS ==================== */}
@@ -778,9 +858,11 @@ export default async function OfferPage({ params, searchParams }: Props) {
             items={
               isLoan
                 ? LOAN_FAQ_ITEMS
-                : faqRows.length > 0
-                  ? faqRows.map((f) => ({ q: f.question, a: f.answer }))
-                  : FAQ_ITEMS
+                : isExec
+                  ? EXEC_FAQ_ITEMS
+                  : faqRows.length > 0
+                    ? faqRows.map((f) => ({ q: f.question, a: f.answer }))
+                    : FAQ_ITEMS
             }
             print={isPrint}
           />
@@ -816,9 +898,20 @@ export default async function OfferPage({ params, searchParams }: Props) {
                 <AcceptForm
                   token={params.token}
                   isLoan={isLoan}
-                  // Pożyczka: jeden pseudo-wariant 'I' → select wariantu się nie pokazuje.
-                  offeredVariants={isLoan ? ['I'] : dto.offeredVariants}
-                  defaultVariant={isLoan ? 'I' : dto.selectedVariant}
+                  // Pożyczka i zakres 2: jeden pseudo-wariant 'I' → select
+                  // wariantu się nie pokazuje (nie ma z czego wybierać).
+                  hideVariants={!isGrant}
+                  execSummary={
+                    execPricing
+                      ? {
+                          monthlyFee: execPricing.monthlyFee,
+                          months: execPricing.months,
+                          total: execPricing.total,
+                        }
+                      : null
+                  }
+                  offeredVariants={isGrant ? dto.offeredVariants : ['I']}
+                  defaultVariant={isGrant ? dto.selectedVariant : 'I'}
                   variants={variants.map((v) => ({
                     id: v.id,
                     base: v.base,

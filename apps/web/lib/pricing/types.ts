@@ -79,5 +79,26 @@ export type LoanPricingResult = {
   total: number; // baseFee + sfAmount
 };
 
-/** Snapshot cennika oferty: dotacyjny (segmentowy) albo pożyczkowy. */
-export type OfferPricingResult = PricingResult | LoanPricingResult;
+// =============================================================================
+// Sam zakres 2 (tryb `exec`) — realizacja i rozliczenie już przyznanego
+// projektu. Sama stawka miesięczna: bez opłaty wstępnej, bez wariantów,
+// bez success fee.
+// =============================================================================
+
+export type ExecPricingInput = {
+  /** Kwota przyznanego dofinansowania — tło oferty, nie podstawa naliczania. */
+  grantAmount: number;
+  monthlyFee?: number; // domyślnie EXEC_MONTHLY_FEE (3000)
+  months?: number; // domyślnie EXEC_MONTHS (12)
+};
+
+export type ExecPricingResult = {
+  kind: 'exec';
+  grantAmount: number;
+  monthlyFee: number;
+  months: number;
+  total: number; // monthlyFee * months
+};
+
+/** Snapshot cennika oferty: dotacyjny (segmentowy), pożyczkowy albo zakres 2. */
+export type OfferPricingResult = PricingResult | LoanPricingResult | ExecPricingResult;

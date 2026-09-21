@@ -29,8 +29,14 @@ import { logAudit } from '@/lib/audit';
 import { notifyConsultantOfferAccepted } from '@/lib/email/notifications';
 import { enqueueOfferWebhook } from '@/lib/webhooks/enqueue';
 import type { Json } from '@k2/database/types';
-import type { LoanPricingResult, PricingResult, PricingVariant } from '@/lib/pricing';
+import type {
+  ExecPricingResult,
+  LoanPricingResult,
+  PricingResult,
+  PricingVariant,
+} from '@/lib/pricing';
 import { isLoanPricing } from '@/lib/pricing/loan';
+import { isExecPricing } from '@/lib/pricing/exec';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -70,11 +76,15 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
     }
 
     // Wylicz acceptedFee z pricing_snapshot (zamrożona kalkulacja z momentu utworzenia oferty).
-    // Pożyczka (offer_kind='loan') nie ma wariantów — fee to całość wynagrodzenia
-    // (opłata wstępna + success fee) z pożyczkowego snapshotu.
-    const rawSnapshot = offer.pricing_snapshot as unknown as PricingResult | LoanPricingResult;
+    // Pożyczka (offer_kind='loan') i sam zakres 2 (offer_kind='exec') nie mają
+    // wariantów — fee to całość wynagrodzenia z ich snapshotu (przy zakresie 2:
+    // stawka miesięczna × zadeklarowany okres).
+    const rawSnapshot = offer.pricing_snapshot as unknown as
+      | PricingResult
+      | LoanPricingResult
+      | ExecPricingResult;
     let acceptedFee: number;
-    if (isLoanPricing(rawSnapshot)) {
+    if (isLoanPricing(rawSnapshot) || isExecPricing(rawSnapshot)) {
       acceptedFee = rawSnapshot.total;
     } else {
       const variant = rawSnapshot.variants.find(

@@ -208,10 +208,17 @@ describe('shouldRecalcSnapshot — zmiana typu oferty', () => {
   it('zmiana offerKind wymusza przeliczenie snapshotu', () => {
     expect(shouldRecalcSnapshot({ offerKind: 'loan' })).toBe(true);
     expect(shouldRecalcSnapshot({ offerKind: 'grant' })).toBe(true);
+    expect(shouldRecalcSnapshot({ offerKind: 'exec' })).toBe(true);
   });
 
   it('zmiana danych pożyczki wymusza przeliczenie', () => {
     expect(shouldRecalcSnapshot({ loan: { baseFee: 2000, sfPct: 0.02 } })).toBe(true);
+  });
+
+  it('zmiana stawki albo okresu zakresu 2 wymusza przeliczenie', () => {
+    // Bez tego zmiana okresu obsługi zostawiłaby w snapshocie starą sumę,
+    // a klient zobaczyłby inną kwotę niż wpisana w formularzu.
+    expect(shouldRecalcSnapshot({ exec: { monthlyFee: 2500, months: 24 } })).toBe(true);
   });
 
   it('zmiana samej treści nie wymusza przeliczenia', () => {

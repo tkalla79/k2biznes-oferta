@@ -9,6 +9,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { calcPricing } from '@/lib/pricing';
 import { calcLoanPricing, LOAN_BASE_FEE, LOAN_SF_PCT } from '@/lib/pricing/loan';
+import { calcExecPricing, EXEC_MONTHLY_FEE, EXEC_MONTHS } from '@/lib/pricing/exec';
 import { loadPricing } from '@/lib/pricing/load';
 import {
   CreateOfferInput,
@@ -99,9 +100,12 @@ export async function POST(req: NextRequest) {
 
     const body = CreateOfferInput.parse(await req.json());
     const isLoan = body.offerKind === 'loan';
+    const isExec = body.offerKind === 'exec';
+    const isGrant = body.offerKind === 'grant';
 
-    // Walidacja: selectedVariant musi być w offeredVariants (tylko dotacja — pożyczka bez wariantów)
-    if (!isLoan && !body.offeredVariants.includes(body.selectedVariant)) {
+    // Walidacja: selectedVariant musi być w offeredVariants (tylko dotacja —
+    // pożyczka i zakres 2 nie mają wariantów).
+    if (isGrant && !body.offeredVariants.includes(body.selectedVariant)) {
       throw new ApiError(
         'VALIDATION_ERROR',
         '`selectedVariant` musi być w `offeredVariants`.',
@@ -111,14 +115,24 @@ export async function POST(req: NextRequest) {
 
     // Dane pożyczki (produkt + stawki) — persystowane w content.loan.
     const loanData = isLoan ? (body.loan ?? { baseFee: LOAN_BASE_FEE, sfPct: LOAN_SF_PCT }) : null;
+    // Dane zakresu 2 (stawka miesięczna + okres) — persystowane w content.exec.
+    const execData = isExec
+      ? (body.exec ?? { monthlyFee: EXEC_MONTHLY_FEE, months: EXEC_MONTHS })
+      : null;
 
-    // Wylicz pricing snapshot — gałąź dotacja / pożyczka.
+    // Wylicz pricing snapshot — gałąź dotacja / pożyczka / zakres 2.
     let pricingSnapshot;
     if (isLoan) {
       pricingSnapshot = calcLoanPricing({
         loanAmount: body.projectValue,
         baseFee: loanData?.baseFee,
         sfPct: loanData?.sfPct,
+      });
+    } else if (isExec) {
+      pricingSnapshot = calcExecPricing({
+        grantAmount: body.projectValue,
+        monthlyFee: execData?.monthlyFee,
+        months: execData?.months,
       });
     } else {
       const { segments, config } = await loadPricing();
@@ -161,14 +175,18 @@ export async function POST(req: NextRequest) {
         program_label: body.programLabel,
         program_custom_name: body.programCustomName ?? null,
         project_value: body.projectValue,
-        funding_rate: isLoan ? null : (body.fundingRate as number),
+        funding_rate: isGrant ? (body.fundingRate as number) : null,
         returning_client: body.returningClient,
         project_count: body.projectCount,
         pricing_snapshot: pricingSnapshot as unknown as Json,
         selected_variant: body.selectedVariant,
         offered_variants: body.offeredVariants,
         case_study_id: body.caseStudyId ?? null,
-        content: (isLoan ? { ...body.content, loan: loanData } : body.content) as Json,
+        content: (isLoan
+          ? { ...body.content, loan: loanData }
+          : isExec
+            ? { ...body.content, exec: execData }
+            : body.content) as Json,
       })
       .select()
       .single();

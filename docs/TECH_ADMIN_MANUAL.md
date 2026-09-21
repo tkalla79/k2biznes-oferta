@@ -71,7 +71,7 @@ Spina rozproszone runbooks w jedną nawigowalną dokumentację.
 ### Kluczowe tabele DB (per BACKEND_SPEC sekcja 3)
 
 - `profiles` — userzy + role (super_admin / admin / consultant)
-- `offers` — wszystkie oferty (snapshot + override pricing, content jsonb). Kolumna `offer_kind` = `grant` (dotacja) lub `loan` (pożyczka); dla pożyczki `funding_rate` jest NULL, a kwota pożyczki siedzi w `project_value`, stawki i parametry produktu w `content.loan`
+- `offers` — wszystkie oferty (snapshot + override pricing, content jsonb). Kolumna `offer_kind` = `grant` (dotacja), `loan` (pożyczka) lub `exec` (sam zakres 2: realizacja i rozliczenie). Dla `loan` i `exec` `funding_rate` jest NULL, a `project_value` niesie odpowiednio kwotę pożyczki i kwotę przyznanego dofinansowania; stawki w `content.loan` / `content.exec`
 - `pricing_segments` — 5 progów **kwoty dofinansowania** (s500k → s5mplus); edycja z `/admin/pricing`
 - `pricing_config` — discounty + floor values
 - `programs` — katalog 8 programów dotacyjnych
@@ -359,6 +359,11 @@ nie ma adresu email w katalogu" — uzupełnij mail w `/admin/contact-persons`,
 bo bez niego kopia nie poleci. Kopia nie idzie też wtedy, gdy w ofercie nie
 wybrano osoby kontaktowej albo gdy jest nią sam odbiorca oferty.
 
+**Temat.** Pole „Temat" w dialogu jest wypełnione dokładnie tym tematem, który
+pójdzie w mailu przy pustym polu — możesz go nadpisać własnym. Wyczyszczenie pola
+nie wyśle maila bez tematu: wróci domyślny (mail bez tematu u klienta wygląda jak
+spam). Do 2026-09 to pole było martwe — wpisany temat nigdzie nie docierał.
+
 Ślad: `offer_events` (`email_sent` → `payload.cc`, `sent` → `payload.ccEmails`)
 i `audit_log` przy akcji `offer.send`.
 
@@ -396,6 +401,30 @@ konkretnej oferty to świadome `POST /api/offers/:id/recalculate`.
 Ekran edytuje istniejące segmenty — nie dodaje i nie usuwa. Dodanie szóstego
 progu zmienia cały układ widełek, więc to decyzja biznesowa plus migracja, nie
 przycisk. Cennik pożyczkowy jest per oferta i tego ekranu nie dotyczy.
+
+### Oferta tylko na zakres 2 — realizacja i rozliczenie (tryb `exec`)
+
+Dla klienta, który **ma już decyzję o dofinansowaniu** i szuka wyłącznie obsługi
+projektu — wniosek pisał sam albo kto inny. Rzadkie, ale się zdarza.
+
+Na górze formularza oferty: **Typ oferty → Realizacja i rozliczenie**.
+
+- **Cennik**: sama stawka miesięczna (domyślnie 3 000 zł) × okres obsługi
+  (domyślnie 12 mies.). **Bez opłaty wstępnej i bez wynagrodzenia wynikowego** —
+  dofinansowanie jest już przyznane, więc nie ma czego pozyskiwać. Obie wartości
+  ustawiasz per oferta, formularz od razu pokazuje sumę.
+- **Kwota przyznanego dofinansowania** wchodzi w pole wartości projektu. Jest
+  tłem oferty (skala projektu), nie podstawą naliczania — nie wpływa na cenę.
+- **Program** wpisujesz ręcznie (ten, w ramach którego przyznano środki) — nie
+  wybierasz go z biblioteki „Inne możliwości wsparcia", bo tu nic nie
+  rekomendujemy.
+- **U klienta** oferta renderuje się innym nagłówkiem („realizacji i rozliczenia
+  projektu"), sekcja 03 pokazuje wyłącznie zakres obsługi, cennik jest bez
+  wariantów, a proces i FAQ mówią o prowadzeniu projektu, nie o aplikowaniu.
+- Oferty `exec` **nie wchodzą** do pipeline/prognozy na `/admin` — dashboard
+  liczy tylko dotacje (tak samo jak pożyczki).
+
+Techniczne szczegóły: BACKEND_SPEC sekcja 6.3.
 
 ### Oferta pożyczkowa (tryb `loan`)
 

@@ -216,3 +216,55 @@ export const LOAN_FAQ_ITEMS = [
     a: 'Każda współpraca rozpoczyna się od podpisania NDA. Dane przechowujemy w zaszyfrowanej formie na serwerach zlokalizowanych w UE.',
   },
 ];
+
+// =============================================================================
+// Sam zakres 2 (offer_kind='exec') — realizacja i rozliczenie projektu, który
+// ma już decyzję o dofinansowaniu. Zakres prac to `SCOPE_EXEC` wyżej: to ta
+// sama usługa, którą w ofercie dotacyjnej sprzedajemy jako etap drugi, tu
+// stojąca samodzielnie. Proces i FAQ muszą być osobne, bo dotacyjne mówią o
+// aplikowaniu — czyli o etapie, który u tego klienta już się wydarzył.
+// =============================================================================
+
+export const EXEC_PROCESS = [
+  {
+    t: 'Spotkanie z klientem',
+    d: 'Omawiamy projekt, obowiązki wynikające z umowy o dofinansowanie i oczekiwany zakres obsługi.',
+  },
+  { t: 'Wysłanie oferty', d: 'Do 2 dni roboczych po spotkaniu klient otrzymuje spersonalizowaną ofertę.' },
+  { t: 'Akceptacja oferty', d: 'Klient potwierdza zakres obsługi i gotowość do podpisania umowy.' },
+  {
+    t: 'Podpisana umowa. Przejęcie projektu',
+    d: 'Przechodzimy przez umowę o dofinansowanie, harmonogram rzeczowo-finansowy i dotychczasową korespondencję z instytucją.',
+  },
+  {
+    t: 'Start obsługi',
+    d: 'Spotkanie wprowadzające, plan wniosków o płatność i bieżący nadzór nad realizacją projektu.',
+  },
+];
+
+export const EXEC_FAQ_ITEMS = [
+  {
+    q: 'Czy przejmujecie projekt, którego wniosek przygotował kto inny?',
+    a: 'Tak — to typowy przypadek dla tej usługi. Na starcie przechodzimy przez umowę o dofinansowanie, harmonogram rzeczowo-finansowy i dotychczasową korespondencję z instytucją, żeby przejąć projekt bez luk.',
+  },
+  {
+    q: 'Czy w tej ofercie jest wynagrodzenie od kwoty dofinansowania?',
+    a: 'Nie. Dofinansowanie zostało już przyznane, więc nie ma tu wynagrodzenia wynikowego ani opłaty wstępnej — jest wyłącznie stała stawka miesięczna za prowadzenie i rozliczanie projektu.',
+  },
+  {
+    q: 'Od czego zależy długość współpracy?',
+    a: 'Od okresu realizacji wskazanego w umowie o dofinansowanie. Wynagrodzenie jest miesięczne, więc rozliczamy się za faktyczny czas obsługi projektu.',
+  },
+  {
+    q: 'Kto prowadzi kontakt z instytucją?',
+    a: 'Bieżącą korespondencję i obsługę systemu teleinformatycznego prowadzimy my. Decyzje po stronie firmy zawsze pozostają u klienta, a w kontroli uczestniczymy razem z nim.',
+  },
+  {
+    q: 'Kto jest właścicielem dokumentacji po zakończeniu współpracy?',
+    a: 'Klient. Cała dokumentacja oraz materiały powstałe w ramach usługi są własnością klienta — przekazujemy je w formie edytowalnej.',
+  },
+  {
+    q: 'Jak wygląda ochrona danych i informacji poufnych?',
+    a: 'Każda współpraca rozpoczyna się od podpisania NDA. Dane przechowujemy w zaszyfrowanej formie na serwerach zlokalizowanych w UE.',
+  },
+];

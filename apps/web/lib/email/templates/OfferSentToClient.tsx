@@ -13,18 +13,17 @@ import {
   Section,
   Text,
 } from '@react-email/components';
+import type { OfferEmailSummary } from '../summary';
 
 export type OfferSentToClientProps = {
   clientName: string;
   programLabel: string;
   /**
-   * Oferta pożyczkowa (offers.offer_kind='loan'): brak wariantów i intensywności
-   * dofinansowania — inne etykiety podsumowania i inna zapowiedź treści oferty.
+   * Etykiety i treść podsumowania przychodzą gotowe z `lib/email/summary.ts` —
+   * szablon nie wie, czy to dotacja, pożyczka, czy sam zakres 2. Wcześniej
+   * rozstrzygał to flagą `isLoan` w pięciu miejscach naraz.
    */
-  isLoan?: boolean;
-  fundingAmount: string;
-  variantName: string;
-  variantTotal: string;
+  summary: OfferEmailSummary;
   consultantName: string;
   consultantEmail: string;
   consultantPhone: string | null;
@@ -59,7 +58,8 @@ export default function OfferSentToClient(p: OfferSentToClientProps) {
             Dzień dobry,
           </Text>
           <Text style={paragraph}>
-            {p.isLoan ? 'przesyłam ofertę na pozyskanie finansowania zwrotnego: ' : 'przesyłam ofertę na pozyskanie dofinansowania w programie '}
+            {p.summary.intro}
+            {p.summary.showProgram ? ' ' : ': '}
             <strong>{p.programLabel}</strong>.
           </Text>
 
@@ -69,20 +69,18 @@ export default function OfferSentToClient(p: OfferSentToClientProps) {
 
           <Section style={summary}>
             <Text style={summaryRow}>
-              <span style={label}>
-                {p.isLoan ? 'Wnioskowana kwota pożyczki:' : 'Kwota dofinansowania:'}
-              </span>
-              <span style={value}>{p.fundingAmount}</span>
+              <span style={label}>{p.summary.amountLabel}</span>
+              <span style={value}>{p.summary.amountValue}</span>
             </Text>
-            {!p.isLoan && (
+            {p.summary.detailLabel && (
               <Text style={summaryRow}>
-                <span style={label}>Rekomendowany wariant:</span>
-                <span style={value}>{p.variantName}</span>
+                <span style={label}>{p.summary.detailLabel}</span>
+                <span style={value}>{p.summary.detailValue}</span>
               </Text>
             )}
             <Text style={summaryRow}>
-              <span style={label}>Łączne wynagrodzenie:</span>
-              <span style={value}>{p.variantTotal}</span>
+              <span style={label}>{p.summary.totalLabel}</span>
+              <span style={value}>{p.summary.totalValue}</span>
             </Text>
           </Section>
 
@@ -93,9 +91,7 @@ export default function OfferSentToClient(p: OfferSentToClientProps) {
           </Section>
 
           <Text style={paragraph}>
-            {p.isLoan
-              ? 'W ofercie znajdą Państwo warunki produktu, zakres naszych prac, wynagrodzenie oraz nasze referencje. Można ją przeglądać w wygodnej chwili'
-              : 'W ofercie znajdą Państwo szczegółowy opis programu, trzy warianty wynagrodzenia oraz nasze referencje. Można ją przeglądać w wygodnej chwili'}
+            {p.summary.contents}. Można ją przeglądać w wygodnej chwili
             {p.expiresLabel
               ? ` — link jest aktywny do ${p.expiresLabel}.`
               : ' — link nie ma terminu ważności.'}
@@ -120,9 +116,19 @@ export default function OfferSentToClient(p: OfferSentToClientProps) {
 OfferSentToClient.PreviewProps = {
   clientName: 'Aqustec Sp. z o.o.',
   programLabel: 'FENG · Ścieżka SMART',
-  fundingAmount: '2 600 000 zł',
-  variantName: 'Wariant I — Szybka płatność',
-  variantTotal: '132 000 zł',
+  summary: {
+    kind: 'grant',
+    intro: 'przesyłam ofertę na pozyskanie dofinansowania w programie',
+    showProgram: true,
+    amountLabel: 'Kwota dofinansowania:',
+    amountValue: '2 600 000 zł',
+    detailLabel: 'Rekomendowany wariant:',
+    detailValue: 'Wariant I — Szybka płatność',
+    totalLabel: 'Łączne wynagrodzenie:',
+    totalValue: '132 000 zł',
+    contents:
+      'W ofercie znajdą Państwo szczegółowy opis programu, trzy warianty wynagrodzenia oraz nasze referencje',
+  },
   consultantName: 'Tomasz Kalla',
   consultantEmail: 'tomasz.kalla@k2biznes.pl',
   consultantPhone: '+48 600 000 000',

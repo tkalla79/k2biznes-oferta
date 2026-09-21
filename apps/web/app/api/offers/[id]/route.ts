@@ -8,6 +8,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { calcPricing } from '@/lib/pricing';
 import { calcLoanPricing } from '@/lib/pricing/loan';
+import { calcExecPricing } from '@/lib/pricing/exec';
+import { normalizeOfferKind, hasVariants } from '@/lib/offers/kind';
 import { loadPricing } from '@/lib/pricing/load';
 import { UpdateOfferInput, shouldRecalcSnapshot } from '@/lib/validation/offers';
 import { toOfferDto, type OfferRow } from '@/lib/offers/mapper';
@@ -87,10 +89,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     assertCanWriteOffer(session, before);
 
     const patch = UpdateOfferInput.parse(await req.json());
-    const kind = patch.offerKind ?? (before.offer_kind === 'loan' ? 'loan' : 'grant');
+    const kind = patch.offerKind ?? normalizeOfferKind(before.offer_kind);
 
     // Walidacja consistency (selectedVariant ⊂ offeredVariants) — tylko dotacja.
-    if (kind !== 'loan') {
+    if (hasVariants(kind)) {
       const nextOffered = patch.offeredVariants ?? before.offered_variants;
       const nextSelected = patch.selectedVariant ?? before.selected_variant;
       if (!nextOffered.includes(nextSelected)) {
@@ -129,7 +131,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       update.assigned_consultant_id = patch.assignedConsultantId;
     if (patch.offerKind !== undefined) {
       update.offer_kind = patch.offerKind;
-      if (patch.offerKind === 'loan') update.funding_rate = null;
+      // Intensywność dotyczy tylko dotacji: pożyczka jej nie ma, a oferta na sam
+      // zakres 2 operuje kwotą już przyznaną.
+      if (patch.offerKind !== 'grant') update.funding_rate = null;
     }
     // content + loan: zmiana danych pożyczki jest scalana do content.loan.
     let effContent: Record<string, unknown> | undefined =
@@ -137,6 +141,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (kind === 'loan' && patch.loan !== undefined) {
       const base = effContent ?? ((before.content as Record<string, unknown>) ?? {});
       effContent = { ...base, loan: patch.loan };
+    }
+    if (kind === 'exec' && patch.exec !== undefined) {
+      const base = effContent ?? ((before.content as Record<string, unknown>) ?? {});
+      effContent = { ...base, exec: patch.exec };
     }
     if (effContent !== undefined) update.content = effContent as Json;
     if (patch.pricingOverride !== undefined)
@@ -160,7 +168,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           409,
         );
       }
-      if (kind === 'loan') {
+      if (kind === 'exec') {
+        const beforeExec =
+          ((before.content as Record<string, unknown>)?.exec as
+            | { monthlyFee?: number; months?: number }
+            | undefined) ?? {};
+        const execData = patch.exec ?? beforeExec;
+        update.pricing_snapshot = calcExecPricing({
+          grantAmount: patch.projectValue ?? Number(before.project_value),
+          monthlyFee: execData.monthlyFee,
+          months: execData.months,
+        }) as unknown as Json;
+      } else if (kind === 'loan') {
         const beforeLoan =
           ((before.content as Record<string, unknown>)?.loan as
             | { baseFee?: number; sfPct?: number }

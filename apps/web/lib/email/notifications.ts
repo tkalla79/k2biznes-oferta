@@ -18,6 +18,7 @@ import type { OfferRow } from '@/lib/offers/mapper';
 import { buildOfferSummary } from './summary';
 import { resolveOfferCc } from './cc';
 import { resolveOfferSubject } from './subject';
+import { normalizeOfferKind } from '../offers/kind';
 import type { Json } from '@k2/database/types';
 
 const fmtPLN = (n: number) =>
@@ -140,10 +141,7 @@ export async function notifyClientOfferSent(args: {
   const props: OfferSentToClientProps = {
     clientName: offer.client_name,
     programLabel: offer.program_label,
-    isLoan: summary.isLoan,
-    fundingAmount: summary.fundingAmount,
-    variantName: summary.variantName,
-    variantTotal: summary.variantTotal,
+    summary,
     consultantName: consultant?.full_name ?? 'Zespół K2Biznes',
     consultantEmail: consultant?.email ?? 'kontakt@k2biznes.pl',
     consultantPhone: consultant?.phone ?? null,
@@ -208,7 +206,7 @@ export async function notifyConsultantOfferAccepted(offer: OfferRow): Promise<vo
     offerNumber: offer.offer_number,
     clientCompanyName: offer.client_name,
     programLabel: offer.program_label,
-    isLoan: offer.offer_kind === 'loan',
+    offerKind: normalizeOfferKind(offer.offer_kind),
     acceptedVariant: offer.accepted_variant ?? offer.selected_variant,
     acceptedFee: fmtPLN(Number(offer.accepted_fee ?? 0)),
     clientName: offer.accepted_by_name ?? '—',
@@ -222,9 +220,12 @@ export async function notifyConsultantOfferAccepted(offer: OfferRow): Promise<vo
   const { html, text } = await renderEmail(createElement(OfferAcceptedConsultant, props));
   const result = await sendEmail({
     to: consultant.email,
-    subject: props.isLoan
-      ? `Oferta ${offer.offer_number} zaakceptowana — ${offer.client_name} (pożyczka)`
-      : `Oferta ${offer.offer_number} zaakceptowana — ${offer.client_name}, wariant ${props.acceptedVariant}`,
+    subject:
+      props.offerKind === 'loan'
+        ? `Oferta ${offer.offer_number} zaakceptowana — ${offer.client_name} (pożyczka)`
+        : props.offerKind === 'exec'
+          ? `Oferta ${offer.offer_number} zaakceptowana — ${offer.client_name} (realizacja i rozliczenie)`
+          : `Oferta ${offer.offer_number} zaakceptowana — ${offer.client_name}, wariant ${props.acceptedVariant}`,
     html,
     text,
     tags: [

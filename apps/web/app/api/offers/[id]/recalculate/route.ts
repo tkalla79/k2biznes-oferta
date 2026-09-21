@@ -13,6 +13,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { calcPricing } from '@/lib/pricing';
 import { calcLoanPricing, isLoanPricing } from '@/lib/pricing/loan';
+import { calcExecPricing, isExecPricing } from '@/lib/pricing/exec';
+import { normalizeOfferKind } from '@/lib/offers/kind';
 import { loadPricing } from '@/lib/pricing/load';
 import { toOfferDto } from '@/lib/offers/mapper';
 import { deletePdfsForOffer } from '@/lib/pdf/storage';
@@ -48,9 +50,19 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
       }
     }
 
-    const isLoan = before.offer_kind === 'loan';
+    const kind = normalizeOfferKind(before.offer_kind);
     let snapshot;
-    if (isLoan) {
+    if (kind === 'exec') {
+      const execData =
+        ((before.content as Record<string, unknown>)?.exec as
+          | { monthlyFee?: number; months?: number }
+          | undefined) ?? {};
+      snapshot = calcExecPricing({
+        grantAmount: Number(before.project_value),
+        monthlyFee: execData.monthlyFee,
+        months: execData.months,
+      });
+    } else if (kind === 'loan') {
       const loan =
         ((before.content as Record<string, unknown>)?.loan as
           | { baseFee?: number; sfPct?: number }
@@ -89,7 +101,9 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
 
     const snapMeta = isLoanPricing(snapshot)
       ? { kind: 'loan', total: snapshot.total }
-      : { kind: 'grant', segment: snapshot.segment.id, base: snapshot.base };
+      : isExecPricing(snapshot)
+        ? { kind: 'exec', total: snapshot.total, months: snapshot.months }
+        : { kind: 'grant', segment: snapshot.segment.id, base: snapshot.base };
 
     await Promise.allSettled([
       sb.from('offer_events').insert({
