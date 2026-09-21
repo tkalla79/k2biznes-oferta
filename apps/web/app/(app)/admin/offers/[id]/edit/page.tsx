@@ -120,6 +120,7 @@ export default async function EditOfferPage({ params }: { params: { id: string }
         status={offer.status}
         canDelete={isAdmin}
         ccRecipient={ccRecipient}
+        programLabel={offer.program_label}
       />
 
       <OfferForm

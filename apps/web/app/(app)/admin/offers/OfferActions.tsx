@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Database } from '@k2/database/types';
+import { defaultOfferSubject } from '@/lib/email/subject';
 
 type OfferStatus = Database['public']['Enums']['offer_status'];
 
@@ -21,6 +22,8 @@ type Props = {
   status: OfferStatus;
   canDelete: boolean;
   ccRecipient: CcRecipient;
+  /** Do podpowiedzi tematu — dialog pokazuje dokładnie to, co pójdzie w mailu. */
+  programLabel: string;
 };
 
 /**
@@ -38,6 +41,7 @@ export default function OfferActions({
   status,
   canDelete,
   ccRecipient,
+  programLabel,
 }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -158,6 +162,7 @@ export default function OfferActions({
           clientName={clientName}
           isReSend={status === 'sent' || status === 'viewed'}
           ccRecipient={ccRecipient}
+          programLabel={programLabel}
           onClose={() => setSendOpen(false)}
           onSent={(email) => {
             setSendOpen(false);
@@ -194,6 +199,7 @@ function SendDialog({
   clientName,
   isReSend,
   ccRecipient,
+  programLabel,
   onClose,
   onSent,
 }: {
@@ -202,12 +208,15 @@ function SendDialog({
   clientName: string;
   isReSend: boolean;
   ccRecipient: CcRecipient;
+  programLabel: string;
   onClose: () => void;
   onSent: (email: { delivered: boolean; error?: string; cc: string[] }) => void;
 }) {
   const [recipientEmail, setRecipientEmail] = useState('');
   const [recipientName, setRecipientName] = useState('');
-  const [subject, setSubject] = useState(`Oferta K2Biznes — ${offerNumber}`);
+  // Podpowiadamy dokładnie ten temat, który wyśle serwer przy pustym polu —
+  // wcześniej pole pokazywało co innego, niż dostawał klient.
+  const [subject, setSubject] = useState(defaultOfferSubject({ clientName, programLabel }));
   const [message, setMessage] = useState('');
   // expiresAt — sluzy walidacji UI; format `datetime-local` to "YYYY-MM-DDTHH:MM"
   // (lokalny czas bez timezony). Patrz nizej input z `min` zeby zablokowac przeszlosc.
@@ -321,7 +330,7 @@ function SendDialog({
             />
           </Field>
 
-          <Field label="Temat">
+          <Field label="Temat (puste = domyślny temat z szablonu)">
             <input
               type="text"
               maxLength={300}

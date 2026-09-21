@@ -92,6 +92,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         offer: updated,
         recipientEmail: body.recipientEmail,
         customMessage: body.message,
+        customSubject: body.subject,
       });
     } catch (e) {
       console.error('[offers.send] email failed:', (e as Error).message);
