@@ -33,6 +33,8 @@ import { normalizeOfferKind } from '@/lib/offers/kind';
 import type { ExecPricingResult, LoanPricingResult } from '@/lib/pricing';
 import {
   SCOPE_PREP,
+  CULTURE_SCOPE_PREP,
+  CULTURE_SCOPE_EXEC,
   SCOPE_EXEC,
   PROCESS,
   FAQ_ITEMS,
@@ -310,6 +312,15 @@ export default async function OfferPage({ params, searchParams }: Props) {
   // recommendedAlt=null, program_label z oferty, wszystkie alt jako alternatywy.
   const recommendedAlt = altPrograms.find((p) => (p as { recommended?: boolean }).recommended) ?? null;
   const alternativeAlts = altPrograms.filter((p) => !(p as { recommended?: boolean }).recommended);
+  // Program „Kultura" (Fundusze Norweskie i EOG) ma inny zakres prac niż nabory krajowe
+  // — patrz CULTURE_SCOPE_PREP. Rozpoznajemy go po rekomendowanej pozycji z biblioteki
+  // programów; gdy handlowiec jej nie oznaczy, zostaje domyślny SCOPE_PREP.
+  // Tylko dotacja: pożyczka nie ma biblioteki programów, a oferta na sam zakres 2
+  // dostaje nazwę naboru wpisaną ręcznie (bez rekomendowanej pozycji), więc jedna
+  // i druga trafiłaby tu przypadkiem, gdyby szablon niósł stare alt-programy.
+  const isCulture =
+    isGrant &&
+    /\b(EOG|norwesk)/i.test(`${recommendedAlt?.program ?? ''} ${recommendedAlt?.name ?? ''}`);
   // N1/N2 (2026-07-15): sekcja 01 to teraz „podstawa rekomendacji" (bez punktów),
   // sekcja 02 bez „Dlaczego ten nabór" — `needs`/`hasNeeds`/`programReason` usunięte.
 
@@ -562,8 +573,16 @@ export default async function OfferPage({ params, searchParams }: Props) {
           {/* Pożyczka: zakres do decyzji pożyczkowej; brak etapu rozliczania
               (nie ma części miesięcznej w modelu wynagrodzenia). */}
           <ScopeAccordion
-            prep={isExec ? SCOPE_EXEC : isLoan ? LOAN_SCOPE_PREP : SCOPE_PREP}
-            exec={isGrant ? SCOPE_EXEC : []}
+            prep={
+              isExec
+                ? SCOPE_EXEC
+                : isLoan
+                  ? LOAN_SCOPE_PREP
+                  : isCulture
+                    ? CULTURE_SCOPE_PREP
+                    : SCOPE_PREP
+            }
+            exec={isGrant ? (isCulture ? CULTURE_SCOPE_EXEC : SCOPE_EXEC) : []}
             print={isPrint}
             {...(isExec
               ? {
@@ -682,12 +701,16 @@ export default async function OfferPage({ params, searchParams }: Props) {
             <PricingVariants
               variants={variants}
               initialSelected={dto.selectedVariant ?? ''}
-              execFee={{
-                kicker: dto.execFee.kicker,
-                title: dto.execFee.title,
-                desc: dto.execFee.desc,
-                monthly: dto.execFee.monthly ?? null,
-              }}
+              execFee={
+                isCulture
+                  ? null
+                  : {
+                      kicker: dto.execFee.kicker,
+                      title: dto.execFee.title,
+                      desc: dto.execFee.desc,
+                      monthly: dto.execFee.monthly ?? null,
+                    }
+              }
               trackToken={!isPrint && !isPreview && isActive ? params.token : undefined}
             />
           )}

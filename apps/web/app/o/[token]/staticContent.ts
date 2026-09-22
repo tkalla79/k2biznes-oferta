@@ -60,6 +60,79 @@ export const SCOPE_PREP = [
   },
 ];
 
+// Program „Kultura" (Fundusze Norweskie i EOG) rządzi się inną procedurą niż nabory
+// krajowe: nie ma panelu ekspertów ani protestu, jest za to koordynacja pozwoleń
+// konserwatorskich, obowiązkowe partnerstwo i komplet 46 załączników. Dlatego osobny
+// zakres zamiast SCOPE_PREP, który opisuje ścieżkę dotacji na innowacje.
+export const CULTURE_SCOPE_PREP = [
+  {
+    t: 'Weryfikacja kwalifikowalności i ocena szans',
+    d: 'Sprawdzamy kryteria eliminacyjne, limit liczby mieszkańców i zgodność z wykazem KSRR 2030. Weryfikujemy arytmetykę struktury budżetu i przeprowadzamy symulację punktową wariantu obecnego oraz docelowego.',
+  },
+  {
+    t: 'Projektowanie koncepcji i budżetu',
+    d: 'Opracowujemy warianty brakujących elementów koncepcji: oferty kulturalno-edukacyjnej, dziedzictwa niematerialnego, dostępności i partnerstw. Budujemy harmonogram wsteczny z twardymi datami odcięcia.',
+  },
+  {
+    t: 'Koordynacja dokumentów urzędowych',
+    d: 'Prowadzimy harmonogram postępowań: wniosku o pozwolenie konserwatorskie na prowadzenie prac, pozwolenia na budowę oraz opinii konserwatora o stanie zachowania zabytku. Pilnujemy dat odcięcia i koordynujemy prace projektantów, konserwatorów i pozostałych wykonawców. Za przygotowanie i kompletność dokumentacji technicznej oraz konserwatorskiej odpowiada Klient wraz ze swoimi wykonawcami.',
+  },
+  {
+    t: 'Partnerstwa krajowe i zagraniczne',
+    d: 'Negocjujemy i redagujemy umowę partnerską z partnerem polskim, wspieramy w pozyskaniu partnera z Państwa-Darczyńcy i przygotowujemy list intencyjny.',
+  },
+  {
+    t: 'Analizy finansowe i pomoc publiczna',
+    d: 'Przeprowadzamy test pomocy publicznej w wariancie inwestycyjnym i operacyjnym, kalkulujemy maksymalną kwotę pomocy oraz budujemy model przychodów i kosztów eksploatacji do końca okresu trwałości.',
+  },
+  {
+    t: 'Redakcja wniosku i załączników',
+    d: 'Opracowujemy tabelę kosztów, preliminarz kwartalny i komplet 46 załączników. Prowadzimy kontrolę krzyżową spójności oraz wspieramy przy podpisach kwalifikowanych i wysyłce przez e-Doręczenia.',
+  },
+  {
+    t: 'Obsługa oceny wniosku',
+    d: 'Reagujemy na wezwanie do uzupełnienia w ciągu doby, przygotowujemy odwołanie od oceny formalnej i prowadzimy Klienta do podpisania umowy o dofinansowanie.',
+  },
+];
+
+// Obsługa i rozliczanie projektu EOG. Warunki cenowe trzymamy tutaj, a nie w sekcji 04
+// (model wynagrodzenia) — na granatowym tle akordeonu były nieczytelne. Instytucją jest
+// Operator Programu (MKiDN), nie IP/IZ jak w naborach krajowych.
+export const CULTURE_SCOPE_EXEC = [
+  {
+    t: 'Spotkanie wprowadzające do realizacji projektu',
+    d: 'Zasady informacji i promocji środków Mechanizmu Finansowego EOG, analiza zapisów umowy w sprawie projektu, omówienie harmonogramu zadań.',
+  },
+  {
+    t: 'Monitoring harmonogramu rzeczowo-finansowego',
+    d: 'Bieżący nadzór nad postępem realizacji i zgodnością z umową w sprawie projektu. Przygotowywanie dokumentów dotyczących zmian w harmonogramie.',
+  },
+  {
+    t: 'Nadzór nad wyborem wykonawców i dostawców',
+    d: 'Przygotowanie dokumentacji zamówień w ramach projektu, zgodnie z zasadą konkurencyjności.',
+  },
+  {
+    t: 'Wnioski o płatność',
+    d: 'Przygotowywanie wniosków o płatność zaliczkową, okresową i końcową w oparciu o dokumenty przekazane przez Klienta.',
+  },
+  {
+    t: 'Wsparcie przy kontrolach w okresie realizacji',
+    d: 'Audyt dokumentacji projektu oraz czynny udział Managera Projektu podczas kontroli prowadzonych w okresie realizacji. Zawarte w wynagrodzeniu miesięcznym.',
+  },
+  {
+    t: 'Kontakt z Operatorem Programu',
+    d: 'Bieżąca komunikacja z Ministerstwem Kultury i Dziedzictwa Narodowego oraz obsługa skrzynki e-Doręczeń w sprawach projektu.',
+  },
+  {
+    t: 'Wynagrodzenie za obsługę i rozliczanie',
+    d: '3 000 zł netto miesięcznie przez okres realizacji projektu. Kwota obejmuje wsparcie przy kontrolach w tym okresie. Raport końcowy, monitoring okresu trwałości oraz kontrole po zakończeniu realizacji rozliczamy według stawki godzinowej albo indywidualnej wyceny.',
+  },
+  {
+    t: 'Finansowanie obsługi z budżetu projektu',
+    d: 'Ogłoszenie o naborze przewiduje koszty pośrednie w formie ryczałtu równego 3% sumy kosztów bezpośrednich kwalifikowalnych. Kategoria ta obejmuje między innymi usługi niezbędne do funkcjonowania projektu, więc wynagrodzenie za obsługę zwykle finansuje się właśnie z niej. Kwalifikowalność konkretnego wydatku potwierdza Operator Programu.',
+  },
+];
+
 export const SCOPE_EXEC = [
   {
     t: 'Spotkanie wprowadzające do realizacji projektu',
