@@ -613,12 +613,16 @@ export default async function OfferPage({ params, searchParams }: Props) {
             <PricingVariants
               variants={variants}
               initialSelected={dto.selectedVariant ?? ''}
-              execFee={{
-                kicker: dto.execFee.kicker,
-                title: dto.execFee.title,
-                desc: dto.execFee.desc,
-                monthly: dto.execFee.monthly ?? null,
-              }}
+              execFee={
+                isCulture
+                  ? null
+                  : {
+                      kicker: dto.execFee.kicker,
+                      title: dto.execFee.title,
+                      desc: dto.execFee.desc,
+                      monthly: dto.execFee.monthly ?? null,
+                    }
+              }
               trackToken={!isPrint && !isPreview && isActive ? params.token : undefined}
             />
           )}
