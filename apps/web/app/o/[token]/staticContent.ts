@@ -60,6 +60,41 @@ export const SCOPE_PREP = [
   },
 ];
 
+// Program „Kultura" (Fundusze Norweskie i EOG) rządzi się inną procedurą niż nabory
+// krajowe: nie ma panelu ekspertów ani protestu, jest za to koordynacja pozwoleń
+// konserwatorskich, obowiązkowe partnerstwo i komplet 46 załączników. Dlatego osobny
+// zakres zamiast SCOPE_PREP, który opisuje ścieżkę dotacji na innowacje.
+export const CULTURE_SCOPE_PREP = [
+  {
+    t: 'Weryfikacja kwalifikowalności i ocena szans',
+    d: 'Sprawdzamy kryteria eliminacyjne, limit liczby mieszkańców i zgodność z wykazem KSRR 2030. Weryfikujemy arytmetykę struktury budżetu i przeprowadzamy symulację punktową wariantu obecnego oraz docelowego.',
+  },
+  {
+    t: 'Projektowanie koncepcji i budżetu',
+    d: 'Opracowujemy warianty brakujących elementów koncepcji: oferty kulturalno-edukacyjnej, dziedzictwa niematerialnego, dostępności i partnerstw. Budujemy harmonogram wsteczny z twardymi datami odcięcia.',
+  },
+  {
+    t: 'Koordynacja dokumentów urzędowych',
+    d: 'Pilnujemy terminów wniosku o pozwolenie konserwatorskie na prowadzenie prac, pozwolenia na budowę oraz opinii konserwatora o stanie zachowania zabytku. Dokumenty składa Klient, my odpowiadamy za daty odcięcia i kompletność.',
+  },
+  {
+    t: 'Partnerstwa krajowe i zagraniczne',
+    d: 'Negocjujemy i redagujemy umowę partnerską z partnerem polskim, wspieramy w pozyskaniu partnera z Państwa-Darczyńcy i przygotowujemy list intencyjny.',
+  },
+  {
+    t: 'Analizy finansowe i pomoc publiczna',
+    d: 'Przeprowadzamy test pomocy publicznej w wariancie inwestycyjnym i operacyjnym, kalkulujemy maksymalną kwotę pomocy oraz budujemy model przychodów i kosztów eksploatacji do końca okresu trwałości.',
+  },
+  {
+    t: 'Redakcja wniosku i załączników',
+    d: 'Opracowujemy tabelę kosztów, preliminarz kwartalny i komplet 46 załączników. Prowadzimy kontrolę krzyżową spójności oraz wspieramy przy podpisach kwalifikowanych i wysyłce przez e-Doręczenia.',
+  },
+  {
+    t: 'Obsługa oceny wniosku',
+    d: 'Reagujemy na wezwanie do uzupełnienia w ciągu doby, przygotowujemy odwołanie od oceny formalnej i prowadzimy Klienta do podpisania umowy o dofinansowanie.',
+  },
+];
+
 export const SCOPE_EXEC = [
   {
     t: 'Spotkanie wprowadzające do realizacji projektu',

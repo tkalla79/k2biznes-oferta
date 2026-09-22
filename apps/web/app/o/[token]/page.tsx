@@ -30,6 +30,7 @@ import { resolveLoanPricing } from '@/lib/pricing/loan';
 import type { LoanPricingResult } from '@/lib/pricing';
 import {
   SCOPE_PREP,
+  CULTURE_SCOPE_PREP,
   SCOPE_EXEC,
   PROCESS,
   FAQ_ITEMS,
@@ -279,6 +280,12 @@ export default async function OfferPage({ params, searchParams }: Props) {
   // recommendedAlt=null, program_label z oferty, wszystkie alt jako alternatywy.
   const recommendedAlt = altPrograms.find((p) => (p as { recommended?: boolean }).recommended) ?? null;
   const alternativeAlts = altPrograms.filter((p) => !(p as { recommended?: boolean }).recommended);
+  // Program „Kultura" (Fundusze Norweskie i EOG) ma inny zakres prac niż nabory krajowe
+  // — patrz CULTURE_SCOPE_PREP. Rozpoznajemy go po rekomendowanej pozycji z biblioteki
+  // programów; gdy handlowiec jej nie oznaczy, zostaje domyślny SCOPE_PREP.
+  const isCulture =
+    !isLoan &&
+    /\b(EOG|norwesk)/i.test(`${recommendedAlt?.program ?? ''} ${recommendedAlt?.name ?? ''}`);
   // N1/N2 (2026-07-15): sekcja 01 to teraz „podstawa rekomendacji" (bez punktów),
   // sekcja 02 bez „Dlaczego ten nabór" — `needs`/`hasNeeds`/`programReason` usunięte.
 
@@ -521,7 +528,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
           {/* Pożyczka: zakres do decyzji pożyczkowej; brak etapu rozliczania
               (nie ma części miesięcznej w modelu wynagrodzenia). */}
           <ScopeAccordion
-            prep={isLoan ? LOAN_SCOPE_PREP : SCOPE_PREP}
+            prep={isLoan ? LOAN_SCOPE_PREP : isCulture ? CULTURE_SCOPE_PREP : SCOPE_PREP}
             exec={isLoan ? [] : SCOPE_EXEC}
             print={isPrint}
           />
