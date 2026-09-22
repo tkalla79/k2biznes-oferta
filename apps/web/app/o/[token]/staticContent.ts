@@ -75,7 +75,7 @@ export const CULTURE_SCOPE_PREP = [
   },
   {
     t: 'Koordynacja dokumentów urzędowych',
-    d: 'Pilnujemy terminów wniosku o pozwolenie konserwatorskie na prowadzenie prac, pozwolenia na budowę oraz opinii konserwatora o stanie zachowania zabytku. Dokumenty składa Klient, my odpowiadamy za daty odcięcia i kompletność.',
+    d: 'Prowadzimy harmonogram postępowań: wniosku o pozwolenie konserwatorskie na prowadzenie prac, pozwolenia na budowę oraz opinii konserwatora o stanie zachowania zabytku. Pilnujemy dat odcięcia i koordynujemy prace projektantów, konserwatorów i pozostałych wykonawców. Za przygotowanie i kompletność dokumentacji technicznej oraz konserwatorskiej odpowiada Klient wraz ze swoimi wykonawcami.',
   },
   {
     t: 'Partnerstwa krajowe i zagraniczne',
@@ -92,6 +92,44 @@ export const CULTURE_SCOPE_PREP = [
   {
     t: 'Obsługa oceny wniosku',
     d: 'Reagujemy na wezwanie do uzupełnienia w ciągu doby, przygotowujemy odwołanie od oceny formalnej i prowadzimy Klienta do podpisania umowy o dofinansowanie.',
+  },
+];
+
+// Obsługa i rozliczanie projektu EOG. Warunki cenowe trzymamy tutaj, a nie w sekcji 04
+// (model wynagrodzenia) — na granatowym tle akordeonu były nieczytelne. Instytucją jest
+// Operator Programu (MKiDN), nie IP/IZ jak w naborach krajowych.
+export const CULTURE_SCOPE_EXEC = [
+  {
+    t: 'Spotkanie wprowadzające do realizacji projektu',
+    d: 'Zasady informacji i promocji środków Mechanizmu Finansowego EOG, analiza zapisów umowy w sprawie projektu, omówienie harmonogramu zadań.',
+  },
+  {
+    t: 'Monitoring harmonogramu rzeczowo-finansowego',
+    d: 'Bieżący nadzór nad postępem realizacji i zgodnością z umową w sprawie projektu. Przygotowywanie dokumentów dotyczących zmian w harmonogramie.',
+  },
+  {
+    t: 'Nadzór nad wyborem wykonawców i dostawców',
+    d: 'Przygotowanie dokumentacji zamówień w ramach projektu, zgodnie z zasadą konkurencyjności.',
+  },
+  {
+    t: 'Wnioski o płatność',
+    d: 'Przygotowywanie wniosków o płatność zaliczkową, okresową i końcową w oparciu o dokumenty przekazane przez Klienta.',
+  },
+  {
+    t: 'Wsparcie przy kontrolach w okresie realizacji',
+    d: 'Audyt dokumentacji projektu oraz czynny udział Managera Projektu podczas kontroli prowadzonych w okresie realizacji. Zawarte w wynagrodzeniu miesięcznym.',
+  },
+  {
+    t: 'Kontakt z Operatorem Programu',
+    d: 'Bieżąca komunikacja z Ministerstwem Kultury i Dziedzictwa Narodowego oraz obsługa skrzynki e-Doręczeń w sprawach projektu.',
+  },
+  {
+    t: 'Wynagrodzenie za obsługę i rozliczanie',
+    d: '3 000 zł netto miesięcznie przez okres realizacji projektu. Kwota obejmuje wsparcie przy kontrolach w tym okresie. Raport końcowy, monitoring okresu trwałości oraz kontrole po zakończeniu realizacji rozliczamy według stawki godzinowej albo indywidualnej wyceny.',
+  },
+  {
+    t: 'Finansowanie obsługi z budżetu projektu',
+    d: 'Ogłoszenie o naborze przewiduje koszty pośrednie w formie ryczałtu równego 3% sumy kosztów bezpośrednich kwalifikowalnych. Kategoria ta obejmuje między innymi usługi niezbędne do funkcjonowania projektu, więc wynagrodzenie za obsługę zwykle finansuje się właśnie z niej. Kwalifikowalność konkretnego wydatku potwierdza Operator Programu.',
   },
 ];
 
