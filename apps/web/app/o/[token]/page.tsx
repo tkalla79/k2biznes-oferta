@@ -31,6 +31,7 @@ import type { LoanPricingResult } from '@/lib/pricing';
 import {
   SCOPE_PREP,
   CULTURE_SCOPE_PREP,
+  CULTURE_SCOPE_EXEC,
   SCOPE_EXEC,
   PROCESS,
   FAQ_ITEMS,
@@ -529,7 +530,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
               (nie ma części miesięcznej w modelu wynagrodzenia). */}
           <ScopeAccordion
             prep={isLoan ? LOAN_SCOPE_PREP : isCulture ? CULTURE_SCOPE_PREP : SCOPE_PREP}
-            exec={isLoan ? [] : SCOPE_EXEC}
+            exec={isLoan ? [] : isCulture ? CULTURE_SCOPE_EXEC : SCOPE_EXEC}
             print={isPrint}
           />
         </section>
