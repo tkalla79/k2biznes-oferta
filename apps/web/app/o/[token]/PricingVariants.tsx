@@ -27,12 +27,17 @@ import type { PricingVariant } from '@/lib/pricing';
 type Props = {
   variants: PricingVariant[];
   initialSelected: string;
+  /**
+   * Blok „wynagrodzenie wykonawcze" pod tabelą wariantów. `null` ukrywa go w całości —
+   * używane dla Programu Kultura, gdzie warunki obsługi opisuje sekcja 03
+   * (CULTURE_SCOPE_EXEC), a powielanie ich tutaj było nieczytelne.
+   */
   execFee: {
     kicker: string;
     title: string;
     desc: string;
     monthly: number | null;
-  };
+  } | null;
   /**
    * Token oferty do trackingu zainteresowania wariantami (audyt 2026-07 pkt 6).
    * Podany tylko dla realnego klienta (nie preview/print) — undefined = brak
@@ -144,7 +149,7 @@ export default function PricingVariants({ variants, initialSelected, execFee, tr
         Wszystkie kwoty są kwotami netto — do faktur zostanie doliczony podatek VAT (23%).
       </p>
 
-      {selected && (
+      {selected && execFee && (
         <div className="exec-fee">
           <div>
             <div className="ef-kicker">{execFee.kicker}</div>
