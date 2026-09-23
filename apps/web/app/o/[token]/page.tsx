@@ -287,6 +287,13 @@ export default async function OfferPage({ params, searchParams }: Props) {
   const isCulture =
     !isLoan &&
     /\b(EOG|norwesk)/i.test(`${recommendedAlt?.program ?? ''} ${recommendedAlt?.name ?? ''}`);
+  // Oferta wylacznie na obsluge i rozliczanie ma zerowa wycene wariantow (cala cena
+  // siedzi w wynagrodzeniu wykonawczym) i dotyczy projektu juz przyznanego, a nie
+  // przygotowania dokumentacji — naglowek musi to odzwierciedlac.
+  const isServiceOnly =
+    !isLoan &&
+    variants.length > 0 &&
+    variants.every((v) => v.base === 0 && v.sfAmount === 0 && v.total === 0);
   // N1/N2 (2026-07-15): sekcja 01 to teraz „podstawa rekomendacji" (bez punktów),
   // sekcja 02 bez „Dlaczego ten nabór" — `needs`/`hasNeeds`/`programReason` usunięte.
 
@@ -365,8 +372,17 @@ export default async function OfferPage({ params, searchParams }: Props) {
             </div>
             <h1 className="hero-title">
               Wsparcie doradcze<br />
-              w zakresie przygotowania<br />
-              <em>dokumentacji projektu</em>
+              {isServiceOnly ? (
+                <>
+                  w zakresie realizacji<br />
+                  <em>i rozliczania projektu</em>
+                </>
+              ) : (
+                <>
+                  w zakresie przygotowania<br />
+                  <em>dokumentacji projektu</em>
+                </>
+              )}
             </h1>
             <div className="hero-for">
               Oferta przygotowana dla
