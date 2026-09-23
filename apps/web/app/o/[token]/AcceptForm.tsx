@@ -9,6 +9,8 @@ type VariantSummary = {
   base: number;
   sfAmount: number;
   total: number;
+  /** Wynagrodzenie wykonawcze — jedyna cena w ofercie na sama obsluge i rozliczanie. */
+  monthly: number;
 };
 
 type Props = {
