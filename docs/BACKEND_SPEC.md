@@ -1305,6 +1305,13 @@ dlatego jedno wspólne miejsce. `resolveExecPricing(snapshot, projectValue)`
 odtwarza brakujące liczby (oferta przełączona między typami, ręczna edycja) i
 klamruje śmieciowy okres, zamiast wywalać render u klienta.
 
+**Jedna droga, nie dwie.** Zanim powstał ten typ, oferty na samą obsługę robiło
+się jako dotację z wyzerowanymi stawkami, a widok klienta rozpoznawał je
+heurystyką „wszystkie warianty = 0" (PR #100–#102: `isServiceOnly`,
+`hasVariantPricing`). Heurystyka została **usunięta** — rozpoznanie typu oferty
+należy do kolumny `offer_kind`, a nie do zgadywania z kwot. Dotacja naprawdę
+wyceniona na zero nie ma udawać oferty na obsługę.
+
 **Widok klienta.** Inny nagłówek („realizacji i rozliczenia projektu"), założenia
 = kwota przyznana + okres + stawka, sekcja 03 pokazuje `SCOPE_EXEC` jako jedyną
 zakładkę, cennik renderuje `ExecPricing`, a proces i FAQ mają własne zestawy

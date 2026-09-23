@@ -452,6 +452,11 @@ Na górze formularza oferty: **Typ oferty → Realizacja i rozliczenie**.
 - Oferty `exec` **nie wchodzą** do pipeline/prognozy na `/admin` — dashboard
   liczy tylko dotacje (tak samo jak pożyczki).
 
+**Nie da się już zrobić takiej oferty „na zero".** Wcześniejsze obejście —
+dotacja z wyzerowanymi stawkami, którą widok klienta rozpoznawał po samych zerach
+— zostało usunięte. Dotacja wyceniona na zero wygląda teraz jak dotacja wyceniona
+na zero. Do obsługi projektu służy ten typ oferty.
+
 Techniczne szczegóły: BACKEND_SPEC sekcja 6.3.
 
 ### Oferta pożyczkowa (tryb `loan`)

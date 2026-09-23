@@ -74,14 +74,6 @@ export default function AcceptForm({
     () => variants.find((v) => v.id === variant) ?? variants[0] ?? null,
     [variant, variants],
   );
-  // Oferta wylacznie na obsluge i rozliczanie nie ma oplaty wstepnej ani success
-  // fee — podsumowanie akceptacji pokazywalo wtedy „Wariant I · Oplata 0 zl ·
-  // Razem 0 zl", mimo ze cena to wynagrodzenie miesieczne. W takim wypadku
-  // pokazujemy stawke miesieczna i pomijamy numer wariantu (nie ma z czego wybierac).
-  const hasVariantPricing =
-    (currentVariant?.base ?? 0) > 0 ||
-    (currentVariant?.sfAmount ?? 0) > 0 ||
-    (currentVariant?.total ?? 0) > 0;
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [comment, setComment] = useState('');
@@ -191,16 +183,14 @@ export default function AcceptForm({
                 <dt>Dofinansowanie ({Math.round(summary.fundingRate * 100)}%)</dt>
                 <dd>{fmt(summary.funding)}</dd>
               </div>
-              {hasVariantPricing && (
-                <div>
-                  <dt>Wybrany wariant</dt>
-                  <dd>Wariant {currentVariant?.id ?? variant}</dd>
-                </div>
-              )}
+              <div>
+                <dt>Wybrany wariant</dt>
+                <dd>Wariant {currentVariant?.id ?? variant}</dd>
+              </div>
             </>
           )}
-          {/* Oferta typu `exec` zna stawkę i okres wprost. Dotacja z wyzerowaną
-              wyceną (obejście sprzed typu `exec`) zna tylko część miesięczną. */}
+          {/* Zakres 2 rozliczamy stawką miesięczną, dotację opłatą wstępną
+              i wynagrodzeniem wynikowym. */}
           {execSummary ? (
             <>
               <div>
@@ -216,7 +206,7 @@ export default function AcceptForm({
                 <dd>{fmt(execSummary.total)}</dd>
               </div>
             </>
-          ) : hasVariantPricing ? (
+          ) : (
             <>
               <div>
                 <dt>Opłata wstępna</dt>
@@ -231,11 +221,6 @@ export default function AcceptForm({
                 <dd>{fmt(currentVariant?.total ?? 0)}</dd>
               </div>
             </>
-          ) : (
-            <div className="total">
-              <dt>Wynagrodzenie miesięczne</dt>
-              <dd>{fmt(currentVariant?.monthly ?? 0)}</dd>
-            </div>
           )}
         </dl>
         {/* Audyt 2026-07: jednoznaczność cen (kwoty netto + VAT). */}
