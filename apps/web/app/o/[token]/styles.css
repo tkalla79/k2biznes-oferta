@@ -500,6 +500,16 @@ main { display: block; }
   margin: 0;
   font-weight: 400;
 }
+/* Ujednolicenie typografii tresci opisowych (2026-09-23): opis rekomendowanego
+   dzialania nie mial wlasnej reguly i dziedziczyl 20px z body, przez co byl
+   wyrazne wiekszy niz wprowadzenie w sekcji 01 (.intro-copy p = 16px).
+   Wyrownane do tego samego stopnia pisma i interlinii. */
+.program-description,
+.program-description p,
+.program-description li {
+  font-size: 16px;
+  line-height: 1.7;
+}
 .program-stat-label {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.5);
@@ -771,9 +781,9 @@ main { display: block; }
   color: #1B2A4A;
 }
 .alt-desc {
-  font-size: 15px;
+  font-size: 16px;
   color: #666666;
-  line-height: 1.6;
+  line-height: 1.7;
   margin: 0 0 12px 0;
 }
 .alt-link {
@@ -1835,9 +1845,9 @@ main { display: block; }
 }
 .cennik-notes p {
   margin: 0;
-  font-size: 15px;
+  font-size: 16px;
   color: var(--ink);
-  line-height: 1.5;
+  line-height: 1.7;
 }
 
 /* ============================================================

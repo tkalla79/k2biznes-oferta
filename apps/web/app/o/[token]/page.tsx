@@ -321,6 +321,13 @@ export default async function OfferPage({ params, searchParams }: Props) {
   const isCulture =
     isGrant &&
     /\b(EOG|norwesk)/i.test(`${recommendedAlt?.program ?? ''} ${recommendedAlt?.name ?? ''}`);
+  // Oferta wylacznie na obsluge i rozliczanie ma zerowa wycene wariantow (cala cena
+  // siedzi w wynagrodzeniu wykonawczym) i dotyczy projektu juz przyznanego, a nie
+  // przygotowania dokumentacji — naglowek musi to odzwierciedlac.
+  const isServiceOnly =
+    isGrant &&
+    variants.length > 0 &&
+    variants.every((v) => v.base === 0 && v.sfAmount === 0 && v.total === 0);
   // N1/N2 (2026-07-15): sekcja 01 to teraz „podstawa rekomendacji" (bez punktów),
   // sekcja 02 bez „Dlaczego ten nabór" — `needs`/`hasNeeds`/`programReason` usunięte.
 
@@ -398,15 +405,17 @@ export default async function OfferPage({ params, searchParams }: Props) {
               {fmtDate(offer.sent_at ?? offer.created_at)}
             </div>
             <h1 className="hero-title">
-              {isExec ? (
+              Wsparcie doradcze<br />
+              {/* Dwie drogi do tej samej oferty: jawny typ `exec` oraz dotacja z
+                  wyzerowaną wyceną wariantów (obejście sprzed typu `exec`).
+                  Nagłówek ma brzmieć tak samo w obu. */}
+              {isExec || isServiceOnly ? (
                 <>
-                  Wsparcie doradcze<br />
                   w zakresie realizacji<br />
-                  <em>i rozliczenia projektu</em>
+                  <em>i rozliczania projektu</em>
                 </>
               ) : (
                 <>
-                  Wsparcie doradcze<br />
                   w zakresie przygotowania<br />
                   <em>dokumentacji projektu</em>
                 </>
@@ -940,6 +949,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
                     base: v.base,
                     sfAmount: v.sfAmount,
                     total: v.total,
+                    monthly: v.monthly,
                   }))}
                   summary={{
                     clientName: dto.clientName,

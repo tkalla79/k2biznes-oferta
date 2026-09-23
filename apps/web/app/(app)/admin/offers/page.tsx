@@ -206,13 +206,21 @@ export default async function OffersListPage({
                     <Link href={`/admin/offers/${o.id}/edit`} style={btnEdit}>
                       Edytuj
                     </Link>
+                    {/* Draft nie jest dostepny pod publicznym linkiem (page.tsx
+                        dopuszcza go tylko przy ?__preview=1), wiec bez tego
+                        parametru przycisk prowadzil do ekranu „Oferta niedostepna".
+                        Ten sam wzorzec co w edytorze oferty. */}
                     <a
-                      href={`/o/${o.client_token}`}
+                      href={
+                        o.status === 'draft'
+                          ? `/o/${o.client_token}?__preview=1`
+                          : `/o/${o.client_token}`
+                      }
                       style={btnLink}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      Podgląd ↗
+                      {o.status === 'draft' ? 'Podgląd (draft) ↗' : 'Podgląd ↗'}
                     </a>
                     {isAdmin && (
                       <OfferRowActions
