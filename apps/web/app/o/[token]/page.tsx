@@ -836,6 +836,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
                     base: v.base,
                     sfAmount: v.sfAmount,
                     total: v.total,
+                    monthly: v.monthly,
                   }))}
                   summary={{
                     clientName: dto.clientName,
