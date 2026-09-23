@@ -17,6 +17,8 @@ import OfferRejectedConsultant from '@/lib/email/templates/OfferRejectedConsulta
 import type { OfferRow } from '@/lib/offers/mapper';
 import { buildOfferSummary } from './summary';
 import { resolveOfferCc } from './cc';
+import { resolveOfferSubject } from './subject';
+import { normalizeOfferKind } from '../offers/kind';
 import type { Json } from '@k2/database/types';
 
 const fmtPLN = (n: number) =>
@@ -70,6 +72,8 @@ export async function notifyClientOfferSent(args: {
   offer: OfferRow;
   recipientEmail: string;
   customMessage?: string;
+  /** Temat z dialogu wysyłki; pusty = domyślny z szablonu (`lib/email/subject.ts`). */
+  customSubject?: string;
   // Email-reliability 2026-07: zwracamy wynik wysyłki — send route przekazuje
   // go do UI, żeby konsultant OD RAZU widział "email nie dotarł" (wcześniej
   // fail był połykany i widoczny dopiero markerem na liście).
@@ -77,7 +81,7 @@ export async function notifyClientOfferSent(args: {
   // `cc` w zwrotce mówi, kto FAKTYCZNIE dostał kopię — UI pokazuje to
   // konsultantowi, żeby "kopia poszła" nie było założeniem.
 }): Promise<SendResult & { cc: string[] }> {
-  const { offer, recipientEmail, customMessage } = args;
+  const { offer, recipientEmail, customMessage, customSubject } = args;
   const sb = createAdminClient();
 
   // Podsumowanie finansowe (dotacja vs pożyczka) — patrz buildOfferSummary.
@@ -137,10 +141,7 @@ export async function notifyClientOfferSent(args: {
   const props: OfferSentToClientProps = {
     clientName: offer.client_name,
     programLabel: offer.program_label,
-    isLoan: summary.isLoan,
-    fundingAmount: summary.fundingAmount,
-    variantName: summary.variantName,
-    variantTotal: summary.variantTotal,
+    summary,
     consultantName: consultant?.full_name ?? 'Zespół K2Biznes',
     consultantEmail: consultant?.email ?? 'kontakt@k2biznes.pl',
     consultantPhone: consultant?.phone ?? null,
@@ -159,7 +160,11 @@ export async function notifyClientOfferSent(args: {
     // Q3 audit: Reply-To = konsultant prowadzący, nie generic kontakt@.
     // Klient odpowiadając na ofertę trafia bezpośrednio do osoby prowadzącej.
     replyTo: consultant?.email ?? undefined,
-    subject: `Oferta K2Biznes dla ${offer.client_name} — ${offer.program_label}`,
+    subject: resolveOfferSubject({
+      custom: customSubject,
+      clientName: offer.client_name,
+      programLabel: offer.program_label,
+    }),
     html,
     text,
     tags: [
@@ -201,7 +206,7 @@ export async function notifyConsultantOfferAccepted(offer: OfferRow): Promise<vo
     offerNumber: offer.offer_number,
     clientCompanyName: offer.client_name,
     programLabel: offer.program_label,
-    isLoan: offer.offer_kind === 'loan',
+    offerKind: normalizeOfferKind(offer.offer_kind),
     acceptedVariant: offer.accepted_variant ?? offer.selected_variant,
     acceptedFee: fmtPLN(Number(offer.accepted_fee ?? 0)),
     clientName: offer.accepted_by_name ?? '—',
@@ -215,9 +220,12 @@ export async function notifyConsultantOfferAccepted(offer: OfferRow): Promise<vo
   const { html, text } = await renderEmail(createElement(OfferAcceptedConsultant, props));
   const result = await sendEmail({
     to: consultant.email,
-    subject: props.isLoan
-      ? `Oferta ${offer.offer_number} zaakceptowana — ${offer.client_name} (pożyczka)`
-      : `Oferta ${offer.offer_number} zaakceptowana — ${offer.client_name}, wariant ${props.acceptedVariant}`,
+    subject:
+      props.offerKind === 'loan'
+        ? `Oferta ${offer.offer_number} zaakceptowana — ${offer.client_name} (pożyczka)`
+        : props.offerKind === 'exec'
+          ? `Oferta ${offer.offer_number} zaakceptowana — ${offer.client_name} (realizacja i rozliczenie)`
+          : `Oferta ${offer.offer_number} zaakceptowana — ${offer.client_name}, wariant ${props.acceptedVariant}`,
     html,
     text,
     tags: [

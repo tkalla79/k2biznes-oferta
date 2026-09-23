@@ -19,7 +19,11 @@ export type OfferAcceptedConsultantProps = {
   programLabel: string;
   acceptedVariant: string;
   /** Oferta pożyczkowa: brak wariantów — wiersz „Wybrany wariant" pomijany. */
-  isLoan?: boolean;
+  /**
+   * Typ oferty — decyduje, czy w nagłówku pada wariant. Warianty ma tylko
+   * dotacja; pożyczka i sam zakres 2 akceptują się bez wyboru.
+   */
+  offerKind?: 'grant' | 'loan' | 'exec';
   acceptedFee: string;
   clientName: string;
   /** PR #3 review: nullable — guard renderowania linii email gdy klient nie podał. */
@@ -35,7 +39,11 @@ export default function OfferAcceptedConsultant(p: OfferAcceptedConsultantProps)
       <Head />
       <Preview>
         ✅ {p.offerNumber} zaakceptowana — {p.clientCompanyName}
-        {p.isLoan ? ' (pożyczka)' : `, wariant ${p.acceptedVariant}`}
+        {p.offerKind === 'loan'
+          ? ' (pożyczka)'
+          : p.offerKind === 'exec'
+            ? ' (realizacja i rozliczenie)'
+            : `, wariant ${p.acceptedVariant}`}
       </Preview>
       <Body style={body}>
         <Container style={container}>
@@ -50,7 +58,9 @@ export default function OfferAcceptedConsultant(p: OfferAcceptedConsultantProps)
           <Section style={card}>
             <Row label="Klient" value={p.clientCompanyName} />
             <Row label="Program" value={p.programLabel} />
-            {!p.isLoan && <Row label="Wybrany wariant" value={p.acceptedVariant} />}
+            {(p.offerKind ?? 'grant') === 'grant' && (
+              <Row label="Wybrany wariant" value={p.acceptedVariant} />
+            )}
             <Row label="Success fee" value={p.acceptedFee} bold />
             <Row
               label="Akceptujący"

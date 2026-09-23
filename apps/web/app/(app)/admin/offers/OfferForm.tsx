@@ -109,7 +109,12 @@ type FormState = {
       CreateOfferInput nie przyjmuje expiresAt. Audyt 2026-07 pkt 1. */
   expiresAt: string;
   // Typ oferty
-  offerKind: 'grant' | 'loan';
+  offerKind: 'grant' | 'loan' | 'exec';
+  // Sam zakres 2 (exec) — stawka miesięczna za realizację i rozliczenie projektu,
+  // który ma już decyzję o dofinansowaniu.
+  execMonthlyFee: number; // zł / mies.
+  execMonths: number; // okres obsługi
+  execProgramName: string; // program, w ramach którego przyznano dofinansowanie
   // Pożyczka (loan) — cennik: opłata wstępna + % od kwoty pożyczki; parametry produktu per-oferta.
   loanBaseFee: number; // opłata wstępna (zł)
   loanSfPct: number; // wynagrodzenie wynikowe (%) — np. 1.5
@@ -246,10 +251,15 @@ function initialFromOffer(offer: OfferDto): FormState {
         calcBullets?: unknown;
         recommendationBasis?: unknown;
         loan?: unknown;
+        exec?: unknown;
       }
     | null;
   const loan =
     c?.loan && typeof c.loan === 'object' ? (c.loan as Record<string, unknown>) : null;
+  const execData =
+    c?.exec && typeof c.exec === 'object'
+      ? (c.exec as { monthlyFee?: unknown; months?: unknown })
+      : null;
   const loanProduct =
     loan?.product && typeof loan.product === 'object'
       ? (loan.product as Record<string, unknown>)
@@ -287,7 +297,11 @@ function initialFromOffer(offer: OfferDto): FormState {
     clientVoivodeship: offer.clientVoivodeship ?? '',
     // toLocaleDateString('sv-SE') = YYYY-MM-DD w lokalnej strefie (format input[date])
     expiresAt: offer.expiresAt ? new Date(offer.expiresAt).toLocaleDateString('sv-SE') : '',
-    offerKind: offer.offerKind === 'loan' ? 'loan' : 'grant',
+    offerKind:
+      offer.offerKind === 'loan' ? 'loan' : offer.offerKind === 'exec' ? 'exec' : 'grant',
+    execMonthlyFee: typeof execData?.monthlyFee === 'number' ? execData.monthlyFee : 3000,
+    execMonths: typeof execData?.months === 'number' ? execData.months : 12,
+    execProgramName: offer.offerKind === 'exec' ? offer.programLabel : '',
     loanBaseFee: typeof loan?.baseFee === 'number' ? loan.baseFee : 4000,
     loanSfPct:
       typeof loan?.sfPct === 'number' ? Math.round(loan.sfPct * 10000) / 100 : 1.5,
@@ -334,6 +348,9 @@ function blankInitial(): FormState {
     clientVoivodeship: '',
     expiresAt: '',
     offerKind: 'grant',
+    execMonthlyFee: 3000,
+    execMonths: 12,
+    execProgramName: '',
     loanBaseFee: 4000,
     loanSfPct: 1.5,
     loanProductName: '',
@@ -616,7 +633,9 @@ export default function OfferForm({
   }, [form.projectValue, form.fundingRate, form.returningClient, form.projectCount]);
 
   async function fetchPricing() {
-    if (form.offerKind === 'loan') return; // pożyczka liczona lokalnie (opłata + %)
+    // Pożyczka (opłata + %) i zakres 2 (stawka × miesiące) liczą się lokalnie —
+    // symulator dotyczy wyłącznie segmentowego cennika dotacyjnego.
+    if (form.offerKind !== 'grant') return;
     if (form.projectValue <= 0 || form.fundingRate <= 0) return;
     try {
       const res = await fetch('/api/simulator/pricing', {
@@ -763,6 +782,7 @@ export default function OfferForm({
     // Uwaga pilotaż 2026-07 (#2): nazwa programu pochodzi z pozycji oznaczonej
     // jako REKOMENDOWANA na liście „Inne możliwości wsparcia" (scalenie katalogów).
     const isLoan = form.offerKind === 'loan';
+    const isExec = form.offerKind === 'exec';
     const recommendedAlt = form.altPrograms.find((p) => p.recommended && p.name.trim() !== '');
     const recommendedLabel = recommendedAlt?.name.trim() ?? '';
     if (!form.clientName.trim()) {
@@ -776,6 +796,19 @@ export default function OfferForm({
       }
       if (!(form.projectValue > 0)) {
         setError('Podaj kwotę pożyczki.');
+        return;
+      }
+    } else if (isExec) {
+      if (!form.execProgramName.trim()) {
+        setError('Podaj program, w ramach którego przyznano dofinansowanie.');
+        return;
+      }
+      if (!(form.projectValue > 0)) {
+        setError('Podaj kwotę przyznanego dofinansowania.');
+        return;
+      }
+      if (!Number.isInteger(form.execMonths) || form.execMonths < 1 || form.execMonths > 120) {
+        setError('Okres obsługi musi być liczbą całkowitą miesięcy z zakresu 1–120.');
         return;
       }
     } else {
@@ -842,7 +875,16 @@ export default function OfferForm({
       content,
     };
 
-    const body = isLoan
+    const body = isExec
+      ? {
+          ...baseBody,
+          offerKind: 'exec' as const,
+          // Zakres 2: nagłówek oferty niesie nazwę programu, w ramach którego
+          // przyznano dofinansowanie.
+          programLabel: form.execProgramName.trim(),
+          exec: { monthlyFee: form.execMonthlyFee, months: form.execMonths },
+        }
+      : isLoan
       ? {
           ...baseBody,
           offerKind: 'loan' as const,
@@ -1052,11 +1094,22 @@ export default function OfferForm({
             />
             <span>Pożyczka (opłata wstępna + % od kwoty pożyczki)</span>
           </label>
+          <label style={radioRow}>
+            <input
+              type="radio"
+              name="offerKind"
+              checked={form.offerKind === 'exec'}
+              onChange={() => update('offerKind', 'exec')}
+            />
+            <span>Realizacja i rozliczenie (sam zakres 2, stawka miesięczna)</span>
+          </label>
         </div>
         <p style={hint}>
           {form.offerKind === 'loan'
             ? 'Pożyczka: jedno wynagrodzenie (opłata wstępna + success fee od kwoty pożyczki), bez wariantów i bez części miesięcznej. Parametry produktu ustawiasz poniżej — dotyczą tylko tej oferty.'
-            : 'Dotacja: cennik z konfiguracji segmentów, warianty I–IV, wynagrodzenie wykonawcze (miesięczne).'}
+            : form.offerKind === 'exec'
+              ? 'Realizacja i rozliczenie: dla klienta, który MA JUŻ decyzję o dofinansowaniu i szuka wyłącznie obsługi projektu. Sama stawka miesięczna — bez opłaty wstępnej, bez wariantów i bez wynagrodzenia wynikowego (nie ma czego pozyskiwać).'
+              : 'Dotacja: cennik z konfiguracji segmentów, warianty I–IV, wynagrodzenie wykonawcze (miesięczne).'}
         </p>
       </Section>
 
@@ -1155,6 +1208,59 @@ export default function OfferForm({
           </div>
         </Field>
       </Section>
+
+      {/* SECTION 02-exec: Zakres 2 — program przyznany + stawka i okres obsługi */}
+      {form.offerKind === 'exec' && (
+        <Section title="Realizacja i rozliczenie (sekcja 02)">
+          <p style={hint}>
+            Oferta dla klienta, który ma już decyzję o dofinansowaniu. Nazwa programu trafia
+            do nagłówka oferty, a stawka i okres — do cennika. Wszystkie wartości dotyczą
+            tylko tej oferty.
+          </p>
+          <Grid2>
+            <Field label="Program, w ramach którego przyznano dofinansowanie *">
+              <input
+                type="text"
+                maxLength={200}
+                value={form.execProgramName}
+                onChange={(e) => update('execProgramName', e.target.value)}
+                style={input}
+                placeholder="np. FENG 2.33 Zielony Fundusz Gwarancyjny"
+              />
+            </Field>
+            <Field label="Stawka miesięczna (PLN netto)">
+              <input
+                type="number"
+                min={0}
+                max={1_000_000}
+                step="any"
+                value={form.execMonthlyFee}
+                onChange={(e) => update('execMonthlyFee', Number(e.target.value))}
+                style={input}
+              />
+            </Field>
+            <Field label="Okres obsługi (miesiące)">
+              <input
+                type="number"
+                min={1}
+                max={120}
+                step={1}
+                value={form.execMonths}
+                onChange={(e) => update('execMonths', Math.round(Number(e.target.value)))}
+                style={input}
+              />
+            </Field>
+          </Grid2>
+          <p style={hint}>
+            Razem:{' '}
+            <strong>
+              {(form.execMonthlyFee * form.execMonths).toLocaleString('pl-PL')} zł netto
+            </strong>{' '}
+            za {form.execMonths} mies. Klient widzi tę kwotę jako {'„Razem za cały okres”'} —
+            rozliczenie jest miesięczne, więc zmiana okresu realizacji zmieni sumę.
+          </p>
+        </Section>
+      )}
 
       {/* SECTION 02-loan: Produkt pożyczkowy — parametry ustawiane per oferta */}
       {form.offerKind === 'loan' && (
@@ -1362,9 +1468,25 @@ export default function OfferForm({
       )}
 
       {/* SECTION 04a (reorg): Finanse */}
-      <Section title={form.offerKind === 'loan' ? 'Finansowanie (pożyczka)' : 'Finanse projektu'}>
+      <Section
+        title={
+          form.offerKind === 'loan'
+            ? 'Finansowanie (pożyczka)'
+            : form.offerKind === 'exec'
+              ? 'Projekt do obsługi'
+              : 'Finanse projektu'
+        }
+      >
         <Grid2>
-          <Field label={form.offerKind === 'loan' ? 'Kwota pożyczki (PLN) *' : 'Wartość projektu (PLN) *'}>
+          <Field
+            label={
+              form.offerKind === 'loan'
+                ? 'Kwota pożyczki (PLN) *'
+                : form.offerKind === 'exec'
+                  ? 'Kwota przyznanego dofinansowania (PLN) *'
+                  : 'Wartość projektu (PLN) *'
+            }
+          >
             <input
               type="number"
               required
@@ -1374,7 +1496,9 @@ export default function OfferForm({
               value={form.projectValue}
               onChange={(e) => update('projectValue', Number(e.target.value))}
               style={withAI('projectValue', input)}
-              placeholder={form.offerKind === 'loan' ? 'np. 500000' : 'np. 3500000 lub 3500000.50'}
+              placeholder={
+                form.offerKind === 'grant' ? 'np. 3500000 lub 3500000.50' : 'np. 500000'
+              }
             />
           </Field>
           {form.offerKind === 'grant' && (

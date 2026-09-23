@@ -12,10 +12,18 @@ export default function ScopeAccordion({
   prep,
   exec,
   print = false,
+  // Oferta na sam zakres 2 wstawia w `prep` zakres obsługi — wtedy etykieta
+  // „Przygotowanie dokumentacji" opisywałaby coś, czego w tej ofercie nie ma.
+  prepLabel = 'Przygotowanie dokumentacji',
+  prepTag = 'w cenie oferty',
+  prepIntro = 'Szczegółowy zakres prac na etapie przygotowania kompletnej dokumentacji aplikacyjnej dla Projektu.',
 }: {
   prep: ScopeItem[];
   exec: ScopeItem[];
   print?: boolean;
+  prepLabel?: string;
+  prepTag?: string;
+  prepIntro?: string;
 }) {
   const [tab, setTab] = useState<'prep' | 'exec'>('prep');
   const [open, setOpen] = useState<number>(0);
@@ -31,7 +39,7 @@ export default function ScopeAccordion({
     return (
       <div className="scope-print">
         {[
-          { title: 'Przygotowanie dokumentacji', tag: 'w cenie oferty', items: prep },
+          { title: prepLabel, tag: prepTag, items: prep },
           ...(hasExec
             ? [{ title: 'Obsługa i rozliczanie projektu', tag: 'opcjonalne', items: exec }]
             : []),
@@ -71,8 +79,8 @@ export default function ScopeAccordion({
           }}
         >
           <span className="tab-num">01</span>
-          <span className="tab-label">Przygotowanie dokumentacji</span>
-          <span className="tab-tag">w cenie oferty</span>
+          <span className="tab-label">{prepLabel}</span>
+          <span className="tab-tag">{prepTag}</span>
         </button>
         {hasExec && (
           <button
@@ -91,7 +99,7 @@ export default function ScopeAccordion({
       </div>
       <div className="scope-intro">
         {activeTab === 'prep' ? (
-          <p>Szczegółowy zakres prac na etapie przygotowania kompletnej dokumentacji aplikacyjnej dla Projektu.</p>
+          <p>{prepIntro}</p>
         ) : (
           <p>
             Po pozytywnej decyzji o dofinansowaniu klient może kontynuować współpracę przy obsłudze

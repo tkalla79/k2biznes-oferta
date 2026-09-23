@@ -8,8 +8,10 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { calcPricing } from '@/lib/pricing';
 import { calcLoanPricing } from '@/lib/pricing/loan';
+import { calcExecPricing } from '@/lib/pricing/exec';
+import { normalizeOfferKind, hasVariants } from '@/lib/offers/kind';
 import { loadPricing } from '@/lib/pricing/load';
-import { UpdateOfferInput, shouldRecalcSnapshot } from '@/lib/validation/offers';
+import { UpdateOfferInput, shouldRecalcSnapshot, clearsApproval } from '@/lib/validation/offers';
 import { toOfferDto, type OfferRow } from '@/lib/offers/mapper';
 import { deletePdfsForOffer } from '@/lib/pdf/storage';
 import type { Database, Json } from '@k2/database/types';
@@ -87,10 +89,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     assertCanWriteOffer(session, before);
 
     const patch = UpdateOfferInput.parse(await req.json());
-    const kind = patch.offerKind ?? (before.offer_kind === 'loan' ? 'loan' : 'grant');
+    const kind = patch.offerKind ?? normalizeOfferKind(before.offer_kind);
 
     // Walidacja consistency (selectedVariant ⊂ offeredVariants) — tylko dotacja.
-    if (kind !== 'loan') {
+    if (hasVariants(kind)) {
       const nextOffered = patch.offeredVariants ?? before.offered_variants;
       const nextSelected = patch.selectedVariant ?? before.selected_variant;
       if (!nextOffered.includes(nextSelected)) {
@@ -129,7 +131,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       update.assigned_consultant_id = patch.assignedConsultantId;
     if (patch.offerKind !== undefined) {
       update.offer_kind = patch.offerKind;
-      if (patch.offerKind === 'loan') update.funding_rate = null;
+      // Intensywność dotyczy tylko dotacji: pożyczka jej nie ma, a oferta na sam
+      // zakres 2 operuje kwotą już przyznaną.
+      if (patch.offerKind !== 'grant') update.funding_rate = null;
     }
     // content + loan: zmiana danych pożyczki jest scalana do content.loan.
     let effContent: Record<string, unknown> | undefined =
@@ -138,11 +142,24 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       const base = effContent ?? ((before.content as Record<string, unknown>) ?? {});
       effContent = { ...base, loan: patch.loan };
     }
+    if (kind === 'exec' && patch.exec !== undefined) {
+      const base = effContent ?? ((before.content as Record<string, unknown>) ?? {});
+      effContent = { ...base, exec: patch.exec };
+    }
     if (effContent !== undefined) update.content = effContent as Json;
     if (patch.pricingOverride !== undefined)
       update.pricing_override = patch.pricingOverride as unknown as Json;
     if (patch.status !== undefined) update.status = patch.status;
     if (patch.expiresAt !== undefined) update.expires_at = patch.expiresAt;
+
+    // Akceptacja dotyczy konkretnej tresci — zmiana tresci ja uniewaznia.
+    // Bez tego dalo by sie zatwierdzic czysta oferte, podmienic kwoty przez
+    // pricing_override i wyslac ja jako zatwierdzona.
+    const approvalCleared = before.approved_at != null && clearsApproval(patch);
+    if (approvalCleared) {
+      update.approved_by = null;
+      update.approved_at = null;
+    }
 
     // Re-kalkulacja snapshotu jeśli zmiana wpływa na pricing.
     if (shouldRecalcSnapshot(patch)) {
@@ -160,7 +177,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           409,
         );
       }
-      if (kind === 'loan') {
+      if (kind === 'exec') {
+        const beforeExec =
+          ((before.content as Record<string, unknown>)?.exec as
+            | { monthlyFee?: number; months?: number }
+            | undefined) ?? {};
+        const execData = patch.exec ?? beforeExec;
+        update.pricing_snapshot = calcExecPricing({
+          grantAmount: patch.projectValue ?? Number(before.project_value),
+          monthlyFee: execData.monthlyFee,
+          months: execData.months,
+        }) as unknown as Json;
+      } else if (kind === 'loan') {
         const beforeLoan =
           ((before.content as Record<string, unknown>)?.loan as
             | { baseFee?: number; sfPct?: number }
@@ -225,6 +253,29 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         actor_type: session.role === 'consultant' ? 'consultant' : 'admin',
         payload: { fields: Object.keys(update) },
       }),
+      // Osobne zdarzenie, bo utrata akceptacji to nie szczegol edycji: ktos
+      // musi ja dac ponownie, zanim oferta pojdzie do klienta. W historii
+      // aktywnosci ma byc widoczna jako wlasny wiersz.
+      ...(approvalCleared
+        ? [
+            sb.from('offer_events').insert({
+              offer_id: updated.id,
+              type: 'approval_revoked' as const,
+              actor_id: session.userId,
+              actor_type: session.role === 'consultant' ? ('consultant' as const) : ('admin' as const),
+              payload: { reason: 'edited', fields: Object.keys(update) },
+            }),
+            logAudit({
+              action: 'offer.approval_revoked' as const,
+              resourceType: 'offer' as const,
+              resourceId: updated.id,
+              actorId: session.userId,
+              actorEmail: session.email,
+              before: { approvedAt: before.approved_at, approvedBy: before.approved_by },
+              after: { approvedAt: null, reason: 'edited' },
+            }),
+          ]
+        : []),
       logAudit({
         action: 'offer.update',
         resourceType: 'offer',

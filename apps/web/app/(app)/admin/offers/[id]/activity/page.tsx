@@ -45,6 +45,8 @@ const EVENT_LABELS: Record<string, string> = {
   pdf_downloaded: 'Pobranie PDF',
   link_shared: 'Udostępnienie linku',
   email_sent: 'Wysłanie e-maila',
+  approved: 'Zatwierdzenie do wysyłki',
+  approval_revoked: 'Cofnięcie zatwierdzenia',
 };
 
 const fmtDT = (iso: string) =>

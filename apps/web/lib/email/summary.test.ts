@@ -20,10 +20,11 @@ describe('buildOfferSummary', () => {
       selected_variant: 'II',
     });
     expect(s).not.toBeNull();
-    expect(s!.isLoan).toBe(false);
-    expect(s!.fundingAmount).toContain('350');
-    expect(s!.variantName).toBe('Wariant II — Standard');
-    expect(s!.variantTotal).toContain('26');
+    expect(s!.kind).toBe('grant');
+    expect(s!.amountLabel).toBe('Kwota dofinansowania:');
+    expect(s!.amountValue).toContain('350');
+    expect(s!.detailValue).toBe('Wariant II — Standard');
+    expect(s!.totalValue).toContain('26');
   });
 
   it('dotacja: brak `variants` w snapshocie -> null (wysyłka blokowana)', () => {
@@ -52,9 +53,12 @@ describe('buildOfferSummary', () => {
       project_value: 500_000,
       selected_variant: 'I',
     });
-    expect(s!.isLoan).toBe(true);
-    expect(s!.fundingAmount).toContain('500');
-    expect(s!.variantTotal).toContain('11');
+    expect(s!.kind).toBe('loan');
+    expect(s!.amountLabel).toBe('Wnioskowana kwota pożyczki:');
+    expect(s!.amountValue).toContain('500');
+    // Pożyczka nie ma wiersza pośredniego — szablon go pomija.
+    expect(s!.detailLabel).toBeNull();
+    expect(s!.totalValue).toContain('11');
   });
 
   it('pożyczka ze snapshotem dotacyjnym (przełączony typ) -> odtwarza cenę, nie blokuje wysyłki', () => {
@@ -65,9 +69,48 @@ describe('buildOfferSummary', () => {
       selected_variant: 'I',
     });
     expect(s).not.toBeNull();
-    expect(s!.isLoan).toBe(true);
+    expect(s!.kind).toBe('loan');
     // 4000 + 1,5% z 200 000 = 7000
-    expect(s!.variantTotal.replace(/\s/g, '')).toContain('7000');
+    expect(s!.totalValue.replace(/\s/g, '')).toContain('7000');
+  });
+
+  it('zakres 2: kwota przyznana + stawka miesięczna + łącznie za okres', () => {
+    const s = buildOfferSummary({
+      offer_kind: 'exec',
+      pricing_snapshot: { kind: 'exec', grantAmount: 2_000_000, monthlyFee: 3000, months: 18, total: 54_000 },
+      project_value: 2_000_000,
+      selected_variant: 'I',
+    });
+    expect(s!.kind).toBe('exec');
+    expect(s!.amountLabel).toBe('Kwota przyznanego dofinansowania:');
+    expect(s!.amountValue).toContain('2');
+    expect(s!.detailLabel).toBe('Wynagrodzenie:');
+    expect(s!.detailValue).toContain('miesięcznie');
+    expect(s!.totalLabel).toBe('Łącznie za 18 mies.:');
+    expect(s!.totalValue.replace(/\s/g, '')).toContain('54000');
+  });
+
+  it('zakres 2 ze snapshotem dotacyjnym (przełączony typ) -> odtwarza cenę, nie blokuje wysyłki', () => {
+    const s = buildOfferSummary({
+      offer_kind: 'exec',
+      pricing_snapshot: grantSnapshot,
+      project_value: 900_000,
+      selected_variant: 'I',
+    });
+    expect(s).not.toBeNull();
+    expect(s!.kind).toBe('exec');
+    // domyślne 3 000 zł × 12 mies. = 36 000
+    expect(s!.totalValue.replace(/\s/g, '')).toContain('36000');
+  });
+
+  it('nieznany offer_kind traktujemy jak dotację (starsza oferta, ręczna edycja)', () => {
+    const s = buildOfferSummary({
+      offer_kind: 'cos-nowego',
+      pricing_snapshot: grantSnapshot,
+      project_value: 500_000,
+      selected_variant: 'I',
+    });
+    expect(s!.kind).toBe('grant');
   });
 
   it('project_value jako string (numeric z Postgresa)', () => {
@@ -77,6 +120,6 @@ describe('buildOfferSummary', () => {
       project_value: '300000.00',
       selected_variant: 'I',
     });
-    expect(s!.variantTotal.replace(/\s/g, '')).toContain('8500'); // 4000 + 4500
+    expect(s!.totalValue.replace(/\s/g, '')).toContain('8500'); // 4000 + 4500
   });
 });

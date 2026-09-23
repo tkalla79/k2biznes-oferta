@@ -16,6 +16,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { OfferRow } from '@/lib/offers/mapper';
 import type { PricingResult } from '@/lib/pricing';
+import { normalizeOfferKind } from '@/lib/offers/kind';
 import type { WebhookEvent, WebhookOfferPayload, WebhookTarget } from './types';
 import type { Json } from '@k2/database/types';
 
@@ -99,9 +100,12 @@ async function buildPayload(args: {
     .eq('id', consultantId)
     .maybeSingle();
 
-  // Pozyczka nie ma segmentow/wariantow ani intensywnosci dofinansowania —
-  // `funding` niesie wnioskowana kwote pozyczki, `fundingRate` jest null.
-  const isLoan = offer.offer_kind === 'loan';
+  // Tylko dotacja ma segmenty, warianty i intensywnosc dofinansowania.
+  // Pozyczka: `funding` niesie wnioskowana kwote pozyczki. Zakres 2: kwote juz
+  // przyznana. W obu `fundingRate` jest null — inaczej CRM policzylby
+  // intensywnosc z pola, ktore dla tych ofert nic nie znaczy.
+  const kind = normalizeOfferKind(offer.offer_kind);
+  const isGrant = kind === 'grant';
   const snapshot = offer.pricing_snapshot as unknown as PricingResult;
 
   const payload: WebhookOfferPayload = {
@@ -116,10 +120,10 @@ async function buildPayload(args: {
       clientNip: offer.client_nip,
       clientIndustry: offer.client_industry,
       programLabel: offer.program_label,
-      offerKind: isLoan ? 'loan' : 'grant',
+      offerKind: kind,
       projectValue: Number(offer.project_value),
-      fundingRate: isLoan || offer.funding_rate == null ? null : Number(offer.funding_rate),
-      funding: isLoan ? Number(offer.project_value) : snapshot.funding,
+      fundingRate: isGrant && offer.funding_rate != null ? Number(offer.funding_rate) : null,
+      funding: isGrant ? snapshot.funding : Number(offer.project_value),
       selectedVariant: offer.selected_variant,
       acceptedVariant: offer.accepted_variant,
       acceptedFee: offer.accepted_fee == null ? null : Number(offer.accepted_fee),

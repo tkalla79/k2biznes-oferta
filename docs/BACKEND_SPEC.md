@@ -800,6 +800,8 @@ OFFERS (consultant+)
   DELETE /api/offers/:id                      – soft delete (admin+)
   POST   /api/offers/:id/restore              – cofnij soft delete (admin+)
   POST   /api/offers/:id/send                 – wyślij do klienta (mail)
+  POST   /api/offers/:id/approve              – zatwierdź do wysyłki (admin+)
+  DELETE /api/offers/:id/approve              – cofnij zatwierdzenie (admin+)
   POST   /api/offers/:id/duplicate            – klon
   POST   /api/offers/:id/recalculate          – przelicz pricing_snapshot
   GET    /api/offers/:id/events               – historia eventów
@@ -906,9 +908,43 @@ const CreateOfferInput = z.object({
 6. Insert do `audit_log`.
 7. Zwróć utworzoną ofertę + `clientUrl`.
 
+#### `POST /api/offers/:id/approve` · `DELETE` (wewnętrzna akceptacja)
+
+**Auth:** admin+ (`requireAdmin`). Konsultant widzi stan, ale nie zatwierdza.
+
+`POST` zapisuje `approved_by` + `approved_at`, `DELETE` je zeruje. Oba są
+**idempotentne**: powtórny `POST` nie podmienia osoby ani daty (pierwszy podpis
+jest tym, który liczy się w audycie), a `DELETE` na niezatwierdzonej ofercie nie
+jest błędem. Ofertę w statusie terminalnym (`accepted`/`rejected`/`expired`)
+odrzucamy z 409 — nie ma już czego zatwierdzać.
+
+**Samo-akceptacja jest dozwolona.** Admin może zatwierdzić własną ofertę: przy
+obecnym zespole bywa jedyną osobą, która ją widzi, a blokada oznaczałaby, że
+nikt nie może niczego wysłać. Wartością jest tu **ślad i moment zatrzymania**,
+nie rozdzielenie ról (decyzja: T. Kalla, 2026-09).
+
+Ślad: `offer_events` (`approved` / `approval_revoked`) + `audit_log`
+(`offer.approve` / `offer.approval_revoked`).
+
+**Akceptacja nie jest trwała.** `PATCH /api/offers/:id` kasuje ją przy każdej
+zmianie pola widocznego dla klienta — lista w `clearsApproval`
+(`lib/validation/offers.ts`). Bez tego kontrola byłaby pozorna: `PATCH` blokuje
+po wysyłce **tylko pola finansowe**, a `content` i `pricingOverride` przechodziły
+bez sprawdzenia statusu — czyli pod tym samym linkiem dało się klientowi
+podmienić kwoty i treść, omijając zamrożony `pricing_snapshot`. Automatyczne
+cofnięcie loguje się jako osobne zdarzenie z `payload.reason = 'edited'`.
+
+Nie kasują akceptacji: `assignedConsultantId` (klient tego nie widzi) i `status`.
+
+**Bez backfillu.** Oferty wysłane przed tą zmianą zostają niezatwierdzone — nie
+wiemy, kto je przeczytał, a wpisanie tam kogokolwiek byłoby fałszywym śladem.
+Skutek: ponowna wysyłka starej oferty wymaga jednego kliknięcia.
+
 #### `POST /api/offers/:id/send`
 
-**Auth:** konsultant (tylko swoje), admin+.
+**Auth:** konsultant (tylko swoje), admin+. **Wymaga zatwierdzonej oferty** —
+bez `approved_at` zwraca 409 (`OFFER_INVALID_STATUS`). Sprawdzane po stronie
+API, nie tylko w UI: przycisk da się ominąć zwykłym POST-em.
 
 **Request body:**
 ```typescript
@@ -1203,7 +1239,7 @@ Snapshot pożyczkowy (`pricing_snapshot`) ma kształt:
 ```
 
 Rozróżnienie w kodzie: **źródłem prawdy o typie oferty jest kolumna
-`offers.offer_kind`, nie kształt snapshotu.** `isLoanPricing(snapshot)` służy
+`offers.offer_kind` (zawężana przez `normalizeOfferKind`), nie kształt snapshotu.** `isLoanPricing(snapshot)` służy
 tylko do zawężenia typu, a `resolveLoanPricing(snapshot, projectValue)`
 odtwarza brakujące liczby (snapshot bywa niekompletny: oferta przełączona
 między typami, ręczna edycja, starsza oferta). Widok klienta i maile używają
@@ -1227,7 +1263,74 @@ a `funding` = wnioskowana kwota pożyczki (sekcja 10.3).
 **Poza zakresem v1:** oferty pożyczkowe nie wchodzą do statystyk i prognozy
 (`/api/stats/*` liczy pipeline dotacyjny — success fee od dofinansowania).
 
-### 6.3 Edycja cennika z panelu (`/admin/pricing`)
+### 6.3 Sam zakres 2 (`offer_kind='exec'`, 2026-09)
+
+Rzadki, ale powtarzalny przypadek: klient **ma już decyzję o dofinansowaniu**
+(wniosek pisał sam albo kto inny) i szuka wyłącznie obsługi projektu. Oferta
+sprzedaje wtedy to, co w ofercie dotacyjnej jest etapem drugim.
+
+**Model:** wyłącznie stała stawka miesięczna. Bez opłaty wstępnej, bez wariantów
+i bez wynagrodzenia wynikowego — nie pozyskujemy tu środków, więc nie ma od czego
+liczyć success fee (reguła biznesowa, T. Kalla 2026-09).
+
+```typescript
+total = monthlyFee * months
+```
+
+| Składnik | Domyślnie | Uwagi |
+|---|---|---|
+| `monthlyFee` | **3 000 zł** | ta sama stawka, co część miesięczna oferty dotacyjnej |
+| `months` | **12** | okres obsługi, 1–120 (realizacja + trwałość potrafią zejść się w 10 lat) |
+
+Obie wartości są **edytowalne per oferta** i siedzą w `offers.content.exec`.
+Kolumnę `project_value` reużywamy jako **kwotę przyznanego dofinansowania** — tak
+samo jak tryb `loan` reużywa ją na kwotę pożyczki. `funding_rate` jest `NULL`:
+intensywność nie ma tu znaczenia, bo kwota jest już przyznana.
+
+**Kwota dofinansowania jest tłem, nie podstawą naliczania.** Nie wchodzi do
+żadnego wzoru — pokazuje skalę projektu, który obsługujemy. Test w
+`lib/pricing/exec.test.ts` pilnuje tego wprost.
+
+Snapshot (`pricing_snapshot`) ma kształt:
+
+```jsonc
+{ "kind": "exec", "grantAmount": 2000000, "monthlyFee": 3000, "months": 18, "total": 54000 }
+```
+
+**Rozpoznanie typu.** Źródłem prawdy jest kolumna `offers.offer_kind`, a
+`normalizeOfferKind()` (`lib/offers/kind.ts`) zawęża ją w kodzie. Przy dwóch
+typach wystarczał ternary `=== 'loan' ? 'loan' : 'grant'`; przy trzecim taki
+ternary po cichu zamieniał `exec` w `grant` i oferta liczyła się złym silnikiem —
+dlatego jedno wspólne miejsce. `resolveExecPricing(snapshot, projectValue)`
+odtwarza brakujące liczby (oferta przełączona między typami, ręczna edycja) i
+klamruje śmieciowy okres, zamiast wywalać render u klienta.
+
+**Jedna droga, nie dwie.** Zanim powstał ten typ, oferty na samą obsługę robiło
+się jako dotację z wyzerowanymi stawkami, a widok klienta rozpoznawał je
+heurystyką „wszystkie warianty = 0" (PR #100–#102: `isServiceOnly`,
+`hasVariantPricing`). Heurystyka została **usunięta** — rozpoznanie typu oferty
+należy do kolumny `offer_kind`, a nie do zgadywania z kwot. Dotacja naprawdę
+wyceniona na zero nie ma udawać oferty na obsługę.
+
+**Widok klienta.** Inny nagłówek („realizacji i rozliczenia projektu"), założenia
+= kwota przyznana + okres + stawka, sekcja 03 pokazuje `SCOPE_EXEC` jako jedyną
+zakładkę, cennik renderuje `ExecPricing`, a proces i FAQ mają własne zestawy
+(`EXEC_PROCESS`, `EXEC_FAQ_ITEMS`) — dotacyjne mówią o aplikowaniu, czyli o
+etapie, który u tego klienta już się wydarzył.
+
+**Akceptacja.** Jak przy pożyczce: `accepted_fee = snapshot.total`, frontend
+wysyła pseudo-wariant `'I'`, kontrakt API bez zmian.
+
+**Mail.** `buildOfferSummary` zwraca gotowe etykiety zamiast flagi `isLoan` —
+szablon nie wie, jaki to typ oferty. Dla zakresu 2: „Kwota przyznanego
+dofinansowania", „Wynagrodzenie: 3 000 zł miesięcznie", „Łącznie za 18 mies.".
+
+**Webhooki CRM.** `offerKind: 'exec'`, `fundingRate: null`, `funding` = kwota
+przyznanego dofinansowania.
+
+---
+
+### 6.3.1 Edycja cennika z panelu (`/admin/pricing`)
 
 Cennik dotacyjny to dane, nie kod: `calcPricing` czyta `pricing_segments` +
 `pricing_config` przez `lib/pricing/load.ts`. Komentarz w loaderze od początku
@@ -1382,6 +1485,13 @@ Plik `packages/email-templates/`.
 
 - Subject: `Oferta K2Biznes dla {clientName} — {programLabel}`
 - Body: Branding K2, krótki opis programu, kwoty, CTA "Zobacz ofertę" → `https://app.k2biznes.pl/o/{token}`, stopka z danymi osoby kontaktowej.
+
+**Temat.** `resolveOfferSubject` (`lib/email/subject.ts`): własny temat z dialogu
+wysyłki, a przy pustym — `Oferta K2Biznes dla {clientName} — {programLabel}`.
+Dialog podpowiada dokładnie ten domyślny (ta sama funkcja po obu stronach), bo
+wcześniej pokazywał inny łańcuch, niż dostawał klient — a `body.subject` w ogóle
+nie docierało do `sendEmail()` (naprawione 2026-09). Pusty temat i sam whitespace
+traktujemy jak brak: mail bez tematu u klienta wygląda jak spam.
 
 #### 8.1.1 Adresaci: To, Reply-To, CC
 

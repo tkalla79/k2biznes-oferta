@@ -36,6 +36,13 @@ type Props = {
    * podsumowanie mówi o kwocie pożyczki, a nie o wartości projektu i intensywności.
    */
   isLoan?: boolean;
+  /**
+   * Oferta na sam zakres 2 (offer_kind='exec'): zamiast opłaty wstępnej i
+   * wynagrodzenia wynikowego podsumowanie pokazuje stawkę miesięczną i okres.
+   */
+  execSummary?: { monthlyFee: number; months: number; total: number } | null;
+  /** Ukrywa wszystko, co mówi o wariancie — pożyczka i zakres 2 ich nie mają. */
+  hideVariants?: boolean;
 };
 
 const fmt = (n: number) =>
@@ -59,20 +66,14 @@ export default function AcceptForm({
   gdprText,
   previewOnly = false,
   isLoan = false,
+  execSummary = null,
+  hideVariants = false,
 }: Props) {
   const [variant, setVariant] = useState<Variant>(defaultVariant);
   const currentVariant = useMemo(
     () => variants.find((v) => v.id === variant) ?? variants[0] ?? null,
     [variant, variants],
   );
-  // Oferta wylacznie na obsluge i rozliczanie nie ma oplaty wstepnej ani success
-  // fee — podsumowanie akceptacji pokazywalo wtedy „Wariant I · Oplata 0 zl ·
-  // Razem 0 zl", mimo ze cena to wynagrodzenie miesieczne. W takim wypadku
-  // pokazujemy stawke miesieczna i pomijamy numer wariantu (nie ma z czego wybierac).
-  const hasVariantPricing =
-    (currentVariant?.base ?? 0) > 0 ||
-    (currentVariant?.sfAmount ?? 0) > 0 ||
-    (currentVariant?.total ?? 0) > 0;
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [comment, setComment] = useState('');
@@ -138,7 +139,7 @@ export default function AcceptForm({
         <p>
           Dziękujemy za zaufanie. Skontaktujemy się w&nbsp;ciągu <strong>1 dnia roboczego</strong>,
           aby umówić podpisanie umowy. Numer oferty: <strong>{result.offerNumber}</strong>
-          {!isLoan && (
+          {!hideVariants && (
             <>
               , wariant <strong>{result.variant}</strong>
             </>
@@ -162,7 +163,12 @@ export default function AcceptForm({
             <dt>Numer oferty</dt>
             <dd>{summary.offerNumber}</dd>
           </div>
-          {isLoan ? (
+          {execSummary ? (
+            <div>
+              <dt>Kwota przyznanego dofinansowania</dt>
+              <dd>{fmt(summary.projectValue)}</dd>
+            </div>
+          ) : isLoan ? (
             <div>
               <dt>Wnioskowana kwota pożyczki</dt>
               <dd>{fmt(summary.projectValue)}</dd>
@@ -177,15 +183,30 @@ export default function AcceptForm({
                 <dt>Dofinansowanie ({Math.round(summary.fundingRate * 100)}%)</dt>
                 <dd>{fmt(summary.funding)}</dd>
               </div>
-              {hasVariantPricing && (
-                <div>
-                  <dt>Wybrany wariant</dt>
-                  <dd>Wariant {currentVariant?.id ?? variant}</dd>
-                </div>
-              )}
+              <div>
+                <dt>Wybrany wariant</dt>
+                <dd>Wariant {currentVariant?.id ?? variant}</dd>
+              </div>
             </>
           )}
-          {hasVariantPricing ? (
+          {/* Zakres 2 rozliczamy stawką miesięczną, dotację opłatą wstępną
+              i wynagrodzeniem wynikowym. */}
+          {execSummary ? (
+            <>
+              <div>
+                <dt>Stawka miesięczna</dt>
+                <dd>{fmt(execSummary.monthlyFee)}</dd>
+              </div>
+              <div>
+                <dt>Okres obsługi</dt>
+                <dd>{execSummary.months} mies.</dd>
+              </div>
+              <div className="total">
+                <dt>Razem za okres</dt>
+                <dd>{fmt(execSummary.total)}</dd>
+              </div>
+            </>
+          ) : (
             <>
               <div>
                 <dt>Opłata wstępna</dt>
@@ -200,11 +221,6 @@ export default function AcceptForm({
                 <dd>{fmt(currentVariant?.total ?? 0)}</dd>
               </div>
             </>
-          ) : (
-            <div className="total">
-              <dt>Wynagrodzenie miesięczne</dt>
-              <dd>{fmt(currentVariant?.monthly ?? 0)}</dd>
-            </div>
           )}
         </dl>
         {/* Audyt 2026-07: jednoznaczność cen (kwoty netto + VAT). */}

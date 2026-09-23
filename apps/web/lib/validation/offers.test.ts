@@ -11,6 +11,7 @@ import {
   ListOffersQuery,
   shouldRecalcSnapshot,
   SORT_FIELDS,
+  clearsApproval,
 } from './offers';
 
 // =============================================================================
@@ -208,13 +209,59 @@ describe('shouldRecalcSnapshot — zmiana typu oferty', () => {
   it('zmiana offerKind wymusza przeliczenie snapshotu', () => {
     expect(shouldRecalcSnapshot({ offerKind: 'loan' })).toBe(true);
     expect(shouldRecalcSnapshot({ offerKind: 'grant' })).toBe(true);
+    expect(shouldRecalcSnapshot({ offerKind: 'exec' })).toBe(true);
   });
 
   it('zmiana danych pożyczki wymusza przeliczenie', () => {
     expect(shouldRecalcSnapshot({ loan: { baseFee: 2000, sfPct: 0.02 } })).toBe(true);
   });
 
+  it('zmiana stawki albo okresu zakresu 2 wymusza przeliczenie', () => {
+    // Bez tego zmiana okresu obsługi zostawiłaby w snapshocie starą sumę,
+    // a klient zobaczyłby inną kwotę niż wpisana w formularzu.
+    expect(shouldRecalcSnapshot({ exec: { monthlyFee: 2500, months: 24 } })).toBe(true);
+  });
+
   it('zmiana samej treści nie wymusza przeliczenia', () => {
     expect(shouldRecalcSnapshot({ content: { notes: 'x' } })).toBe(false);
+  });
+});
+
+describe('clearsApproval — co unieważnia wewnętrzną akceptację', () => {
+  it('podmiana kwot przez pricingOverride kasuje akceptację', () => {
+    // Serce tej reguly: bez tego mozna zatwierdzic czysta oferte, podmienic
+    // kwoty w tabeli wariantow i wyslac ja jako zatwierdzona.
+    expect(clearsApproval({ pricingOverride: { variants: {} } as never })).toBe(true);
+  });
+
+  it('zmiana treści oferty kasuje akceptację', () => {
+    expect(clearsApproval({ content: { notes: 'rabat 10%' } })).toBe(true);
+  });
+
+  it('zmiana wartości, wariantu i typu oferty kasuje akceptację', () => {
+    expect(clearsApproval({ projectValue: 1_000_000 })).toBe(true);
+    expect(clearsApproval({ selectedVariant: 'II' })).toBe(true);
+    expect(clearsApproval({ offerKind: 'exec' })).toBe(true);
+    expect(clearsApproval({ exec: { monthlyFee: 2500, months: 24 } })).toBe(true);
+  });
+
+  it('zmiana terminu ważności kasuje akceptację — klient widzi tę datę w ofercie', () => {
+    expect(clearsApproval({ expiresAt: '2027-01-01T00:00:00.000Z' })).toBe(true);
+  });
+
+  it('przepisanie oferty na innego konsultanta NIE kasuje akceptacji', () => {
+    // Klient tego nie widzi, a kasowanie akceptacji przy kazdej zmianie
+    // wlasciciela zmuszaloby do ponownego zatwierdzania bez powodu.
+    expect(
+      clearsApproval({ assignedConsultantId: '00000000-0000-0000-0000-000000000001' }),
+    ).toBe(false);
+  });
+
+  it('sama zmiana statusu NIE kasuje akceptacji', () => {
+    expect(clearsApproval({ status: 'sent' })).toBe(false);
+  });
+
+  it('pusty patch niczego nie kasuje', () => {
+    expect(clearsApproval({})).toBe(false);
   });
 });

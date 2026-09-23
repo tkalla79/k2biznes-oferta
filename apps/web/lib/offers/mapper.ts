@@ -6,6 +6,8 @@
 import type { Database } from '@k2/database/types';
 import type { PricingResult } from '@/lib/pricing';
 import { isLoanPricing } from '@/lib/pricing/loan';
+import { isExecPricing } from '@/lib/pricing/exec';
+import { normalizeOfferKind, type OfferKind } from '@/lib/offers/kind';
 import { applyOverride, parsePricingOverride, type PricingOverride } from '@/lib/pricing/override';
 import { publicStorageUrl } from '@/lib/storage';
 
@@ -29,7 +31,7 @@ export type OfferDto = {
   clientCompanySize: string | null;
   clientVoivodeship: string | null;
 
-  offerKind: 'grant' | 'loan';
+  offerKind: OfferKind;
 
   programId: string | null;
   programLabel: string;
@@ -51,6 +53,13 @@ export type OfferDto = {
   content: Record<string, unknown>;
 
   acceptedVariant: OfferRow['accepted_variant'];
+  /**
+   * Wewnętrzna akceptacja przed wysyłką — kto i kiedy zatwierdził treść.
+   * `null` = niezatwierdzona, czyli `POST /send` odmówi. Kasowane przy każdej
+   * edycji tego, co widzi klient (patrz `clearsApproval`).
+   */
+  approvedBy: string | null;
+  approvedAt: string | null;
   acceptedFee: number | null;
   acceptedByName: string | null;
   acceptedByEmail: string | null;
@@ -92,7 +101,7 @@ export function toOfferDto(row: OfferRow, appUrl: string): OfferDto {
     clientCompanySize: row.client_company_size,
     clientVoivodeship: row.client_voivodeship,
 
-    offerKind: (row.offer_kind === 'loan' ? 'loan' : 'grant'),
+    offerKind: normalizeOfferKind(row.offer_kind),
 
     programId: row.program_id,
     programLabel: row.program_label,
@@ -113,6 +122,8 @@ export function toOfferDto(row: OfferRow, appUrl: string): OfferDto {
     content: (row.content ?? {}) as Record<string, unknown>,
 
     acceptedVariant: row.accepted_variant,
+    approvedBy: row.approved_by,
+    approvedAt: row.approved_at,
     acceptedFee: row.accepted_fee == null ? null : Number(row.accepted_fee),
     acceptedByName: row.accepted_by_name,
     acceptedByEmail: row.accepted_by_email,
@@ -242,6 +253,10 @@ export type PublicOfferDto = Omit<
   | 'rejectedByEmail'
   | 'rejectReason'
   | 'pricingOverride'
+  // Akceptacja jest nasza, wewnetrzna — klient nie ma widziec, kto u nas
+  // zatwierdzil tresc ani kiedy. Pole zostaje w DTO panelu, nie w publicznym.
+  | 'approvedBy'
+  | 'approvedAt'
 > & {
   contactPerson: PublicContactPersonDto | null;
   caseStudy: PublicCaseStudyDto | null;
@@ -257,9 +272,13 @@ export function toPublicOfferDto(
   // Apply override przed wystawieniem publicznym — klient widzi finalne wartości,
   // nie rozróżnia auto-calc vs ręczne (sekcja 6.5 spec). Pożyczka (loan) nie ma
   // wariantów ani override — snapshot idzie bez zmian.
-  const renderedSnapshot = isLoanPricing(full.pricingSnapshot)
-    ? full.pricingSnapshot
-    : applyOverride(full.pricingSnapshot, full.pricingOverride);
+  // Override dotyczy wyłącznie wariantów dotacyjnych — pożyczka i zakres 2 nie
+  // mają czego nadpisywać, a `applyOverride` na ich snapshocie szukałby
+  // nieistniejącej tablicy `variants`.
+  const renderedSnapshot =
+    isLoanPricing(full.pricingSnapshot) || isExecPricing(full.pricingSnapshot)
+      ? full.pricingSnapshot
+      : applyOverride(full.pricingSnapshot, full.pricingOverride);
   const {
     createdBy: _createdBy,
     assignedConsultantId: _assignedConsultantId,
@@ -275,6 +294,8 @@ export function toPublicOfferDto(
     rejectedByEmail: _rejectedByEmail,
     rejectReason: _rejectReason,
     pricingOverride: _pricingOverride,
+    approvedBy: _approvedBy,
+    approvedAt: _approvedAt,
     ...rest
   } = full;
   const ovExec = full.pricingOverride?.execFee;

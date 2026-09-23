@@ -79,79 +79,69 @@ export default function PricingVariants({ variants, initialSelected, execFee, tr
     }).catch(() => {});
   }
 
-  // Oferta wylacznie na obsluge i rozliczanie nie ma oplaty wstepnej ani success
-  // fee, wiec kazdy wariant wychodzi zerowy. Karta „Wariant I · 0% · Razem 0 zl"
-  // z harmonogramem platnosci, ktorego nie ma, mylila klienta — w takim wypadku
-  // pomijamy tabele wariantow i zostaje sam blok wynagrodzenia wykonawczego.
-  const hasVariantPricing = variants.some(
-    (v) => v.base > 0 || v.sfAmount > 0 || v.total > 0,
-  );
-
   return (
     <>
-      {hasVariantPricing && (
-        <div className="variants">
-          {variants.map((v) => {
-            const isSelected = selectedId === v.id;
-            return (
-              // <button> jako selectable option — klik tylko podswietla (visual
-              // feedback), NIE nawiguje do akceptacji. aria-pressed = stan toggle.
-              <button
-                key={v.id}
-                type="button"
-                className={`variant ${isSelected ? 'selected' : ''}`}
-                // preventDefault na mousedown blokuje focus-scroll (przeglądarka
-                // dosuwała wysoką kartę do widoku przy kliku). Klik nadal podświetla;
-                // dostępność klawiaturą (Tab + Enter/Space) zachowana.
-                onMouseDown={(e) => e.preventDefault()}
-                onMouseEnter={() => track('variant_hovered', v.id)}
-                onClick={() => {
-                  setSelectedId(v.id);
-                  track('variant_selected', v.id);
-                }}
-                aria-label={`${v.name} — podświetl ten wariant`}
-                aria-pressed={isSelected}
-              >
-                <header>
-                  <div className="v-id">{v.name}</div>
-                  <div className="v-tag">{v.tag}</div>
-                  {isSelected && <div className="v-selected">✓ Wybrany</div>}
-                </header>
-                <div className="v-rate">
-                  <strong>{(v.sfPct * 100).toFixed(1)}%</strong>
-                  <span>wartości dofinansowania</span>
+      <div className="variants">
+        {variants.map((v) => {
+          const isSelected = selectedId === v.id;
+          return (
+            // <button> jako selectable option — klik tylko podswietla (visual
+            // feedback), NIE nawiguje do akceptacji. aria-pressed = stan toggle.
+            <button
+              key={v.id}
+              type="button"
+              className={`variant ${isSelected ? 'selected' : ''}`}
+              // preventDefault na mousedown blokuje focus-scroll (przeglądarka
+              // dosuwała wysoką kartę do widoku przy kliku). Klik nadal podświetla;
+              // dostępność klawiaturą (Tab + Enter/Space) zachowana.
+              onMouseDown={(e) => e.preventDefault()}
+              onMouseEnter={() => track('variant_hovered', v.id)}
+              onClick={() => {
+                setSelectedId(v.id);
+                track('variant_selected', v.id);
+              }}
+              aria-label={`${v.name} — podświetl ten wariant`}
+              aria-pressed={isSelected}
+            >
+              <header>
+                <div className="v-id">{v.name}</div>
+                <div className="v-tag">{v.tag}</div>
+                {isSelected && <div className="v-selected">✓ Wybrany</div>}
+              </header>
+              <div className="v-rate">
+                <strong>{(v.sfPct * 100).toFixed(1)}%</strong>
+                <span>wartości dofinansowania</span>
+              </div>
+              <div className="v-stack">
+                <div className="v-row">
+                  <span>Opłata wstępna</span>
+                  <strong>{fmt(v.base)}</strong>
                 </div>
-                <div className="v-stack">
-                  <div className="v-row">
-                    <span>Opłata wstępna</span>
-                    <strong>{fmt(v.base)}</strong>
-                  </div>
-                  <div className="v-row big">
-                    <span>Wynagrodzenie wynikowe</span>
-                    <strong>{fmt(v.sfAmount)}</strong>
-                  </div>
-                  <div className="v-divider" />
-                  <div className="v-row total">
-                    <span>Razem (szacunkowo)</span>
-                    <strong>{fmt(v.total)}</strong>
-                  </div>
+                <div className="v-row big">
+                  <span>Wynagrodzenie wynikowe</span>
+                  <strong>{fmt(v.sfAmount)}</strong>
                 </div>
-                <div className="v-schedule">
-                  <div className="v-sched-label">Harmonogram płatności</div>
-                  {(v.payment ?? []).map((p, i) => (
-                    <div key={i} className="v-sched-row">
-                      <div className="v-sched-bar" style={{ width: `${p.pct}%` }} />
-                      <div className="v-sched-text">
-                        <strong>{p.pct}%</strong> <span>{p.when}</span>
-                      </div>
+                <div className="v-divider" />
+                <div className="v-row total">
+                  <span>Razem (szacunkowo)</span>
+                  <strong>{fmt(v.total)}</strong>
+                </div>
+              </div>
+              <div className="v-schedule">
+                <div className="v-sched-label">Harmonogram płatności</div>
+                {(v.payment ?? []).map((p, i) => (
+                  <div key={i} className="v-sched-row">
+                    <div className="v-sched-bar" style={{ width: `${p.pct}%` }} />
+                    <div className="v-sched-text">
+                      <strong>{p.pct}%</strong> <span>{p.when}</span>
                     </div>
-                  ))}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
+                  </div>
+                ))}
+              </div>
+            </button>
+          );
+        })}
+      </div>
 
       {/* Audyt 2026-07: jednoznaczność cen — wszystkie kwoty netto (wymóg
           formalny oferty handlowej; wcześniej "netto" tylko przy 2 z ~10 kwot). */}
