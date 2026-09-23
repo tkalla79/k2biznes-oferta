@@ -53,6 +53,13 @@ export type OfferDto = {
   content: Record<string, unknown>;
 
   acceptedVariant: OfferRow['accepted_variant'];
+  /**
+   * Wewnętrzna akceptacja przed wysyłką — kto i kiedy zatwierdził treść.
+   * `null` = niezatwierdzona, czyli `POST /send` odmówi. Kasowane przy każdej
+   * edycji tego, co widzi klient (patrz `clearsApproval`).
+   */
+  approvedBy: string | null;
+  approvedAt: string | null;
   acceptedFee: number | null;
   acceptedByName: string | null;
   acceptedByEmail: string | null;
@@ -115,6 +122,8 @@ export function toOfferDto(row: OfferRow, appUrl: string): OfferDto {
     content: (row.content ?? {}) as Record<string, unknown>,
 
     acceptedVariant: row.accepted_variant,
+    approvedBy: row.approved_by,
+    approvedAt: row.approved_at,
     acceptedFee: row.accepted_fee == null ? null : Number(row.accepted_fee),
     acceptedByName: row.accepted_by_name,
     acceptedByEmail: row.accepted_by_email,
@@ -244,6 +253,10 @@ export type PublicOfferDto = Omit<
   | 'rejectedByEmail'
   | 'rejectReason'
   | 'pricingOverride'
+  // Akceptacja jest nasza, wewnetrzna — klient nie ma widziec, kto u nas
+  // zatwierdzil tresc ani kiedy. Pole zostaje w DTO panelu, nie w publicznym.
+  | 'approvedBy'
+  | 'approvedAt'
 > & {
   contactPerson: PublicContactPersonDto | null;
   caseStudy: PublicCaseStudyDto | null;
@@ -281,6 +294,8 @@ export function toPublicOfferDto(
     rejectedByEmail: _rejectedByEmail,
     rejectReason: _rejectReason,
     pricingOverride: _pricingOverride,
+    approvedBy: _approvedBy,
+    approvedAt: _approvedAt,
     ...rest
   } = full;
   const ovExec = full.pricingOverride?.execFee;

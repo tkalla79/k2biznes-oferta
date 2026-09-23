@@ -56,7 +56,11 @@ export type AuditAction =
   // Cennik: edycja segmentow i configu z panelu (2026-09). Wczesniej stawki
   // zmienialo sie SQL-em, bez sladu w audycie - a jedno pole przestawia
   // wycene wszystkich nowych ofert.
-  | 'pricing.update';
+  | 'pricing.update'
+  // Wewnetrzna akceptacja oferty przed wysylka (2026-09). `approval_revoked`
+  // pada zarowno przy recznym cofnieciu, jak i automatycznie po edycji tresci.
+  | 'offer.approve'
+  | 'offer.approval_revoked';
 
 export type AuditEntry = {
   action: AuditAction;

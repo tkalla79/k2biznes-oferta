@@ -11,7 +11,7 @@ import { calcLoanPricing } from '@/lib/pricing/loan';
 import { calcExecPricing } from '@/lib/pricing/exec';
 import { normalizeOfferKind, hasVariants } from '@/lib/offers/kind';
 import { loadPricing } from '@/lib/pricing/load';
-import { UpdateOfferInput, shouldRecalcSnapshot } from '@/lib/validation/offers';
+import { UpdateOfferInput, shouldRecalcSnapshot, clearsApproval } from '@/lib/validation/offers';
 import { toOfferDto, type OfferRow } from '@/lib/offers/mapper';
 import { deletePdfsForOffer } from '@/lib/pdf/storage';
 import type { Database, Json } from '@k2/database/types';
@@ -152,6 +152,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (patch.status !== undefined) update.status = patch.status;
     if (patch.expiresAt !== undefined) update.expires_at = patch.expiresAt;
 
+    // Akceptacja dotyczy konkretnej tresci — zmiana tresci ja uniewaznia.
+    // Bez tego dalo by sie zatwierdzic czysta oferte, podmienic kwoty przez
+    // pricing_override i wyslac ja jako zatwierdzona.
+    const approvalCleared = before.approved_at != null && clearsApproval(patch);
+    if (approvalCleared) {
+      update.approved_by = null;
+      update.approved_at = null;
+    }
+
     // Re-kalkulacja snapshotu jeśli zmiana wpływa na pricing.
     if (shouldRecalcSnapshot(patch)) {
       // H2 audit: pricing_snapshot jest IMMUTABLE po wysłaniu (BACKEND_SPEC 3.2.3).
@@ -244,6 +253,29 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         actor_type: session.role === 'consultant' ? 'consultant' : 'admin',
         payload: { fields: Object.keys(update) },
       }),
+      // Osobne zdarzenie, bo utrata akceptacji to nie szczegol edycji: ktos
+      // musi ja dac ponownie, zanim oferta pojdzie do klienta. W historii
+      // aktywnosci ma byc widoczna jako wlasny wiersz.
+      ...(approvalCleared
+        ? [
+            sb.from('offer_events').insert({
+              offer_id: updated.id,
+              type: 'approval_revoked' as const,
+              actor_id: session.userId,
+              actor_type: session.role === 'consultant' ? ('consultant' as const) : ('admin' as const),
+              payload: { reason: 'edited', fields: Object.keys(update) },
+            }),
+            logAudit({
+              action: 'offer.approval_revoked' as const,
+              resourceType: 'offer' as const,
+              resourceId: updated.id,
+              actorId: session.userId,
+              actorEmail: session.email,
+              before: { approvedAt: before.approved_at, approvedBy: before.approved_by },
+              after: { approvedAt: null, reason: 'edited' },
+            }),
+          ]
+        : []),
       logAudit({
         action: 'offer.update',
         resourceType: 'offer',

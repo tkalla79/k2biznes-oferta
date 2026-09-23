@@ -54,6 +54,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       throw Errors.conflictStatus(`Wysyłka niedozwolona dla statusu ${offer.status}.`);
     }
 
+    // Wewnetrzna akceptacja (2026-09): oferty nie wysylamy, dopoki ktos z
+    // admin+ nie zatwierdzi jej tresci. Sprawdzamy TU, a nie tylko w UI, bo
+    // przycisk da sie ominac zwyklym POST-em.
+    if (!offer.approved_at) {
+      throw Errors.conflictStatus(
+        'Oferta nie zostala zatwierdzona do wysylki. Poproś admina o akceptację ' +
+          'w widoku oferty („Zatwierdź do wysyłki").',
+      );
+    }
+
     // H5 audit: anti-double-click idempotency. Admin double-klika „Wyślij" przy
     // slow network → 2 requesty → 2 emaile do klienta + 2 offer_events. Re-send
     // jest intencjonalny (po jakimś czasie OK), ale 2 wysyłki w 60s to przypadek.

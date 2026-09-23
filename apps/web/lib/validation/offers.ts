@@ -175,6 +175,53 @@ export function shouldRecalcSnapshot(patch: UpdateOfferInput): boolean {
   );
 }
 
+/**
+ * Czy ta zmiana kasuje wewnętrzną akceptację oferty?
+ *
+ * Akceptacja dotyczy **treści, którą zobaczy klient**, więc traci ważność, gdy
+ * ta treść się zmieni — inaczej kontrola byłaby pozorna: zatwierdzam czystą
+ * ofertę, podmieniam kwoty przez `pricingOverride` i wysyłam zatwierdzoną.
+ * To samo dotyczy oferty już wysłanej: `PATCH` blokuje po wysyłce tylko pola
+ * finansowe, a `content` i `pricingOverride` przechodziły bez sprawdzenia
+ * statusu, zmieniając to, co klient widzi pod tym samym linkiem.
+ *
+ * Lista jest jawna, a nie „wszystko poza kilkoma polami", żeby dodanie nowego
+ * pola do oferty wymagało świadomej decyzji, po której stronie ma leżeć.
+ */
+const CLIENT_VISIBLE_FIELDS = [
+  'clientName',
+  'clientNip',
+  'clientIndustry',
+  'clientCompanySize',
+  'clientVoivodeship',
+  'programId',
+  'programLabel',
+  'programCustomName',
+  'projectValue',
+  'fundingRate',
+  'returningClient',
+  'projectCount',
+  'selectedVariant',
+  'offeredVariants',
+  'offerKind',
+  'loan',
+  'exec',
+  'caseStudyId',
+  'contactPersonId',
+  'content',
+  'pricingOverride',
+  'expiresAt',
+] as const satisfies ReadonlyArray<keyof UpdateOfferInput>;
+
+/**
+ * Nie kasują akceptacji, bo klient ich nie widzi: `assignedConsultantId`
+ * (kto prowadzi ofertę po naszej stronie) i `status` (zmieniany i tak przez
+ * dedykowane endpointy).
+ */
+export function clearsApproval(patch: UpdateOfferInput): boolean {
+  return CLIENT_VISIBLE_FIELDS.some((f) => patch[f] !== undefined);
+}
+
 // =============================================================================
 // GET /api/offers
 // =============================================================================

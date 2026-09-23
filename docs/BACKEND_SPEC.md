@@ -800,6 +800,8 @@ OFFERS (consultant+)
   DELETE /api/offers/:id                      – soft delete (admin+)
   POST   /api/offers/:id/restore              – cofnij soft delete (admin+)
   POST   /api/offers/:id/send                 – wyślij do klienta (mail)
+  POST   /api/offers/:id/approve              – zatwierdź do wysyłki (admin+)
+  DELETE /api/offers/:id/approve              – cofnij zatwierdzenie (admin+)
   POST   /api/offers/:id/duplicate            – klon
   POST   /api/offers/:id/recalculate          – przelicz pricing_snapshot
   GET    /api/offers/:id/events               – historia eventów
@@ -906,9 +908,43 @@ const CreateOfferInput = z.object({
 6. Insert do `audit_log`.
 7. Zwróć utworzoną ofertę + `clientUrl`.
 
+#### `POST /api/offers/:id/approve` · `DELETE` (wewnętrzna akceptacja)
+
+**Auth:** admin+ (`requireAdmin`). Konsultant widzi stan, ale nie zatwierdza.
+
+`POST` zapisuje `approved_by` + `approved_at`, `DELETE` je zeruje. Oba są
+**idempotentne**: powtórny `POST` nie podmienia osoby ani daty (pierwszy podpis
+jest tym, który liczy się w audycie), a `DELETE` na niezatwierdzonej ofercie nie
+jest błędem. Ofertę w statusie terminalnym (`accepted`/`rejected`/`expired`)
+odrzucamy z 409 — nie ma już czego zatwierdzać.
+
+**Samo-akceptacja jest dozwolona.** Admin może zatwierdzić własną ofertę: przy
+obecnym zespole bywa jedyną osobą, która ją widzi, a blokada oznaczałaby, że
+nikt nie może niczego wysłać. Wartością jest tu **ślad i moment zatrzymania**,
+nie rozdzielenie ról (decyzja: T. Kalla, 2026-09).
+
+Ślad: `offer_events` (`approved` / `approval_revoked`) + `audit_log`
+(`offer.approve` / `offer.approval_revoked`).
+
+**Akceptacja nie jest trwała.** `PATCH /api/offers/:id` kasuje ją przy każdej
+zmianie pola widocznego dla klienta — lista w `clearsApproval`
+(`lib/validation/offers.ts`). Bez tego kontrola byłaby pozorna: `PATCH` blokuje
+po wysyłce **tylko pola finansowe**, a `content` i `pricingOverride` przechodziły
+bez sprawdzenia statusu — czyli pod tym samym linkiem dało się klientowi
+podmienić kwoty i treść, omijając zamrożony `pricing_snapshot`. Automatyczne
+cofnięcie loguje się jako osobne zdarzenie z `payload.reason = 'edited'`.
+
+Nie kasują akceptacji: `assignedConsultantId` (klient tego nie widzi) i `status`.
+
+**Bez backfillu.** Oferty wysłane przed tą zmianą zostają niezatwierdzone — nie
+wiemy, kto je przeczytał, a wpisanie tam kogokolwiek byłoby fałszywym śladem.
+Skutek: ponowna wysyłka starej oferty wymaga jednego kliknięcia.
+
 #### `POST /api/offers/:id/send`
 
-**Auth:** konsultant (tylko swoje), admin+.
+**Auth:** konsultant (tylko swoje), admin+. **Wymaga zatwierdzonej oferty** —
+bez `approved_at` zwraca 409 (`OFFER_INVALID_STATUS`). Sprawdzane po stronie
+API, nie tylko w UI: przycisk da się ominąć zwykłym POST-em.
 
 **Request body:**
 ```typescript

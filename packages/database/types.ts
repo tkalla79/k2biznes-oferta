@@ -487,6 +487,8 @@ export type Database = {
           accepted_variant:
             | Database["public"]["Enums"]["pricing_variant"]
             | null
+          approved_at: string | null
+          approved_by: string | null
           assigned_consultant_id: string | null
           case_study_id: string | null
           client_comment: string | null
@@ -538,6 +540,8 @@ export type Database = {
           accepted_variant?:
             | Database["public"]["Enums"]["pricing_variant"]
             | null
+          approved_at?: string | null
+          approved_by?: string | null
           assigned_consultant_id?: string | null
           case_study_id?: string | null
           client_comment?: string | null
@@ -589,6 +593,8 @@ export type Database = {
           accepted_variant?:
             | Database["public"]["Enums"]["pricing_variant"]
             | null
+          approved_at?: string | null
+          approved_by?: string | null
           assigned_consultant_id?: string | null
           case_study_id?: string | null
           client_comment?: string | null
@@ -928,6 +934,8 @@ export type Database = {
         | "pdf_downloaded"
         | "link_shared"
         | "email_sent"
+        | "approved"
+        | "approval_revoked"
       offer_status:
         | "draft"
         | "sent"
@@ -1082,6 +1090,8 @@ export const Constants = {
         "pdf_downloaded",
         "link_shared",
         "email_sent",
+        "approved",
+        "approval_revoked",
       ],
       offer_status: [
         "draft",

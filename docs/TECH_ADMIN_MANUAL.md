@@ -339,6 +339,34 @@ w ofercie"), nie tutaj.
 - `/admin/templates` — zapisane zestawy treści/ustawień do szybkiego startu
   nowej oferty.
 
+### Zatwierdzanie oferty przed wysyłką
+
+Oferty nie da się wysłać, dopóki ktoś z **admin+** jej nie zatwierdzi. Nad paskiem
+akcji w widoku oferty jest pasek stanu: żółty „Niezatwierdzona" z przyciskiem
+**Zatwierdź do wysyłki**, po kliknięciu zielony z nazwiskiem i datą. Przycisk
+**Wyślij ofertę** jest do tego czasu wyszarzony.
+
+Konsultant widzi pasek, ale nie ma przycisku — prosi admina.
+
+**Admin może zatwierdzić własną ofertę.** To świadoma decyzja: przy obecnym
+zespole bywa jedyną osobą, która ofertę widzi, a blokada oznaczałaby, że nikt
+nie może niczego wysłać. Chodzi o ślad i moment zatrzymania, nie o rozdzielenie ról.
+
+**Każda zmiana treści albo cennika cofa zatwierdzenie.** To nie jest złośliwość
+interfejsu, tylko sedno tej kontroli: bez tego dałoby się zatwierdzić czystą
+ofertę, podmienić kwoty ręcznym nadpisaniem cennika i wysłać ją jako
+zatwierdzoną. Dotyczy to również oferty **już wysłanej** — do tej pory edycja
+treści i nadpisanie cennika przechodziły bez żadnej blokady i zmieniały to, co
+klient widzi pod tym samym linkiem.
+
+Nie cofa zatwierdzenia: przepisanie oferty na innego konsultanta.
+
+Ślad w historii aktywności oferty: „Zatwierdzenie do wysyłki" i „Cofnięcie
+zatwierdzenia" (z rozróżnieniem, czy cofnął ktoś ręcznie, czy zrobiła to edycja).
+
+**Stare oferty są niezatwierdzone.** Nie wiemy, kto je w swoim czasie przeczytał,
+więc nikogo tam nie wpisaliśmy — ponowna wysyłka wymaga jednego kliknięcia.
+
 ### Wysyłka oferty — kto dostaje maila
 
 Trzy adresy, każdy z innego miejsca:

@@ -81,6 +81,19 @@ export default async function EditOfferPage({ params }: { params: { id: string }
     ? { name: offerContact.name, email: offerContact.email }
     : null;
 
+  // Kto zatwierdził ofertę do wysyłki. Nazwisko bierzemy z listy profili, którą
+  // ma tylko admin — konsultantowi wystarczy sam fakt zatwierdzenia, a osobne
+  // zapytanie o profil tylko po to, by je pokazać, byłoby marnotrawstwem.
+  const approver = offer.approved_by
+    ? profiles.find((p) => p.id === offer.approved_by)
+    : undefined;
+  const approval = offer.approved_at
+    ? {
+        name: approver?.full_name || approver?.email || 'zatwierdzone',
+        at: offer.approved_at,
+      }
+    : null;
+
   return (
     <main style={main}>
       <header style={topbar}>
@@ -121,6 +134,8 @@ export default async function EditOfferPage({ params }: { params: { id: string }
         canDelete={isAdmin}
         ccRecipient={ccRecipient}
         programLabel={offer.program_label}
+        approval={approval}
+        canApprove={isAdmin}
       />
 
       <OfferForm

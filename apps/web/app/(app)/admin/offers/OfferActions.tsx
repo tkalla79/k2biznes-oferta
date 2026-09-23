@@ -24,6 +24,13 @@ type Props = {
   ccRecipient: CcRecipient;
   /** Do podpowiedzi tematu — dialog pokazuje dokładnie to, co pójdzie w mailu. */
   programLabel: string;
+  /**
+   * Wewnętrzna akceptacja: `null` = niezatwierdzona, czyli wysyłka zablokowana.
+   * `name` to osoba, która zatwierdziła (albo jej e-mail, gdy brak nazwiska).
+   */
+  approval: { name: string; at: string } | null;
+  /** Zatwierdza admin+; konsultant widzi stan, ale nie ma przycisku. */
+  canApprove: boolean;
 };
 
 /**
@@ -42,11 +49,13 @@ export default function OfferActions({
   canDelete,
   ccRecipient,
   programLabel,
+  approval,
+  canApprove,
 }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [sendOpen, setSendOpen] = useState(false);
-  const [busy, setBusy] = useState<null | 'recalc' | 'delete'>(null);
+  const [busy, setBusy] = useState<null | 'recalc' | 'delete' | 'approve'>(null);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
   const isTerminal = status === 'accepted' || status === 'rejected' || status === 'expired';
@@ -98,6 +107,38 @@ export default function OfferActions({
     }
   }
 
+  async function setApproval(approve: boolean) {
+    if (
+      !approve &&
+      !confirm(
+        'Cofnąć zatwierdzenie? Oferty nie będzie można wysłać, dopóki ktoś nie ' +
+          'zatwierdzi jej ponownie.',
+      )
+    ) {
+      return;
+    }
+    setBusy('approve');
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/offers/${offerId}/approve`, {
+        method: approve ? 'POST' : 'DELETE',
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error?.message ?? 'Operacja nie udała się.');
+      setMsg({
+        kind: 'ok',
+        text: approve
+          ? 'Oferta zatwierdzona do wysyłki.'
+          : 'Zatwierdzenie cofnięte — wysyłka zablokowana.',
+      });
+      startTransition(() => router.refresh());
+    } catch (e) {
+      setMsg({ kind: 'err', text: (e as Error).message });
+    } finally {
+      setBusy(null);
+    }
+  }
+
   function copyLink() {
     // Draft: kopiujemy preview URL (działa tylko dla zalogowanego konsultanta).
     // Sent+: kopiujemy publiczny URL klienta.
@@ -118,13 +159,70 @@ export default function OfferActions({
 
   return (
     <div style={wrap}>
+      {/* Stan akceptacji nad paskiem akcji — to on decyduje, czy „Wyślij" działa. */}
+      {!isTerminal && (
+        <div style={approval ? approvalOk : approvalPending}>
+          <div>
+            {approval ? (
+              <>
+                <strong>Zatwierdzona do wysyłki</strong> — {approval.name},{' '}
+                {new Date(approval.at).toLocaleString('pl-PL', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+                .{' '}
+                <span style={{ opacity: 0.85 }}>
+                  Każda zmiana treści albo cennika cofnie zatwierdzenie.
+                </span>
+              </>
+            ) : (
+              <>
+                <strong>Niezatwierdzona</strong> — wysyłka jest zablokowana.{' '}
+                {canApprove
+                  ? 'Przejrzyj treść i cennik, potem zatwierdź.'
+                  : 'Poproś admina o zatwierdzenie treści.'}
+              </>
+            )}
+          </div>
+          {canApprove && (
+            <button
+              type="button"
+              onClick={() => setApproval(!approval)}
+              disabled={busy !== null}
+              style={approval ? btnSecondary : btnApprove}
+            >
+              {busy === 'approve'
+                ? '…'
+                : approval
+                  ? 'Cofnij zatwierdzenie'
+                  : 'Zatwierdź do wysyłki'}
+            </button>
+          )}
+        </div>
+      )}
+
       <div style={toolbar}>
         <button
           type="button"
           onClick={() => setSendOpen(true)}
-          style={status === 'draft' ? btnPrimary : btnSecondary}
-          disabled={isTerminal}
-          title={isTerminal ? `Oferta ${status} — nie wysyłamy` : undefined}
+          style={
+            isTerminal || !approval
+              ? btnDisabled
+              : status === 'draft'
+                ? btnPrimary
+                : btnSecondary
+          }
+          disabled={isTerminal || !approval}
+          title={
+            isTerminal
+              ? `Oferta ${status} — nie wysyłamy`
+              : !approval
+                ? 'Oferta nie została zatwierdzona do wysyłki'
+                : undefined
+          }
         >
           {status === 'sent' || status === 'viewed' ? 'Wyślij ponownie' : 'Wyślij ofertę'}
         </button>
@@ -431,6 +529,42 @@ const btnSecondary: React.CSSProperties = {
   background: '#fff',
   color: '#1B2A4A',
   border: '1px solid #e4e9f2',
+};
+const btnApprove: React.CSSProperties = {
+  ...btnBase,
+  background: '#1f7a4c',
+  color: '#fff',
+  whiteSpace: 'nowrap',
+};
+const btnDisabled: React.CSSProperties = {
+  ...btnBase,
+  background: '#f1f3f7',
+  color: '#9aa7bb',
+  border: '1px solid #e4e9f2',
+  cursor: 'not-allowed',
+};
+const approvalBar: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  padding: '10px 14px',
+  borderRadius: 8,
+  fontSize: 13,
+  lineHeight: 1.55,
+  flexWrap: 'wrap',
+};
+const approvalOk: React.CSSProperties = {
+  ...approvalBar,
+  background: '#eaf7f0',
+  border: '1px solid #bfe0cd',
+  color: '#1f7a4c',
+};
+const approvalPending: React.CSSProperties = {
+  ...approvalBar,
+  background: '#fdf6e3',
+  border: '1px solid #e8dcb5',
+  color: '#6b5a1f',
 };
 const btnDanger: React.CSSProperties = {
   ...btnBase,
