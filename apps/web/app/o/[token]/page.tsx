@@ -250,6 +250,14 @@ export default async function OfferPage({ params, searchParams }: Props) {
     notes?: string;
     // Uwaga pilotaż 2026-07 (#5C): punktory w kafelku „Założenia oferty".
     calcBullets?: string[];
+    /**
+     * Oferta łączona: przygotowanie wniosku ORAZ obsługa i rozliczanie, z
+     * rozliczaniem w cenie, nie jako opcja. Znacznik jest jawny, bo wyliczyć
+     * się tego nie da — każdy segment cennika ma `monthly_fee = 3000`, więc
+     * „niezerowa stawka miesięczna" jest prawdą dla KAŻDEJ oferty dotacyjnej
+     * i przemianowałaby wszystkie.
+     */
+    execIncluded?: boolean;
     // Uwaga pilotaż 2026-07 (#3): zdiagnozowane potrzeby i podstawa rekomendacji
     // (tekst na 2 kolumny, sekcja 02, pod „Rekomendujemy", nad alternatywami).
     recommendationBasis?: string;
@@ -321,6 +329,8 @@ export default async function OfferPage({ params, searchParams }: Props) {
   const isCulture =
     isGrant &&
     /\b(EOG|norwesk)/i.test(`${recommendedAlt?.program ?? ''} ${recommendedAlt?.name ?? ''}`);
+  // Oferta łączona (przygotowanie + obsługa w cenie) — patrz `content.execIncluded`.
+  const execIncluded = isGrant && content.execIncluded === true;
   // N1/N2 (2026-07-15): sekcja 01 to teraz „podstawa rekomendacji" (bez punktów),
   // sekcja 02 bez „Dlaczego ten nabór" — `needs`/`hasNeeds`/`programReason` usunięte.
 
@@ -364,7 +374,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
               <li><a href="#cennik">Wycena</a></li>
               <li><a href="#proces">Proces</a></li>
               <li><a href="#onas">O nas</a></li>
-              <li><a href="#case">Referencje</a></li>
+              {dto.caseStudy && <li><a href="#case">Referencje</a></li>}
               <li><a href="#faq">FAQ</a></li>
             </ul>
             {isActive && (
@@ -403,6 +413,11 @@ export default async function OfferPage({ params, searchParams }: Props) {
                 <>
                   w zakresie realizacji<br />
                   <em>i rozliczania projektu</em>
+                </>
+              ) : execIncluded ? (
+                <>
+                  w zakresie przygotowania projektu<br />
+                  <em>oraz jego obsługi i rozliczania</em>
                 </>
               ) : (
                 <>
@@ -582,6 +597,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
                     : SCOPE_PREP
             }
             exec={isGrant ? (isCulture ? CULTURE_SCOPE_EXEC : SCOPE_EXEC) : []}
+            execTag={execIncluded ? 'w cenie oferty' : 'opcjonalne'}
             print={isPrint}
             {...(isExec
               ? {
@@ -704,7 +720,11 @@ export default async function OfferPage({ params, searchParams }: Props) {
                 isCulture
                   ? null
                   : {
-                      kicker: dto.execFee.kicker,
+                      // Przy ofercie łączonej domyślny kicker („…(opcjonalnie)")
+                      // przeczyłby zakresowi i cennikowi obok.
+                      kicker: execIncluded
+                        ? dto.execFee.kicker.replace(/\s*\(opcjonalnie\)\s*$/i, '')
+                        : dto.execFee.kicker,
                       title: dto.execFee.title,
                       desc: dto.execFee.desc,
                       monthly: dto.execFee.monthly ?? null,
@@ -784,86 +804,77 @@ export default async function OfferPage({ params, searchParams }: Props) {
           {/* Uwaga Karolina 2026-07: sekcja „Zaufali nam" (case study) scalona
               tutaj z „Dlaczego K2Biznes" — case study zamyka argument „dlaczego my"
               jako dowód. id="case" zachowane jako kotwica nawigacji („Referencje"). */}
-          <div id="case" className="onas-case">
-            <div className="onas-case-head">
-              <div className="section-kicker">Zaufali nam</div>
-              <h3>
-                {dto.caseStudy ? (
-                  <>Case study: <em>{dto.caseStudy.client}</em></>
-                ) : (
-                  <>Wybrany <em>projekt klienta</em></>
-                )}
-              </h3>
-            </div>
-            <div className="case-wrap">
-            <div className="case-story">
-              {dto.caseStudy ? (
-                <>
-                  {dto.caseStudy.tag && <div className="case-tag">{dto.caseStudy.tag}</div>}
-                  <h3>{dto.caseStudy.title}</h3>
-                  {dto.caseStudy.paragraph1 && <p>{dto.caseStudy.paragraph1}</p>}
-                  {dto.caseStudy.paragraph2 && <p>{dto.caseStudy.paragraph2}</p>}
-                  {dto.caseStudy.industries.length > 0 && (
-                    /* Uwaga PDF (12.06): label „branża" raz, nie pod każdą pozycją. */
-                    <div className="case-industries">
-                      <span className="case-industries-label">
-                        {dto.caseStudy.industries.length > 1 ? 'Branże' : 'Branża'}
-                      </span>
-                      <div className="case-industries-list">
-                        {dto.caseStudy.industries.map((ind, i) => (
-                          <span key={i} className="case-industry-tag">{ind}</span>
-                        ))}
-                      </div>
+          {/* Bez wybranego case study nie podstawiamy tekstu zastępczego — placeholder
+              był notatką dla konsultanta („Konsultant wybiera szablon w panelu",
+              kafelek „— wybierz w panelu —") i trafiał wprost do klienta. Case study
+              jest polem opcjonalnym, więc dotyczyło to każdej oferty wystawionej bez
+              niego. Reszta sekcji 06 („Dlaczego K2Biznes" + statystyki) zostaje. */}
+          {dto.caseStudy && (
+            <div id="case" className="onas-case">
+              <div className="onas-case-head">
+                <div className="section-kicker">Zaufali nam</div>
+                <h3>
+                  Case study: <em>{dto.caseStudy.client}</em>
+                </h3>
+              </div>
+              <div className="case-wrap">
+              <div className="case-story">
+                {dto.caseStudy.tag && <div className="case-tag">{dto.caseStudy.tag}</div>}
+                <h3>{dto.caseStudy.title}</h3>
+                {dto.caseStudy.paragraph1 && <p>{dto.caseStudy.paragraph1}</p>}
+                {dto.caseStudy.paragraph2 && <p>{dto.caseStudy.paragraph2}</p>}
+                {dto.caseStudy.industries.length > 0 && (
+                  /* Uwaga PDF (12.06): label „branża" raz, nie pod każdą pozycją. */
+                  <div className="case-industries">
+                    <span className="case-industries-label">
+                      {dto.caseStudy.industries.length > 1 ? 'Branże' : 'Branża'}
+                    </span>
+                    <div className="case-industries-list">
+                      {dto.caseStudy.industries.map((ind, i) => (
+                        <span key={i} className="case-industry-tag">{ind}</span>
+                      ))}
                     </div>
-                  )}
-                  {/* Uwaga pilotaż 2026-07 (#7): link do pełnego opisu projektu na K2. */}
-                  {dto.caseStudy.url && (
-                    <a
-                      href={dto.caseStudy.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="case-link"
-                    >
-                      Zobacz pełny opis projektu →
-                    </a>
-                  )}
-                </>
-              ) : (
-                <div className="case-placeholder">
-                  <p>
-                    Tutaj zaprezentujemy jeden z naszych zrealizowanych projektów,
-                    najbardziej dopasowany do branży i charakteru przedsięwzięcia
-                    klienta. Konsultant wybiera szablon w panelu administratora.
-                  </p>
-                </div>
-              )}
-            </div>
-            <div className="case-visual">
-              <div className="case-frame">
-                <div className="case-img-overlay" />
-                {/* Uwaga PDF (12.06): "Do usunięcia te koła w tle" — dekoracyjne
-                    pierścienie usunięte. */}
-                <div className="case-logo">
-                  {dto.caseStudy?.logoBig ? (
-                    // H13 audit: loading=lazy (poniżej fold) — Supabase URL, więc
-                    // bez next/image (uniknięcie remotePatterns config). maxW/H w style.
-                    // W PDF (isPrint) eager — puppeteer nie scrolluje, więc lazy
-                    // obrazki poniżej folda nigdy się nie ładują (pusta ramka).
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={dto.caseStudy.logoBig}
-                      alt={dto.caseStudy.client}
-                      loading={isPrint ? 'eager' : 'lazy'}
-                      style={{ maxWidth: '160px', maxHeight: '120px', objectFit: 'contain' }}
-                    />
-                  ) : (
-                    <div className="case-logo-big">{dto.caseStudy?.client ?? '— wybierz w panelu —'}</div>
-                  )}
+                  </div>
+                )}
+                {/* Uwaga pilotaż 2026-07 (#7): link do pełnego opisu projektu na K2. */}
+                {dto.caseStudy.url && (
+                  <a
+                    href={dto.caseStudy.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="case-link"
+                  >
+                    Zobacz pełny opis projektu →
+                  </a>
+                )}
+              </div>
+              <div className="case-visual">
+                <div className="case-frame">
+                  <div className="case-img-overlay" />
+                  {/* Uwaga PDF (12.06): "Do usunięcia te koła w tle" — dekoracyjne
+                      pierścienie usunięte. */}
+                  <div className="case-logo">
+                    {dto.caseStudy.logoBig ? (
+                      // H13 audit: loading=lazy (poniżej fold) — Supabase URL, więc
+                      // bez next/image (uniknięcie remotePatterns config). maxW/H w style.
+                      // W PDF (isPrint) eager — puppeteer nie scrolluje, więc lazy
+                      // obrazki poniżej folda nigdy się nie ładują (pusta ramka).
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={dto.caseStudy.logoBig}
+                        alt={dto.caseStudy.client}
+                        loading={isPrint ? 'eager' : 'lazy'}
+                        style={{ maxWidth: '160px', maxHeight: '120px', objectFit: 'contain' }}
+                      />
+                    ) : (
+                      <div className="case-logo-big">{dto.caseStudy.client}</div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          </div>
+            </div>
+          )}
         </section>
 
         {/* ==================== 07. FAQ ==================== */}

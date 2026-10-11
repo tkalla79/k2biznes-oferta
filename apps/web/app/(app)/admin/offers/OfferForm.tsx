@@ -144,6 +144,12 @@ type FormState = {
   // Uwaga pilotaż 2026-07 (#5C): „Podsumowanie (footer)" zastąpione punktorami
   // w kafelku „Założenia oferty" (sekcja 04). Textarea: jeden punkt = jedna linia.
   calcBullets: string;
+  /**
+   * Oferta łączona: przygotowanie wniosku ORAZ obsługa i rozliczanie w cenie.
+   * Znacznik musi być jawny — każdy segment cennika ma stawkę miesięczną 3 000 zł,
+   * więc „niezerowa stawka" nie odróżnia takiej oferty od zwykłej dotacyjnej.
+   */
+  execIncluded: boolean;
   // PR-D: edytowalne sekcje oferty
   programDescription: string; // HTML z Tiptapa
   altPrograms: AltProgramUI[]; // alternatywne programy (per oferta)
@@ -249,6 +255,7 @@ function initialFromOffer(offer: OfferDto): FormState {
         programReason?: unknown;
         notes?: unknown;
         calcBullets?: unknown;
+        execIncluded?: unknown;
         recommendationBasis?: unknown;
         loan?: unknown;
         exec?: unknown;
@@ -323,6 +330,7 @@ function initialFromOffer(offer: OfferDto): FormState {
     caseStudyId: offer.caseStudyId ?? '',
     contactPersonId: offer.contactPersonId ?? '',
     contentIntro: typeof c?.intro === 'string' ? c.intro : '',
+    execIncluded: c?.execIncluded === true,
     calcBullets: Array.isArray(c?.calcBullets)
       ? (c!.calcBullets as unknown[]).filter((b) => typeof b === 'string').join('\n')
       : '',
@@ -371,6 +379,7 @@ function blankInitial(): FormState {
     caseStudyId: '',
     contactPersonId: '',
     contentIntro: '',
+    execIncluded: false,
     calcBullets: '',
     programDescription: '',
     altPrograms: [],
@@ -835,6 +844,7 @@ export default function OfferForm({
       .map((s) => s.trim())
       .filter((s) => s !== '');
     if (calcBullets.length > 0) content.calcBullets = calcBullets;
+    if (form.offerKind === 'grant' && form.execIncluded) content.execIncluded = true;
     if (form.programDescription.trim()) content.programDescription = form.programDescription;
     const cleanAlts = form.altPrograms.filter(
       (p) => p.name.trim() !== '' || p.desc.trim() !== '' || p.program.trim() !== '',
@@ -1838,6 +1848,20 @@ export default function OfferForm({
           Pojawia się pod tabelą wariantów na ofercie. Jeśli chcesz zachować
           domyślne brzmienie, zostaw pola puste — pojawi się tekst standardowy. Pole „kwota
           miesięczna” puste = używamy <code>monthly</code> z wybranego wariantu.
+        </p>
+        <label style={{ ...radioRow, marginBottom: 10 }}>
+          <input
+            type="checkbox"
+            checked={form.execIncluded}
+            onChange={(e) => update('execIncluded', e.target.checked)}
+          />
+          <span>Obsługa i rozliczanie wchodzi w zakres oferty (nie jako opcja)</span>
+        </label>
+        <p style={hint}>
+          Zaznacz, gdy rozliczanie jest częścią zlecenia i jest naliczane. Zmienia trzy
+          rzeczy u klienta: nagłówek oferty mówi o przygotowaniu <em>oraz</em> obsłudze
+          i rozliczaniu, zakładka w sekcji 03 dostaje tag {'„w cenie oferty”'} zamiast
+          {' '}{'„opcjonalne”'}, a kicker w sekcji 04 traci dopisek {'„(opcjonalnie)”'}.
         </p>
         <Grid2>
           <Field label="Kicker (mała etykieta nad tytułem)">

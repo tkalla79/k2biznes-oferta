@@ -430,6 +430,32 @@ Ekran edytuje istniejące segmenty — nie dodaje i nie usuwa. Dodanie szóstego
 progu zmienia cały układ widełek, więc to decyzja biznesowa plus migracja, nie
 przycisk. Cennik pożyczkowy jest per oferta i tego ekranu nie dotyczy.
 
+### Oferta łączona — przygotowanie + obsługa w cenie
+
+W sekcji **Wynagrodzenie wykonawcze (exec-fee)** jest checkbox „Obsługa i rozliczanie
+wchodzi w zakres oferty (nie jako opcja)". Zaznacz go, gdy rozliczanie jest częścią
+zlecenia i jest naliczane, a nie propozycją na później.
+
+Zmienia trzy rzeczy w dokumencie, który widzi klient:
+
+- nagłówek mówi o przygotowaniu projektu **oraz jego obsłudze i rozliczaniu**,
+- zakładka w sekcji 03 dostaje tag „w cenie oferty" zamiast „opcjonalne",
+- kicker w sekcji 04 traci dopisek „(opcjonalnie)".
+
+Dlaczego to checkbox, a nie wyliczenie z cennika: **każdy segment ma stawkę miesięczną
+3 000 zł**, więc „oferta z niezerową stawką" to po prostu każda oferta dotacyjna.
+Odróżnia je decyzja handlowa, nie liczba.
+
+Bez zaznaczenia wszystko działa jak dotąd — rozliczanie jest opcją.
+
+### Case study na ofercie
+
+Pole jest opcjonalne. **Bez wybranego case study sekcja „Zaufali nam" nie pokazuje się
+wcale** — ani klientowi, ani w PDF — a z nawigacji znika pozycja „Referencje". Wcześniej
+podstawiał się tam tekst zastępczy napisany dla konsultanta („Konsultant wybiera szablon
+w panelu administratora") i kafelek „— wybierz w panelu —", które trafiały wprost do
+klienta. Reszta sekcji 06 („Dlaczego K2Biznes" + statystyki firmowe) zostaje zawsze.
+
 ### Oferta tylko na zakres 2 — realizacja i rozliczenie (tryb `exec`)
 
 Dla klienta, który **ma już decyzję o dofinansowaniu** i szuka wyłącznie obsługi
