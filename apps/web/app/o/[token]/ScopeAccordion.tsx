@@ -17,6 +17,9 @@ export default function ScopeAccordion({
   prepLabel = 'Przygotowanie dokumentacji',
   prepTag = 'w cenie oferty',
   prepIntro = 'Szczegółowy zakres prac na etapie przygotowania kompletnej dokumentacji aplikacyjnej dla Projektu.',
+  // W ofercie łączonej rozliczanie jest w cenie, a nie opcją — wpisany na sztywno
+  // tag „opcjonalne" przeczył wtedy cennikowi, który je naliczał.
+  execTag = 'opcjonalne',
 }: {
   prep: ScopeItem[];
   exec: ScopeItem[];
@@ -24,6 +27,7 @@ export default function ScopeAccordion({
   prepLabel?: string;
   prepTag?: string;
   prepIntro?: string;
+  execTag?: string;
 }) {
   const [tab, setTab] = useState<'prep' | 'exec'>('prep');
   const [open, setOpen] = useState<number>(0);
@@ -41,7 +45,7 @@ export default function ScopeAccordion({
         {[
           { title: prepLabel, tag: prepTag, items: prep },
           ...(hasExec
-            ? [{ title: 'Obsługa i rozliczanie projektu', tag: 'opcjonalne', items: exec }]
+            ? [{ title: 'Obsługa i rozliczanie projektu', tag: execTag, items: exec }]
             : []),
         ].map((block) => (
           <div className="scope-print-block" key={block.title}>
@@ -93,7 +97,7 @@ export default function ScopeAccordion({
           >
             <span className="tab-num">02</span>
             <span className="tab-label">Obsługa i rozliczanie projektu</span>
-            <span className="tab-tag opt">opcjonalne</span>
+            <span className="tab-tag opt">{execTag}</span>
           </button>
         )}
       </div>

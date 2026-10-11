@@ -22,6 +22,7 @@
  * Tu jest tylko visual feedback "ktory rozwazam".
  */
 import { useState } from 'react';
+import { formatSfPct } from '@/lib/format/percent';
 import type { PricingVariant } from '@/lib/pricing';
 
 type Props = {
@@ -51,7 +52,12 @@ const fmt = (n: number) =>
     style: 'currency',
     currency: 'PLN',
     maximumFractionDigits: 0,
+    // Domyślne `useGrouping: 'auto'` nie grupuje liczb czterocyfrowych, więc w
+    // jednej karcie stało „5600 zł" obok „20 020 zł". Zgodne z regułami pl-PL,
+    // ale w dokumencie handlowym wygląda na niedoróbkę.
+    useGrouping: 'always',
   }).format(Math.round(n));
+
 
 export default function PricingVariants({ variants, initialSelected, execFee, trackToken }: Props) {
   const [selectedId, setSelectedId] = useState<string>(
@@ -109,7 +115,7 @@ export default function PricingVariants({ variants, initialSelected, execFee, tr
                 {isSelected && <div className="v-selected">✓ Wybrany</div>}
               </header>
               <div className="v-rate">
-                <strong>{(v.sfPct * 100).toFixed(1)}%</strong>
+                <strong>{formatSfPct(v.sfPct)}%</strong>
                 <span>wartości dofinansowania</span>
               </div>
               <div className="v-stack">
