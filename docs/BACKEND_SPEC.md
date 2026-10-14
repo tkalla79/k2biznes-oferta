@@ -800,6 +800,7 @@ OFFERS (consultant+)
   DELETE /api/offers/:id                      – soft delete (admin+)
   POST   /api/offers/:id/restore              – cofnij soft delete (admin+)
   POST   /api/offers/:id/send                 – wyślij do klienta (mail)
+  POST   /api/offers/:id/publish              – otwórz link klienta bez maila
   POST   /api/offers/:id/approve              – zatwierdź do wysyłki (admin+)
   DELETE /api/offers/:id/approve              – cofnij zatwierdzenie (admin+)
   POST   /api/offers/:id/duplicate            – klon
@@ -939,6 +940,29 @@ Nie kasują akceptacji: `assignedConsultantId` (klient tego nie widzi) i `status
 **Bez backfillu.** Oferty wysłane przed tą zmianą zostają niezatwierdzone — nie
 wiemy, kto je przeczytał, a wpisanie tam kogokolwiek byłoby fałszywym śladem.
 Skutek: ponowna wysyłka starej oferty wymaga jednego kliknięcia.
+
+#### `POST /api/offers/:id/publish` (link bez maila)
+
+**Auth:** konsultant (tylko swoje), admin+. **Wymaga zatwierdzonej oferty** — ta
+sama brama co `/send`, bo inaczej publikacja byłaby obejściem akceptacji.
+
+Przestawia `status` na `sent` i ustawia `sent_at`, **nie dotykając poczty**. Dla
+przypadku „wysyłam link własnym kanałem" (WhatsApp, prywatna skrzynka).
+
+Powód istnienia: po dołożeniu bramy akceptacji zatwierdzenie wygląda na „gotowe
+do udostępnienia", ale statusu nie zmienia — a dopóki oferta jest `draft`,
+`/o/{token}` zwraca klientowi 404, także z `?__preview=1` (podgląd wymaga
+zalogowanego właściciela). Jedyną drogą do działającego linku była wysyłka maila.
+
+Idempotentny: na ofercie już `sent` zwraca bieżące dane bez przestawiania
+`sent_at` — liczy się data pierwszego udostępnienia. Statusy terminalne → 409.
+
+Ślad: `offer_events` typu `sent` z `payload.channel = 'manual'` (odróżnia od
+wysyłki mailem — w historii widać, że maila od nas nie ma) + `audit_log`
+(`offer.publish`) + webhook `offer.sent`, bo CRM ma wiedzieć niezależnie od kanału.
+
+**Nie tworzy zdarzenia `email_sent`**, więc lista ofert nie pokaże fałszywego
+markera „email nie dotarł" (ten zapala się tylko przy `email_sent` z `outcome='failed'`).
 
 #### `POST /api/offers/:id/send`
 
