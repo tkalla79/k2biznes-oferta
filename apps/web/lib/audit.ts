@@ -59,6 +59,9 @@ export type AuditAction =
   | 'pricing.update'
   // Wewnetrzna akceptacja oferty przed wysylka (2026-09). `approval_revoked`
   // pada zarowno przy recznym cofnieciu, jak i automatycznie po edycji tresci.
+  // Otwarcie linku klienta bez wysylki maila (2026-10) - oferta udostepniona
+  // wlasnym kanalem konsultanta.
+  | 'offer.publish'
   | 'offer.approve'
   | 'offer.approval_revoked';
 

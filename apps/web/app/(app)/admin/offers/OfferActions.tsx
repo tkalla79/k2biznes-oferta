@@ -55,7 +55,7 @@ export default function OfferActions({
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [sendOpen, setSendOpen] = useState(false);
-  const [busy, setBusy] = useState<null | 'recalc' | 'delete' | 'approve'>(null);
+  const [busy, setBusy] = useState<null | 'recalc' | 'delete' | 'approve' | 'publish'>(null);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
   const isTerminal = status === 'accepted' || status === 'rejected' || status === 'expired';
@@ -139,6 +139,44 @@ export default function OfferActions({
     }
   }
 
+  function clientUrl() {
+    return `${window.location.origin}/o/${clientToken}`;
+  }
+
+  /**
+   * Otwiera link klienta bez wysyłki maila — dla wysyłki własnym kanałem.
+   * Zatwierdzenie samo w sobie statusu nie zmienia, a dopóki oferta jest
+   * robocza, klient dostaje pod tym linkiem 404.
+   */
+  async function publishLink() {
+    if (
+      !confirm(
+        'Otworzyć link dla klienta bez wysyłania maila?\n\n' +
+          'Oferta dostanie status „wysłana", a link zacznie działać publicznie. ' +
+          'Maila z systemu NIE wyślemy — link przekazujesz sam.',
+      )
+    ) {
+      return;
+    }
+    setBusy('publish');
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/offers/${offerId}/publish`, { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error?.message ?? 'Publikacja nie udała się.');
+      const url = clientUrl();
+      // Adres pokazujemy w komunikacie niezależnie od schowka — zapis do schowka
+      // po await bywa blokowany (wymóg gestu użytkownika), a link nie może zniknąć.
+      void navigator.clipboard?.writeText(url).catch(() => {});
+      setMsg({ kind: 'ok', text: `Link otwarty i skopiowany: ${url}` });
+      startTransition(() => router.refresh());
+    } catch (e) {
+      setMsg({ kind: 'err', text: (e as Error).message });
+    } finally {
+      setBusy(null);
+    }
+  }
+
   function copyLink() {
     // Draft: kopiujemy preview URL (działa tylko dla zalogowanego konsultanta).
     // Sent+: kopiujemy publiczny URL klienta.
@@ -150,7 +188,9 @@ export default function OfferActions({
           kind: 'ok',
           text:
             status === 'draft'
-              ? 'Link podglądu skopiowany (działa tylko dla zalogowanego konsultanta).'
+              ? 'Skopiowano link PODGLĄDU — działa tylko dla Ciebie, zalogowanego. ' +
+                'Klient zobaczy pod nim „nie znaleziono". Żeby dać działający link, ' +
+                'wyślij ofertę albo użyj „Otwórz link bez maila".'
               : 'Link klienta skopiowany.',
         }),
       () => setMsg({ kind: 'err', text: 'Nie udało się skopiować.' }),
@@ -234,6 +274,23 @@ export default function OfferActions({
         <button type="button" onClick={copyLink} style={btnSecondary}>
           Skopiuj link
         </button>
+
+        {/* Tylko dla oferty roboczej — wysłana ma już działający link. */}
+        {status === 'draft' && (
+          <button
+            type="button"
+            onClick={publishLink}
+            style={approval ? btnSecondary : btnDisabled}
+            disabled={busy !== null || !approval}
+            title={
+              approval
+                ? 'Otwiera link dla klienta bez wysyłania maila z systemu'
+                : 'Najpierw zatwierdź ofertę'
+            }
+          >
+            {busy === 'publish' ? 'Otwieram…' : 'Otwórz link bez maila'}
+          </button>
+        )}
 
         {canDelete && (
           <button

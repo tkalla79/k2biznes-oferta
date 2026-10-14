@@ -367,6 +367,29 @@ zatwierdzenia" (z rozróżnieniem, czy cofnął ktoś ręcznie, czy zrobiła to 
 **Stare oferty są niezatwierdzone.** Nie wiemy, kto je w swoim czasie przeczytał,
 więc nikogo tam nie wpisaliśmy — ponowna wysyłka wymaga jednego kliknięcia.
 
+### Link do oferty — kiedy zaczyna działać
+
+**Zatwierdzenie nie otwiera linku.** Oferta robocza zwraca klientowi „nie
+znaleziono", zatwierdzona czy nie — link staje się publiczny dopiero wtedy, gdy
+oferta dostanie status „wysłana".
+
+Przycisk **Skopiuj link** na ofercie roboczej kopiuje **link podglądu**
+(`?__preview=1`), który działa wyłącznie dla Ciebie, zalogowanego. Wysłany
+klientowi pokaże mu 404. Komunikat pod przyciskiem mówi to wprost.
+
+Dwie drogi do działającego linku:
+
+- **Wyślij ofertę** — normalna ścieżka: mail do klienta, kopia do osoby
+  kontaktowej, link zaczyna działać.
+- **Otwórz link bez maila** — gdy link przekazujesz sam (WhatsApp, prywatna
+  skrzynka). Oferta dostaje status „wysłana", link zaczyna działać, ale **żaden
+  mail z systemu nie wychodzi**. Przycisk pojawia się tylko na ofercie roboczej
+  i wymaga zatwierdzenia — tak samo jak wysyłka.
+
+W historii aktywności obie drogi zapisują się jako „Wysłanie do klienta";
+publikacja bez maila ma w szczegółach `channel: manual`, więc widać, że maila od
+nas nie było. Lista ofert **nie** oznaczy takiej oferty jako „email nie dotarł".
+
 ### Wysyłka oferty — kto dostaje maila
 
 Trzy adresy, każdy z innego miejsca:
