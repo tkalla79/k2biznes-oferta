@@ -971,14 +971,14 @@ main { display: block; }
 }
 
 .exec-fee {
-  display: flex; justify-content: space-between; align-items: center;
+  display: flex; justify-content: space-between; align-items: flex-end;
   gap: 32px; padding: 32px 40px;
   background: var(--navy); color: #fff;
   border-radius: var(--radius); flex-wrap: wrap;
 }
 .ef-kicker { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--red); font-weight: 600; margin-bottom: 6px; }
 .exec-fee h4 { margin: 0 0 6px; font-family: var(--serif); font-size: 24px; font-weight: 400; letter-spacing: -.01em; }
-.exec-fee p { margin: 0; color: rgba(255,255,255,.7); font-size: 14px; max-width: 500px; }
+.exec-fee p { margin: 0; color: rgba(255,255,255,.7); font-size: 14px; text-align: justify; }
 .ef-price { text-align: right; }
 .ef-price strong { font-family: var(--serif); font-size: 36px; color: var(--red); letter-spacing: -.02em; display: block; }
 .ef-price span { font-size: 13px; color: rgba(255,255,255,.7); }
@@ -1557,6 +1557,8 @@ main { display: block; }
   .timeline-label { max-width: 80px; }
   .lab-t { display: none; }
   .exec-fee { flex-direction: column; align-items: flex-start; text-align: left; }
+  /* justowanie na waskim ekranie robi rzeki bialych przerw */
+  .exec-fee p { text-align: left; }
   .ef-price { text-align: left; }
   .hero { padding-top: 120px; }
   .tweaks-panel { width: calc(100vw - 40px); }
