@@ -5,6 +5,7 @@
  * przenieść do `offer.content` jsonb żeby per-oferta konfigurować, ale na
  * MVP zostają stałe dla całej firmy K2Biznes.
  */
+import { usesDefaultSfBasis } from '@/lib/pricing/loan';
 
 // Uwaga 2026-07: domyślne punkty były zaszłością z oferty pisanej pod
 // konkretnego klienta ("Kredyt Ekologiczny", "Audytor Energetyczny") i
@@ -263,15 +264,40 @@ export const LOAN_PROCESS = [
   },
 ];
 
-export const LOAN_FAQ_ITEMS = [
+const SF_FEE_FAQ_DEFAULT = {
+  q: 'Kiedy płacę wynagrodzenie wynikowe?',
+  a: 'Dopiero po pozytywnej decyzji pożyczkowej — liczone jest od kwoty faktycznie przyznanej pożyczki. Jeśli pożyczka nie zostanie przyznana, wynagrodzenie wynikowe nie jest należne; opłata wstępna pokrywa koszt przygotowania dokumentacji.',
+};
+
+const SF_FEE_FAQ_CUSTOM_BASIS = {
+  q: 'Kiedy płacę wynagrodzenie wynikowe?',
+  a: 'Podstawę naliczenia i termin płatności wskazuje sekcja „Model wynagrodzenia" tej oferty oraz umowa o współpracy. Jeśli pożyczka nie zostanie przyznana, wynagrodzenie wynikowe nie jest należne; opłata wstępna pokrywa koszt przygotowania dokumentacji.',
+};
+
+/**
+ * Lead sekcji 04 („Model wynagrodzenia") dla oferty pożyczkowej.
+ *
+ * Wariant domyślny nazywa podstawę naliczenia; wariant `CUSTOM_BASIS` jej NIE
+ * nazywa, bo oferta z własnym `content.loan.sfNote` opisuje ją przy kwocie
+ * (albo świadomie nie opisuje wcale). Dopowiadanie tu „liczonym od kwoty
+ * przyznanej pożyczki" byłoby sprzeczne z tym, co klient czyta kilka akapitów
+ * niżej — a właśnie tę sprzeczność tu zdejmujemy.
+ */
+export const LOAN_PRICING_LEAD =
+  'Współpracę proponujemy w modelu opartym na opłacie wstępnej oraz wynagrodzeniu ' +
+  'wynikowym, liczonym od kwoty przyznanej pożyczki. Nasz sukces zależy od sukcesu ' +
+  'Państwa wniosku.';
+
+export const LOAN_PRICING_LEAD_CUSTOM_BASIS =
+  'Współpracę proponujemy w modelu opartym na opłacie wstępnej oraz wynagrodzeniu ' +
+  'wynikowym. Nasz sukces zależy od sukcesu Państwa wniosku.';
+
+const LOAN_FAQ_BASE = [
   {
     q: 'Czym pożyczka różni się od dotacji?',
     a: 'Pożyczkę trzeba zwrócić, ale na warunkach preferencyjnych — z niższym oprocentowaniem niż kredyt komercyjny i zwykle z karencją w spłacie kapitału. W zamian dostępność jest szersza i szybsza niż w konkursach dotacyjnych, a środki można przeznaczyć na inwestycję zaraz po podpisaniu umowy.',
   },
-  {
-    q: 'Kiedy płacę wynagrodzenie wynikowe?',
-    a: 'Dopiero po pozytywnej decyzji pożyczkowej — liczone jest od kwoty faktycznie przyznanej pożyczki. Jeśli pożyczka nie zostanie przyznana, wynagrodzenie wynikowe nie jest należne; opłata wstępna pokrywa koszt przygotowania dokumentacji.',
-  },
+  SF_FEE_FAQ_DEFAULT,
   {
     q: 'Ile trwa proces do decyzji?',
     a: 'Zwykle od kilku do kilkunastu tygodni — zależnie od kompletności dokumentów po stronie firmy oraz od instytucji finansującej. Prowadzimy sprawę do końca i informujemy o każdym etapie.',
@@ -289,6 +315,25 @@ export const LOAN_FAQ_ITEMS = [
     a: 'Każda współpraca rozpoczyna się od podpisania NDA. Dane przechowujemy w zaszyfrowanej formie na serwerach zlokalizowanych w UE.',
   },
 ];
+
+/**
+ * FAQ pożyczkowe dla konkretnej oferty.
+ *
+ * Odpowiedź „Kiedy płacę wynagrodzenie wynikowe?" twierdzi w wariancie
+ * domyślnym dwie rzeczy: KIEDY (po decyzji pożyczkowej) i OD CZEGO (kwota
+ * przyznanej pożyczki). Oferta z własnym `sfNote` może przeczyć obu (FRS liczy
+ * od kwoty umorzenia, PAKCER płaci w transzach), więc wtedy odsyłamy do
+ * cennika i umowy zamiast powtarzać nieprawdę.
+ *
+ * Bez zmian zostaje to, co jest prawdą w każdym wariancie: brak pożyczki =
+ * brak wynagrodzenia wynikowego, a opłata wstępna pokrywa dokumentację.
+ */
+export function loanFaqItems(sfNote: string | undefined): Array<{ q: string; a: string }> {
+  if (usesDefaultSfBasis(sfNote)) return LOAN_FAQ_BASE;
+  return LOAN_FAQ_BASE.map((item) =>
+    item === SF_FEE_FAQ_DEFAULT ? SF_FEE_FAQ_CUSTOM_BASIS : item,
+  );
+}
 
 // =============================================================================
 // Sam zakres 2 (offer_kind='exec') — realizacja i rozliczenie projektu, który

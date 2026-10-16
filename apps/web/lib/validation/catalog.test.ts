@@ -4,6 +4,7 @@ import {
   ProgramUpdate,
   CaseStudyInput,
   ContactPersonInput,
+  FaqItemInput,
   slugify,
 } from './catalog';
 
@@ -106,5 +107,19 @@ describe('ContactPersonInput', () => {
     });
     expect(r.phone).toBeNull();
     expect(r.email).toBeNull();
+  });
+});
+
+describe('FaqItemInput.kind', () => {
+  const base = { question: 'Pytanie?', answer: 'Odpowiedź.' };
+
+  it('brak pola = dotacja — tylko ten typ czytał FAQ przed podziałem na zestawy', () => {
+    expect(FaqItemInput.parse(base).kind).toBe('grant');
+  });
+
+  it('przepuszcza typy oferty, odrzuca resztę', () => {
+    expect(FaqItemInput.parse({ ...base, kind: 'loan' }).kind).toBe('loan');
+    expect(FaqItemInput.parse({ ...base, kind: 'exec' }).kind).toBe('exec');
+    expect(() => FaqItemInput.parse({ ...base, kind: 'pozyczka' })).toThrow();
   });
 });

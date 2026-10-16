@@ -30,6 +30,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (patch.answer !== undefined) update.answer = patch.answer;
     if (patch.display_order !== undefined) update.display_order = patch.display_order;
     if (patch.is_active !== undefined) update.is_active = patch.is_active;
+    if (patch.kind !== undefined) update.kind = patch.kind;
     if (Object.keys(update).length === 0) {
       throw new ApiError('VALIDATION_ERROR', 'Brak pól do aktualizacji.', 422);
     }

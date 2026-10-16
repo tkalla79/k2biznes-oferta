@@ -27,7 +27,7 @@ import PricingVariants from './PricingVariants';
 import LoanPricing from './LoanPricing';
 import ExecPricing from './ExecPricing';
 import { sanitizeRichText, sanitizeProse } from '@/lib/richtext';
-import { resolveLoanPricing } from '@/lib/pricing/loan';
+import { resolveLoanPricing, usesDefaultSfBasis } from '@/lib/pricing/loan';
 import { resolveExecPricing } from '@/lib/pricing/exec';
 import { normalizeOfferKind } from '@/lib/offers/kind';
 import type { ExecPricingResult, LoanPricingResult } from '@/lib/pricing';
@@ -40,7 +40,9 @@ import {
   FAQ_ITEMS,
   LOAN_SCOPE_PREP,
   LOAN_PROCESS,
-  LOAN_FAQ_ITEMS,
+  loanFaqItems,
+  LOAN_PRICING_LEAD,
+  LOAN_PRICING_LEAD_CUSTOM_BASIS,
   EXEC_PROCESS,
   EXEC_FAQ_ITEMS,
 } from './staticContent';
@@ -145,9 +147,12 @@ export default async function OfferPage({ params, searchParams }: Props) {
       ? sb.from('case_studies').select('*').eq('id', offer.case_study_id).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     sb.from('gdpr_clauses').select('version, text').eq('is_current', true).maybeSingle(),
+    // `select('*')` zamiast listy kolumn: `kind` doszedł migracją
+    // 20261016000001 i brak tej kolumny nie może wywalić renderu oferty
+    // klientowi, jeśli kod pojedzie przed migracją.
     sb
       .from('faq_items')
-      .select('id, question, answer')
+      .select('*')
       .is('deleted_at', null)
       .eq('is_active', true)
       .order('display_order'),
@@ -164,7 +169,12 @@ export default async function OfferPage({ params, searchParams }: Props) {
   };
 
   const dto = toPublicOfferDto(offer, contactRes.data ?? null, caseRes.data ?? null);
-  const faqRows = (faqRes.data ?? []) as Array<{ id: string; question: string; answer: string }>;
+  const faqRows = (faqRes.data ?? []) as Array<{
+    id: string;
+    question: string;
+    answer: string;
+    kind?: string | null;
+  }>;
   const isPrint = searchParams.print === 'true';
 
   // Typ oferty: dotacja (segmenty + warianty), pożyczka (opłata wstępna + % od
@@ -176,6 +186,12 @@ export default async function OfferPage({ params, searchParams }: Props) {
   // Wspólne dla obu typów bez wariantów — używane tam, gdzie liczy się tylko
   // „czy jest z czego wybierać", a nie który to dokładnie model.
   const isGrant = offerKind === 'grant';
+
+  // FAQ: panel trzyma osobny zestaw dla każdego typu oferty (kolumna `kind`).
+  // Wiersz bez `kind` (stan sprzed migracji) liczy się jako dotacyjny — tylko
+  // ten typ czytał tę tabelę wcześniej. Pusty zestaw → wracamy do treści
+  // zaszytej w kodzie, żeby oferta nigdy nie wyszła bez FAQ.
+  const faqForKind = faqRows.filter((f) => normalizeOfferKind(f.kind) === offerKind);
   // Zrodlem prawdy o typie oferty jest `offer_kind`, nie ksztalt snapshotu.
   // Snapshot pozyczkowy moze byc niekompletny (starsza oferta, przelaczenie typu,
   // reczna edycja w Studio), wiec brakujace liczby odtwarzamy z wartosci oferty
@@ -637,7 +653,9 @@ export default async function OfferPage({ params, searchParams }: Props) {
               {isExec
                 ? 'Projekt ma już decyzję o dofinansowaniu, więc nie ma tu wynagrodzenia wynikowego ani opłaty wstępnej — jest stała stawka miesięczna za prowadzenie i rozliczanie projektu.'
                 : isLoan
-                  ? 'Współpracę proponujemy w modelu opartym na opłacie wstępnej oraz wynagrodzeniu wynikowym, liczonym od kwoty przyznanej pożyczki. Nasz sukces zależy od sukcesu Państwa wniosku.'
+                  ? usesDefaultSfBasis(loanSfNote)
+                    ? LOAN_PRICING_LEAD
+                    : LOAN_PRICING_LEAD_CUSTOM_BASIS
                   : 'Współpracę proponujemy w modelu opartym na opłacie wstępnej oraz wynagrodzeniu wynikowym. Nasz sukces zależy od sukcesu Państwa projektu.'}
             </p>
           </div>
@@ -892,16 +910,18 @@ export default async function OfferPage({ params, searchParams }: Props) {
               Najczęstsze <em>pytania</em>
             </h2>
           </div>
-          {/* FAQ globalne z panelu dotyczy dotacji — dla pożyczki używamy zestawu
-              pożyczkowego (inny język: decyzja pożyczkowa, karencja, spłata). */}
+          {/* Zestaw z panelu dla tego typu oferty; gdy pusty — treść zaszyta
+              w kodzie. Pożyczka i zakres 2 mają własny język (decyzja
+              pożyczkowa, karencja / projekt już przyznany), więc nigdy nie
+              dostają zestawu dotacyjnego jako zastępnika. */}
           <FaqAccordion
             items={
-              isLoan
-                ? LOAN_FAQ_ITEMS
-                : isExec
-                  ? EXEC_FAQ_ITEMS
-                  : faqRows.length > 0
-                    ? faqRows.map((f) => ({ q: f.question, a: f.answer }))
+              faqForKind.length > 0
+                ? faqForKind.map((f) => ({ q: f.question, a: f.answer }))
+                : isLoan
+                  ? loanFaqItems(loanSfNote)
+                  : isExec
+                    ? EXEC_FAQ_ITEMS
                     : FAQ_ITEMS
             }
             print={isPrint}
