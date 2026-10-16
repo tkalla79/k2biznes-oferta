@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { calcLoanPricing, isLoanPricing, resolveLoanPricing, LOAN_BASE_FEE, LOAN_SF_PCT } from './loan';
+import {
+  calcLoanPricing,
+  isLoanPricing,
+  resolveLoanPricing,
+  resolveLoanSfNote,
+  LOAN_BASE_FEE,
+  LOAN_SF_PCT,
+} from './loan';
 
 describe('calcLoanPricing', () => {
   it('używa stawek domyślnych (4000 + 1,5%)', () => {
@@ -71,3 +78,23 @@ describe('resolveLoanPricing (odporność na niekompletny snapshot)', () => {
     expect(r.total).toBe(6000);
   });
 })
+
+describe('resolveLoanSfNote', () => {
+  it('brak pola (undefined) → zdanie domyślne z procentem', () => {
+    expect(resolveLoanSfNote(undefined, '1,5%')).toBe(
+      '1,5% wartości przyznanej pożyczki — płatne po decyzji pożyczkowej',
+    );
+  });
+
+  it('pusty string → pusto, bo wiersz ma zostać bez opisu', () => {
+    // Kluczowe rozróżnienie: '' to świadomy wybór „bez opisu", nie brak danych.
+    expect(resolveLoanSfNote('', '1,5%')).toBe('');
+    expect(resolveLoanSfNote('   ', '1,5%')).toBe('');
+  });
+
+  it('tekst → zastępuje zdanie domyślne (FRS liczy od kwoty umorzenia)', () => {
+    expect(resolveLoanSfNote('  2% kwoty umorzenia kapitału  ', '1,5%')).toBe(
+      '2% kwoty umorzenia kapitału',
+    );
+  });
+});

@@ -118,6 +118,10 @@ type FormState = {
   // Pożyczka (loan) — cennik: opłata wstępna + % od kwoty pożyczki; parametry produktu per-oferta.
   loanBaseFee: number; // opłata wstępna (zł)
   loanSfPct: number; // wynagrodzenie wynikowe (%) — np. 1.5
+  // Opis wynagrodzenia wynikowego w cenniku. Pusty = wiersz bez opisu (sama
+  // nazwa i kwota); domyślne zdanie o „% wartości pożyczki" nie pasuje do
+  // każdego produktu, więc nie podstawiamy go tu z automatu.
+  loanSfNote: string;
   loanProductName: string;
   loanInterestRate: string;
   loanTermMonths: string;
@@ -312,6 +316,7 @@ function initialFromOffer(offer: OfferDto): FormState {
     loanBaseFee: typeof loan?.baseFee === 'number' ? loan.baseFee : 4000,
     loanSfPct:
       typeof loan?.sfPct === 'number' ? Math.round(loan.sfPct * 10000) / 100 : 1.5,
+    loanSfNote: typeof loan?.sfNote === 'string' ? loan.sfNote : '',
     loanProductName: lstr(loanProduct?.name) || offer.programLabel,
     loanInterestRate: lstr(loanProduct?.interestRate),
     loanTermMonths: lstr(loanProduct?.termMonths),
@@ -361,6 +366,7 @@ function blankInitial(): FormState {
     execProgramName: '',
     loanBaseFee: 4000,
     loanSfPct: 1.5,
+    loanSfNote: '',
     loanProductName: '',
     loanInterestRate: '',
     loanTermMonths: '',
@@ -903,6 +909,9 @@ export default function OfferForm({
           loan: {
             baseFee: form.loanBaseFee,
             sfPct: form.loanSfPct / 100, // % → ułamek
+            // Zawsze wysyłamy stringa (także pustego): `''` to świadome
+            // „bez opisu", nie brak danych — stąd brak `|| undefined`.
+            sfNote: form.loanSfNote.trim(),
             product: {
               name: form.loanProductName.trim() || undefined,
               interestRate: form.loanInterestRate.trim() || undefined,
@@ -1559,7 +1568,10 @@ export default function OfferForm({
         <Section title="Wynagrodzenie (pożyczka)">
           <p style={hint}>
             Opłata wstępna + wynagrodzenie wynikowe liczone od kwoty przyznanej pożyczki.
-            Bez wariantów i bez części miesięcznej. Domyślnie 4 000 zł + 1,5%.
+            Bez wariantów i bez części miesięcznej. Domyślnie 4 000 zł + 1,5%. Jeśli
+            w danym produkcie wynagrodzenie liczy się inaczej (np. od kwoty umorzenia)
+            albo jest płatne w transzach — opisz to w polu poniżej; puste pole zostawia
+            w ofercie samą nazwę i kwotę, bez zdania o podstawie naliczenia.
           </p>
           <Grid2>
             <Field label="Opłata wstępna (PLN)">
@@ -1584,6 +1596,16 @@ export default function OfferForm({
               />
             </Field>
           </Grid2>
+          <Field label="Opis wynagrodzenia wynikowego (puste = bez opisu)">
+            <input
+              type="text"
+              maxLength={200}
+              value={form.loanSfNote}
+              onChange={(e) => update('loanSfNote', e.target.value)}
+              placeholder="np. 2% kwoty umorzenia kapitału — płatne po decyzji o umorzeniu"
+              style={input}
+            />
+          </Field>
           <table style={tablePricing}>
             <thead>
               <tr>
