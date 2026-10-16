@@ -78,6 +78,22 @@ export function resolveLoanPricing(
  *  - `''` lub same spacje            → pusty string, wiersz zostaje bez opisu,
  *  - tekst                           → zastępuje zdanie domyślne.
  */
+/**
+ * Czy oferta zostawia domyślną podstawę naliczenia success fee (% kwoty
+ * przyznanej pożyczki)?
+ *
+ * Każde miejsce w ofercie, które twierdzi, OD CZEGO i KIEDY liczymy
+ * wynagrodzenie wynikowe (opis w cenniku, nota pod cennikiem, lead sekcji
+ * „Model wynagrodzenia", FAQ), musi pytać o to w jednym miejscu — inaczej
+ * nadpisany opis przy kwocie rozjeżdża się z resztą dokumentu.
+ *
+ * `''` liczy się jako nadpisanie: oferta świadomie usunęła zdanie o podstawie,
+ * więc pozostałe sekcje też nie mogą jej dopowiadać.
+ */
+export function usesDefaultSfBasis(sfNote: string | undefined): boolean {
+  return sfNote === undefined;
+}
+
 export function resolveLoanSfNote(sfNote: string | undefined, sfPctLabel: string): string {
   const fallback = `${sfPctLabel} wartości przyznanej pożyczki — płatne po decyzji pożyczkowej`;
   return (sfNote === undefined ? fallback : sfNote).trim();

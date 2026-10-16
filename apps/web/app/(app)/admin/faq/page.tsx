@@ -1,5 +1,5 @@
 /**
- * /admin/faq — globalna lista FAQ na publicznych ofertach (PR-D / uwaga 19).
+ * /admin/faq — FAQ na publicznych ofertach, per typ oferty (PR-D / uwaga 19).
  * Admin/super_admin only.
  */
 import Link from 'next/link';
@@ -30,8 +30,10 @@ export default async function FaqPage() {
         </Link>
       </header>
       <p style={lead}>
-        Globalna lista FAQ pojawiająca się w sekcji „08 · FAQ” na każdej publicznej ofercie
-        (po cenniku). Edycja jest natychmiastowa — kolejne pobranie oferty pokaże nową wersję.
+        Pytania w sekcji „FAQ” na publicznej ofercie, osobno dla każdego typu oferty — dotacja,
+        pożyczka i sam zakres 2 mówią innym językiem, więc mają niezależne zestawy. Pusty zestaw
+        oznacza, że oferta pokaże treść domyślną wbudowaną w aplikację. Edycja jest natychmiastowa
+        — kolejne pobranie oferty pokaże nową wersję.
       </p>
       <FaqManager initial={items ?? []} />
     </main>

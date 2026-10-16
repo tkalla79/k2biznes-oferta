@@ -5,6 +5,7 @@
  * Single source of truth — typy są pochodne od schematów.
  */
 import { z } from 'zod';
+import { offerKindSchema } from './shared';
 
 // =============================================================================
 // Wspólne helpery
@@ -148,6 +149,11 @@ export type ContactPersonUpdate = z.infer<typeof ContactPersonUpdate>;
 export const FaqItemInput = z.object({
   question: z.string().min(1).max(500),
   answer: z.string().min(1).max(4000),
+  /**
+   * Dla jakiego typu oferty jest to pytanie. Domyślnie `grant`, bo tylko
+   * oferta dotacyjna czytała tę tabelę przed podziałem na zestawy.
+   */
+  kind: offerKindSchema.default('grant'),
   display_order: z.coerce.number().int().min(0).max(9999).default(100),
   is_active: z.boolean().default(true),
 });

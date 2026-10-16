@@ -5,7 +5,7 @@
  */
 import { z } from 'zod';
 import { PricingOverrideSchema } from '@/lib/pricing/override';
-import { expiresAtSchema } from './shared';
+import { expiresAtSchema, offerKindSchema } from './shared';
 
 // =============================================================================
 // Wspólne
@@ -14,7 +14,7 @@ import { expiresAtSchema } from './shared';
 const PricingVariantId = z.enum(['I', 'II', 'III', 'IV']);
 const CompanySize = z.enum(['micro', 'small', 'medium', 'large']);
 const OfferStatus = z.enum(['draft', 'sent', 'viewed', 'accepted', 'rejected', 'expired']);
-const OfferKind = z.enum(['grant', 'loan', 'exec']);
+const OfferKind = offerKindSchema;
 
 // =============================================================================
 // Pożyczki (tryb `loan`) — parametry produktu per-oferta + stawki.

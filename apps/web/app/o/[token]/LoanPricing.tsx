@@ -10,7 +10,7 @@
  * niż interaktywne karty wariantów w ofercie dotacyjnej.
  */
 import type { LoanPricingResult } from '@/lib/pricing';
-import { resolveLoanSfNote } from '@/lib/pricing/loan';
+import { resolveLoanSfNote, usesDefaultSfBasis } from '@/lib/pricing/loan';
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('pl-PL', {
@@ -63,7 +63,10 @@ export default function LoanPricing({
 
       <p className="vat-note">
         Wszystkie kwoty są kwotami netto — do faktur zostanie doliczony podatek VAT (23%).
-        Wynagrodzenie wynikowe zależy od ostatecznej kwoty przyznanej pożyczki.
+        {/* Zdanie o podstawie naliczenia tylko wtedy, gdy oferta nie podała własnej —
+            inaczej przeczyłoby opisowi stojącemu dwa wiersze wyżej. */}
+        {usesDefaultSfBasis(sfNote) &&
+          ' Wynagrodzenie wynikowe zależy od ostatecznej kwoty przyznanej pożyczki.'}
       </p>
     </>
   );

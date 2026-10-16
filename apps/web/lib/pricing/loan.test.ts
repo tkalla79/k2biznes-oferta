@@ -4,6 +4,7 @@ import {
   isLoanPricing,
   resolveLoanPricing,
   resolveLoanSfNote,
+  usesDefaultSfBasis,
   LOAN_BASE_FEE,
   LOAN_SF_PCT,
 } from './loan';
@@ -96,5 +97,15 @@ describe('resolveLoanSfNote', () => {
     expect(resolveLoanSfNote('  2% kwoty umorzenia kapitału  ', '1,5%')).toBe(
       '2% kwoty umorzenia kapitału',
     );
+  });
+});
+
+describe('usesDefaultSfBasis', () => {
+  it('tylko brak pola zostawia domyślną podstawę naliczenia', () => {
+    expect(usesDefaultSfBasis(undefined)).toBe(true);
+    // '' to nadpisanie: oferta świadomie usunęła zdanie o podstawie, więc
+    // reszta dokumentu też nie może jej dopowiadać.
+    expect(usesDefaultSfBasis('')).toBe(false);
+    expect(usesDefaultSfBasis('2% kwoty umorzenia kapitału')).toBe(false);
   });
 });

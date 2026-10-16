@@ -1,7 +1,20 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { OFFER_KINDS, normalizeOfferKind, type OfferKind } from '@/lib/offers/kind';
+
+/**
+ * FAQ jest trzymane per typ oferty: pożyczka i sam zakres 2 mówią innym
+ * językiem niż dotacja (decyzja pożyczkowa i karencja vs projekt, który ma już
+ * dofinansowanie), więc jedna wspólna lista zawsze kłamała w dwóch trzecich
+ * ofert. Wiersz bez `kind` (sprzed migracji) jest dotacyjny.
+ */
+const KIND_LABEL: Record<OfferKind, string> = {
+  grant: 'Dotacja',
+  loan: 'Pożyczka',
+  exec: 'Zakres 2',
+};
 
 type FaqItem = {
   id: string;
@@ -10,6 +23,7 @@ type FaqItem = {
   display_order: number;
   is_active: boolean;
   created_at: string;
+  kind?: string | null;
 };
 
 type Props = { initial: FaqItem[] };
@@ -19,9 +33,16 @@ type Draft = {
   answer: string;
   display_order: number;
   is_active: boolean;
+  kind: OfferKind;
 };
 
-const blankDraft: Draft = { question: '', answer: '', display_order: 100, is_active: true };
+const blankDraft: Draft = {
+  question: '',
+  answer: '',
+  display_order: 100,
+  is_active: true,
+  kind: 'grant',
+};
 
 export default function FaqManager({ initial }: Props) {
   const router = useRouter();
@@ -29,14 +50,22 @@ export default function FaqManager({ initial }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState<Draft>(blankDraft);
+  const [tab, setTab] = useState<OfferKind>('grant');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
+  // Lista jest filtrowana zakładką, więc nowe pytanie domyślnie trafia do
+  // zestawu, który admin właśnie ogląda — inaczej znikałoby po zapisie.
+  const visible = useMemo(
+    () => items.filter((i) => normalizeOfferKind(i.kind) === tab),
+    [items, tab],
+  );
+
   function startCreate() {
     setEditingId(null);
     setCreating(true);
-    setDraft(blankDraft);
+    setDraft({ ...blankDraft, kind: tab });
     setError(null);
   }
 
@@ -48,6 +77,7 @@ export default function FaqManager({ initial }: Props) {
       answer: item.answer,
       display_order: item.display_order,
       is_active: item.is_active,
+      kind: normalizeOfferKind(item.kind),
     });
     setError(null);
   }
@@ -127,9 +157,25 @@ export default function FaqManager({ initial }: Props) {
 
   return (
     <div>
+      <div style={tabs}>
+        {OFFER_KINDS.map((k) => {
+          const count = items.filter((i) => normalizeOfferKind(i.kind) === k).length;
+          return (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setTab(k)}
+              style={k === tab ? tabActive : tabBtn}
+            >
+              {KIND_LABEL[k]} ({count})
+            </button>
+          );
+        })}
+      </div>
+
       {!creating && !editingId && (
         <button type="button" onClick={startCreate} style={btnPrimary}>
-          + Dodaj pytanie
+          + Dodaj pytanie ({KIND_LABEL[tab].toLowerCase()})
         </button>
       )}
 
@@ -153,6 +199,19 @@ export default function FaqManager({ initial }: Props) {
               onChange={(e) => setDraft({ ...draft, answer: e.target.value })}
               style={textarea}
             />
+          </Field>
+          <Field label="Typ oferty">
+            <select
+              value={draft.kind}
+              onChange={(e) => setDraft({ ...draft, kind: normalizeOfferKind(e.target.value) })}
+              style={input}
+            >
+              {OFFER_KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {KIND_LABEL[k]}
+                </option>
+              ))}
+            </select>
           </Field>
           <div style={row2}>
             <Field label="Kolejność">
@@ -198,14 +257,15 @@ export default function FaqManager({ initial }: Props) {
           </tr>
         </thead>
         <tbody>
-          {items.length === 0 && (
+          {visible.length === 0 && (
             <tr>
               <td colSpan={4} style={empty}>
-                Brak pytań — kliknij „+ Dodaj pytanie”, by zacząć.
+                Brak pytań dla typu „{KIND_LABEL[tab]}” — oferta pokaże zestaw domyślny
+                wbudowany w aplikację. Dodaj pytanie, żeby go nadpisać.
               </td>
             </tr>
           )}
-          {items.map((item) => (
+          {visible.map((item) => (
             <tr key={item.id} style={item.is_active ? undefined : { opacity: 0.55 }}>
               <td style={td}>{item.display_order}</td>
               <td style={td}>
@@ -245,6 +305,23 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+const tabs: React.CSSProperties = { display: 'flex', gap: 8, marginBottom: 16 };
+const tabBtn: React.CSSProperties = {
+  padding: '6px 14px',
+  background: '#fff',
+  border: '1px solid #e4e9f2',
+  color: '#6b7a92',
+  borderRadius: 999,
+  fontSize: 13,
+  cursor: 'pointer',
+};
+const tabActive: React.CSSProperties = {
+  ...tabBtn,
+  background: '#1B2A4A',
+  borderColor: '#1B2A4A',
+  color: '#fff',
+  fontWeight: 600,
+};
 const card: React.CSSProperties = {
   background: '#fff',
   border: '1px solid #e4e9f2',

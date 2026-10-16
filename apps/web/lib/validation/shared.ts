@@ -2,6 +2,14 @@
  * Współdzielone walidatory Zod (M9 audit — dedup).
  */
 import { z } from 'zod';
+import { OFFER_KINDS } from '@/lib/offers/kind';
+
+/**
+ * Typ oferty jako schemat Zod — jedno źródło prawdy razem z `OFFER_KINDS`
+ * (`lib/offers/kind.ts`). Lista była przepisywana ręcznie w kolejnych
+ * schematach; przy czwartym typie oferty któraś kopia zostałaby w tyle.
+ */
+export const offerKindSchema = z.enum(OFFER_KINDS);
 
 /**
  * ISO 8601 datetime — musi być PRZYSZŁOŚCIĄ (min. 1h od teraz, max 365 dni).

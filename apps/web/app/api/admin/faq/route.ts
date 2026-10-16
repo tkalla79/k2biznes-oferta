@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
         answer: body.answer,
         display_order: body.display_order,
         is_active: body.is_active,
+        kind: body.kind,
       })
       .select()
       .single();
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest) {
       resourceId: data.id,
       actorId: session.userId,
       actorEmail: session.email,
-      after: { question: data.question, is_active: data.is_active },
+      after: { question: data.question, is_active: data.is_active, kind: data.kind },
     });
     return NextResponse.json({ data }, { status: 201 });
   } catch (e) {

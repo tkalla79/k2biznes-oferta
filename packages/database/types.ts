@@ -261,6 +261,7 @@ export type Database = {
           display_order: number
           id: string
           is_active: boolean
+          kind: string
           question: string
           updated_at: string
         }
@@ -271,6 +272,7 @@ export type Database = {
           display_order?: number
           id?: string
           is_active?: boolean
+          kind?: string
           question: string
           updated_at?: string
         }
@@ -281,6 +283,7 @@ export type Database = {
           display_order?: number
           id?: string
           is_active?: boolean
+          kind?: string
           question?: string
           updated_at?: string
         }
