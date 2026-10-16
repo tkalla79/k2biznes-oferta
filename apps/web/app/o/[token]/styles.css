@@ -1557,11 +1557,16 @@ main { display: block; }
   .timeline-label { max-width: 80px; }
   .lab-t { display: none; }
   .exec-fee { flex-direction: column; align-items: flex-start; text-align: left; }
-  /* justowanie na waskim ekranie robi rzeki bialych przerw */
-  .exec-fee p { text-align: left; }
   .ef-price { text-align: left; }
   .hero { padding-top: 120px; }
   .tweaks-panel { width: calc(100vw - 40px); }
+}
+
+/* Justowanie opisu w kafelku rozliczania wylaczamy dopiero na realnie waskim
+   ekranie - przy 14 px i kolumnie ponizej ~450 px robi rzeki bialych przerw.
+   Prog 960 px z bloku wyzej bylby za szeroki: objalby laptopy. */
+@media (max-width: 600px) {
+  .exec-fee p { text-align: left; }
 }
 
 /* ============================================================
