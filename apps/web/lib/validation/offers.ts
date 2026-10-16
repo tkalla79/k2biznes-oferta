@@ -33,6 +33,16 @@ const LoanProductInput = z.object({
 export const LoanInput = z.object({
   baseFee: z.number().min(0).max(1_000_000).default(4000),
   sfPct: z.number().min(0).max(1).default(0.015),
+  /**
+   * Opis wynagrodzenia wynikowego w cenniku oferty. Domyślne zdanie („% wartości
+   * przyznanej pożyczki — płatne po decyzji pożyczkowej") jest nieprawdziwe dla
+   * części produktów (FRS liczy 2% kwoty umorzenia, PAKCER płaci w transzach),
+   * więc tekst musi być nadpisywalny per oferta.
+   *
+   * Trzy stany, celowo rozróżniane: brak pola → zdanie domyślne, `''` → wiersz
+   * opisu znika w całości, tekst → zastępuje domyślny.
+   */
+  sfNote: z.string().max(200).optional(),
   product: LoanProductInput.optional(),
 });
 

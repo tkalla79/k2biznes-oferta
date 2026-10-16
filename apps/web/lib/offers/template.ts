@@ -20,6 +20,7 @@ export const TEMPLATE_FIELDS = [
   'offerKind',
   'loanBaseFee',
   'loanSfPct',
+  'loanSfNote',
   'loanProductName',
   'loanInterestRate',
   'loanTermMonths',

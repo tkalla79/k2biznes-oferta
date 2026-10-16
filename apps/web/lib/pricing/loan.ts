@@ -64,3 +64,21 @@ export function resolveLoanPricing(
 
   return { kind: 'loan', loanAmount, baseFee, sfPct, sfAmount, total };
 }
+
+/**
+ * Opis pod kwotą wynagrodzenia wynikowego w cenniku oferty.
+ *
+ * Domyślne zdanie zakłada, że success fee liczy się od kwoty przyznanej
+ * pożyczki — i to jest nieprawda w części produktów (FRS „EE i OZE": 2% kwoty
+ * umorzenia kapitału; PAKCER: płatność w dwóch transzach). Dlatego oferta może
+ * nadpisać ten tekst polem `content.loan.sfNote`.
+ *
+ * Trzy stany, celowo rozróżniane — `undefined` to NIE to samo co `''`:
+ *  - `undefined` (brak pola w ofercie) → zdanie domyślne,
+ *  - `''` lub same spacje            → pusty string, wiersz zostaje bez opisu,
+ *  - tekst                           → zastępuje zdanie domyślne.
+ */
+export function resolveLoanSfNote(sfNote: string | undefined, sfPctLabel: string): string {
+  const fallback = `${sfPctLabel} wartości przyznanej pożyczki — płatne po decyzji pożyczkowej`;
+  return (sfNote === undefined ? fallback : sfNote).trim();
+}

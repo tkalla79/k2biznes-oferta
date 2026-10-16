@@ -265,6 +265,9 @@ export default async function OfferPage({ params, searchParams }: Props) {
     loan?: {
       baseFee?: number;
       sfPct?: number;
+      // Opis wynagrodzenia wynikowego w cenniku. Brak pola → zdanie domyślne,
+      // `''` → wiersz opisu znika. Patrz LoanPricing.
+      sfNote?: string;
       product?: {
         name?: string;
         interestRate?: string;
@@ -282,6 +285,10 @@ export default async function OfferPage({ params, searchParams }: Props) {
   const rawLoanProduct = (content.loan?.product ?? {}) as Record<string, unknown>;
   const pstr = (v: unknown): string =>
     typeof v === 'string' ? v : v == null ? '' : String(v);
+  // `sfNote` celowo NIE przez `pstr` — rozróżniamy brak pola (zdanie domyślne)
+  // od pustego stringa (brak opisu), a `pstr` sklejałby oba do `''`.
+  const rawSfNote: unknown = content.loan?.sfNote;
+  const loanSfNote = typeof rawSfNote === 'string' ? rawSfNote : undefined;
   const loanProduct = {
     interestRate: pstr(rawLoanProduct.interestRate),
     termMonths: pstr(rawLoanProduct.termMonths),
@@ -711,7 +718,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
           {execPricing ? (
             <ExecPricing pricing={execPricing} />
           ) : loanPricing ? (
-            <LoanPricing pricing={loanPricing} />
+            <LoanPricing pricing={loanPricing} sfNote={loanSfNote} />
           ) : (
             <PricingVariants
               variants={variants}
