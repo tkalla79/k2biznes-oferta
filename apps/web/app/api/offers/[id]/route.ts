@@ -11,7 +11,12 @@ import { calcLoanPricing } from '@/lib/pricing/loan';
 import { calcExecPricing } from '@/lib/pricing/exec';
 import { normalizeOfferKind, hasVariants } from '@/lib/offers/kind';
 import { loadPricing } from '@/lib/pricing/load';
-import { UpdateOfferInput, shouldRecalcSnapshot, clearsApproval } from '@/lib/validation/offers';
+import {
+  UpdateOfferInput,
+  shouldRecalcSnapshot,
+  pricingInputsChanged,
+  clearsApproval,
+} from '@/lib/validation/offers';
 import { toOfferDto, type OfferRow } from '@/lib/offers/mapper';
 import { deletePdfsForOffer } from '@/lib/pdf/storage';
 import type { Database, Json } from '@k2/database/types';
@@ -161,8 +166,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       update.approved_at = null;
     }
 
-    // Re-kalkulacja snapshotu jeśli zmiana wpływa na pricing.
-    if (shouldRecalcSnapshot(patch)) {
+    // Re-kalkulacja snapshotu jeśli zmiana wpływa na pricing. `shouldRecalc`
+    // patrzy na obecność pól, `pricingInputsChanged` na ich wartości —
+    // formularz wysyła cały obiekt `loan`/`exec` przy każdym zapisie, więc bez
+    // tego drugiego kroku poprawka samego opisu wynagrodzenia wyglądałaby jak
+    // zmiana finansowa i nie dałoby się jej wprowadzić po wysyłce.
+    if (shouldRecalcSnapshot(patch) && pricingInputsChanged(patch, before)) {
       // H2 audit: pricing_snapshot jest IMMUTABLE po wysłaniu (BACKEND_SPEC 3.2.3).
       // Wcześniej zmiana projectValue/fundingRate na ofercie status='sent'
       // przeliczała snapshot po cichu → klient po refresh magic-linka widział

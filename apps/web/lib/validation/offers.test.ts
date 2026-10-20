@@ -10,6 +10,8 @@ import {
   UpdateOfferInput,
   ListOffersQuery,
   shouldRecalcSnapshot,
+  pricingInputsChanged,
+  OfferDecisionInput,
   SORT_FIELDS,
   clearsApproval,
 } from './offers';
@@ -263,5 +265,115 @@ describe('clearsApproval — co unieważnia wewnętrzną akceptację', () => {
 
   it('pusty patch niczego nie kasuje', () => {
     expect(clearsApproval({})).toBe(false);
+  });
+});
+
+// =============================================================================
+// pricingInputsChanged — zamrożenie cennika po wysyłce ma chronić kwoty, nie
+// zdania. Formularz wysyła cały obiekt `loan`/`exec` przy każdym zapisie.
+// =============================================================================
+
+describe('pricingInputsChanged', () => {
+  const loanBefore = {
+    offer_kind: 'loan',
+    project_value: '500000',
+    funding_rate: null,
+    returning_client: false,
+    project_count: 1,
+    content: { loan: { baseFee: 4000, sfPct: 0.015, sfNote: 'stary opis' } },
+  };
+
+  it('sam opis wynagrodzenia nie jest zmianą finansową', () => {
+    // To jest przypadek, przez który nie dało się poprawić zdania o podstawie
+    // naliczenia na ofercie już wysłanej.
+    expect(
+      pricingInputsChanged(
+        { loan: { baseFee: 4000, sfPct: 0.015, sfNote: '2% kwoty umorzenia kapitału' } },
+        loanBefore,
+      ),
+    ).toBe(false);
+  });
+
+  it('zmiana stawki pożyczkowej jest zmianą finansową', () => {
+    expect(
+      pricingInputsChanged({ loan: { baseFee: 4000, sfPct: 0.02 } }, loanBefore),
+    ).toBe(true);
+    expect(
+      pricingInputsChanged({ loan: { baseFee: 5000, sfPct: 0.015 } }, loanBefore),
+    ).toBe(true);
+  });
+
+  it('zmiana kwoty oferty liczy się w każdym typie', () => {
+    expect(pricingInputsChanged({ projectValue: 600_000 }, loanBefore)).toBe(true);
+  });
+
+  it('zmiana typu oferty przestawia cały model cennika', () => {
+    expect(pricingInputsChanged({ offerKind: 'grant' }, loanBefore)).toBe(true);
+  });
+
+  const grantBefore = {
+    offer_kind: 'grant',
+    project_value: 3_000_000,
+    funding_rate: '0.7',
+    returning_client: false,
+    project_count: 1,
+    content: {},
+  };
+
+  it('dotacja: te same wartości = brak zmiany, inne = zmiana', () => {
+    expect(
+      pricingInputsChanged(
+        { projectValue: 3_000_000, fundingRate: 0.7, returningClient: false, projectCount: 1 },
+        grantBefore,
+      ),
+    ).toBe(false);
+    expect(pricingInputsChanged({ returningClient: true }, grantBefore)).toBe(true);
+    expect(pricingInputsChanged({ fundingRate: 0.8 }, grantBefore)).toBe(true);
+  });
+
+  const execBefore = {
+    offer_kind: 'exec',
+    project_value: 1_000_000,
+    funding_rate: null,
+    returning_client: false,
+    project_count: 1,
+    content: { exec: { monthlyFee: 3000, months: 12 } },
+  };
+
+  it('zakres 2: liczy się stawka i okres obsługi', () => {
+    expect(pricingInputsChanged({ exec: { monthlyFee: 3000, months: 12 } }, execBefore)).toBe(
+      false,
+    );
+    expect(pricingInputsChanged({ exec: { monthlyFee: 3000, months: 24 } }, execBefore)).toBe(true);
+  });
+});
+
+// =============================================================================
+// OfferDecisionInput — decyzja klienta zgłoszona mailem lub telefonicznie
+// =============================================================================
+
+describe('OfferDecisionInput', () => {
+  const base = { decision: 'accepted', channel: 'phone', confirmedBy: 'Jan Kowalski' };
+
+  it('przyjmuje minimalną decyzję', () => {
+    const r = OfferDecisionInput.parse(base);
+    expect(r.decision).toBe('accepted');
+    expect(r.channel).toBe('phone');
+    expect(r.variant).toBeUndefined();
+  });
+
+  it('wymaga wskazania, kto przekazał decyzję', () => {
+    // Bez tego w audycie zostaje „ktoś powiedział, że klient się zgodził".
+    expect(() => OfferDecisionInput.parse({ ...base, confirmedBy: '' })).toThrow();
+  });
+
+  it('odrzuca kanał i decyzję spoza listy', () => {
+    expect(() => OfferDecisionInput.parse({ ...base, channel: 'sms' })).toThrow();
+    expect(() => OfferDecisionInput.parse({ ...base, decision: 'maybe' })).toThrow();
+  });
+
+  it('wariant tylko z I–IV', () => {
+    expect(OfferDecisionInput.parse({ ...base, variant: 'III' }).variant).toBe('III');
+    expect(() => OfferDecisionInput.parse({ ...base, variant: 'V' })).toThrow();
   });
 });

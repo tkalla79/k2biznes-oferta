@@ -73,16 +73,19 @@ export default function OfferRowActions({
   );
 }
 
+// Odstęp daje teraz `gap` rzędu akcji na liście (page.tsx), nie margines
+// pojedynczego guzika — inaczej po stronie admina robił się podwójny.
 const btnBase: React.CSSProperties = {
   display: 'inline-block',
   padding: '5px 10px',
-  marginLeft: 6,
   fontSize: 12,
   fontWeight: 600,
+  lineHeight: 1.2,
   borderRadius: 6,
   cursor: 'pointer',
   border: '1px solid transparent',
   background: '#fff',
+  whiteSpace: 'nowrap',
 };
 
 const btnDelete: React.CSSProperties = {

@@ -32,6 +32,14 @@ const SECTIONS: Array<{ id: string; label: string }> = [
   { id: 'akcept', label: '08 · Akceptacja' },
 ];
 
+/** Skąd wiemy o decyzji zgłoszonej poza ofertą (payload.channel). */
+const DECISION_CHANNEL_LABELS: Record<string, string> = {
+  email: 'zgłoszone mailem',
+  phone: 'zgłoszone telefonicznie',
+  meeting: 'zgłoszone na spotkaniu',
+  other: 'zgłoszone poza systemem',
+};
+
 const EVENT_LABELS: Record<string, string> = {
   created: 'Utworzenie oferty',
   updated: 'Edycja oferty',
@@ -210,12 +218,27 @@ export default async function OfferActivityPage({ params }: { params: { id: stri
         ) : (
           <ul style={timeline}>
             {events.slice(0, 30).map((e, i) => {
-              const p = (e.payload ?? {}) as { section?: string; variant?: string };
-              const detail = p.section
-                ? SECTIONS.find((s) => s.id === p.section)?.label ?? p.section
-                : p.variant
-                  ? `Wariant ${p.variant}`
-                  : null;
+              const p = (e.payload ?? {}) as {
+                section?: string;
+                variant?: string;
+                channel?: string;
+                offline?: boolean;
+              };
+              // Decyzja wpisana przez nas (mail, telefon) wygląda w bazie tak
+              // samo jak kliknięcie klienta — bez kanału w timeline nie dałoby
+              // się ich odróżnić, a to różnica w wartości dowodowej.
+              const offlineDetail = p.offline
+                ? `${DECISION_CHANNEL_LABELS[p.channel ?? ''] ?? 'poza systemem'}${
+                    p.variant ? ` · wariant ${p.variant}` : ''
+                  }`
+                : null;
+              const detail =
+                offlineDetail ??
+                (p.section
+                  ? SECTIONS.find((s) => s.id === p.section)?.label ?? p.section
+                  : p.variant
+                    ? `Wariant ${p.variant}`
+                    : null);
               return (
                 <li key={i} style={timelineItem}>
                   <span style={tlTime}>{fmtDT(e.created_at)}</span>
