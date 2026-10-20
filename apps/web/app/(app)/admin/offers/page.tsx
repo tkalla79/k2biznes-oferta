@@ -199,11 +199,17 @@ export default async function OffersListPage({
                       </div>
                     )}
                   </td>
-                  <td style={tdRight}>
-                    <Link href={`/admin/offers/${o.id}/activity`} style={btnEdit}>
+                  {/* Akcje jako jeden rząd pigułek o wspólnym kształcie.
+                      Wcześniej „Aktywność" i „Edytuj" były gołymi linkami bez
+                      odstępu (zlewały się w jedno słowo), „Podgląd" miał
+                      marginLeft i inny kolor, a „Usuń" był obramowanym
+                      guzikiem — cztery różne formy w jednej komórce. */}
+                  <td style={tdActions}>
+                    <div style={actionRow}>
+                    <Link href={`/admin/offers/${o.id}/activity`} style={btnAction}>
                       Aktywność
                     </Link>
-                    <Link href={`/admin/offers/${o.id}/edit`} style={btnEdit}>
+                    <Link href={`/admin/offers/${o.id}/edit`} style={btnAction}>
                       Edytuj
                     </Link>
                     {/* Draft nie jest dostepny pod publicznym linkiem (page.tsx
@@ -216,7 +222,7 @@ export default async function OffersListPage({
                           ? `/o/${o.client_token}?__preview=1`
                           : `/o/${o.client_token}`
                       }
-                      style={btnLink}
+                      style={btnActionLink}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
@@ -230,6 +236,7 @@ export default async function OffersListPage({
                         isDeleted={showDeleted}
                       />
                     )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -469,18 +476,36 @@ const errorBox: React.CSSProperties = {
   fontSize: 14,
 };
 
-const btnLink: React.CSSProperties = {
-  fontSize: 12,
-  color: '#c92b3a',
-  textDecoration: 'none',
-  fontWeight: 500,
-  marginLeft: 12,
+// Komórka akcji: `flex-end` + `gap` zamiast marginesów na poszczególnych
+// elementach — odstęp jest jeden i nie zależy od tego, które akcje wypadły
+// („Usuń" widzi tylko admin, „Podgląd (draft)" ma inną długość).
+const tdActions: React.CSSProperties = { ...td, textAlign: 'right' };
+const actionRow: React.CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
+  alignItems: 'center',
+  gap: 6,
 };
-const btnEdit: React.CSSProperties = {
+const btnAction: React.CSSProperties = {
+  display: 'inline-block',
+  padding: '5px 10px',
   fontSize: 12,
+  fontWeight: 600,
+  lineHeight: 1.2,
   color: '#1B2A4A',
+  background: '#fff',
+  border: '1px solid #dbe2ee',
+  borderRadius: 6,
   textDecoration: 'none',
-  fontWeight: 500,
+  whiteSpace: 'nowrap',
+};
+// Podgląd wychodzi poza panel (nowa karta), więc zostaje wyróżniony kolorem —
+// ale już w tym samym kształcie co reszta.
+const btnActionLink: React.CSSProperties = {
+  ...btnAction,
+  color: '#c92b3a',
+  borderColor: '#e8c2c6',
 };
 
 const pagination: React.CSSProperties = {

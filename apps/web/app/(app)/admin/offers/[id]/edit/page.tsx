@@ -12,6 +12,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { toOfferDto } from '@/lib/offers/mapper';
 import OfferForm from '../../OfferForm';
 import OfferActions from '../../OfferActions';
+import { normalizeOfferKind } from '@/lib/offers/kind';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -136,6 +137,8 @@ export default async function EditOfferPage({ params }: { params: { id: string }
         programLabel={offer.program_label}
         approval={approval}
         canApprove={isAdmin}
+        offerKind={normalizeOfferKind(offer.offer_kind)}
+        offeredVariants={offer.offered_variants}
       />
 
       <OfferForm

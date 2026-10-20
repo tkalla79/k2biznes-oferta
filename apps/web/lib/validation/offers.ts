@@ -6,6 +6,7 @@
 import { z } from 'zod';
 import { PricingOverrideSchema } from '@/lib/pricing/override';
 import { expiresAtSchema, offerKindSchema } from './shared';
+import { normalizeOfferKind } from '@/lib/offers/kind';
 
 // =============================================================================
 // Wspólne
@@ -182,6 +183,95 @@ export function shouldRecalcSnapshot(patch: UpdateOfferInput): boolean {
     // oplata+% od kwoty). Bez przeliczenia snapshot zostalby w starym ksztalcie,
     // a widok klienta dostalby dane niezgodne z offer_kind.
     patch.offerKind !== undefined
+  );
+}
+
+// =============================================================================
+// Decyzja klienta zgłoszona poza systemem (POST /api/offers/:id/decision)
+// =============================================================================
+
+/**
+ * Kanał, którym klient przekazał decyzję. Zapisujemy go, bo przy akceptacji
+ * poza formularzem to jedyny ślad, skąd wiemy o decyzji — w audycie „klient
+ * potwierdził" bez źródła nie znaczy nic.
+ */
+export const DECISION_CHANNELS = ['email', 'phone', 'meeting', 'other'] as const;
+export type DecisionChannel = (typeof DECISION_CHANNELS)[number];
+
+export const OfferDecisionInput = z.object({
+  decision: z.enum(['accepted', 'rejected']),
+  channel: z.enum(DECISION_CHANNELS),
+  /** Kto po stronie klienta przekazał decyzję — imię i nazwisko albo rola. */
+  confirmedBy: z.string().min(1).max(200),
+  /** Wariant — wymagany tylko w ofercie dotacyjnej przy akceptacji. */
+  variant: z.enum(['I', 'II', 'III', 'IV']).optional(),
+  /** Kontekst: cytat z maila, numer telefonu, powód odmowy. */
+  note: z.string().max(2000).optional(),
+});
+
+export type OfferDecisionInput = z.infer<typeof OfferDecisionInput>;
+
+/**
+ * Stan cenotwórczy oferty przed zmianą — tyle, ile potrzeba, żeby odpowiedzieć
+ * „czy te liczby faktycznie się ruszają". Celowo nie cały wiersz z bazy:
+ * funkcja ma być testowalna bez mockowania Supabase.
+ */
+export type PricingInputsBefore = {
+  offer_kind: string | null;
+  project_value: number | string;
+  funding_rate: number | string | null;
+  returning_client: boolean;
+  project_count: number;
+  content: unknown;
+};
+
+const num = (v: unknown): number | null =>
+  v == null ? null : Number.isFinite(Number(v)) ? Number(v) : null;
+
+/**
+ * Czy patch zmienia którąkolwiek LICZBĘ wchodzącą do cennika?
+ *
+ * `shouldRecalcSnapshot` patrzy tylko na obecność pól, a formularz oferty
+ * wysyła cały obiekt `loan`/`exec` przy każdym zapisie. Skutkiem była blokada
+ * nie do obejścia: żeby poprawić sam OPIS wynagrodzenia (`content.loan.sfNote`,
+ * czysty tekst) na ofercie już wysłanej, trzeba było przepchnąć `loan`, a to
+ * wyglądało jak zmiana finansowa i kończyło się 409 — mimo że żadna kwota się
+ * nie ruszała. Zamrożenie cennika po wysyłce ma chronić kwoty, nie zdania.
+ *
+ * Porównujemy wartości efektywne (patch albo stan sprzed zmiany), więc zapis
+ * bez realnej zmiany liczb nie przelicza snapshotu i nie jest blokowany.
+ */
+export function pricingInputsChanged(
+  patch: UpdateOfferInput,
+  before: PricingInputsBefore,
+): boolean {
+  const kindBefore = normalizeOfferKind(before.offer_kind);
+  const kind = patch.offerKind ?? kindBefore;
+  if (kind !== kindBefore) return true;
+
+  if ((patch.projectValue ?? num(before.project_value)) !== num(before.project_value)) return true;
+
+  if (kind === 'grant') {
+    return (
+      (patch.fundingRate ?? num(before.funding_rate)) !== num(before.funding_rate) ||
+      (patch.returningClient ?? before.returning_client) !== before.returning_client ||
+      (patch.projectCount ?? before.project_count) !== before.project_count
+    );
+  }
+
+  const content = (before.content ?? {}) as Record<string, unknown>;
+  if (kind === 'loan') {
+    const b = (content.loan ?? {}) as { baseFee?: unknown; sfPct?: unknown };
+    return (
+      (patch.loan?.baseFee ?? num(b.baseFee)) !== num(b.baseFee) ||
+      (patch.loan?.sfPct ?? num(b.sfPct)) !== num(b.sfPct)
+    );
+  }
+
+  const b = (content.exec ?? {}) as { monthlyFee?: unknown; months?: unknown };
+  return (
+    (patch.exec?.monthlyFee ?? num(b.monthlyFee)) !== num(b.monthlyFee) ||
+    (patch.exec?.months ?? num(b.months)) !== num(b.months)
   );
 }
 
