@@ -8,6 +8,12 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Database } from '@k2/database/types';
+import {
+  SCOPE_VARIANTS,
+  SCOPE_VARIANT_LABELS,
+  normalizeScopeVariant,
+  type ScopeVariant,
+} from '@/lib/offers/scopeVariant';
 
 type AltProgram = Database['public']['Tables']['alt_programs']['Row'];
 
@@ -19,6 +25,8 @@ type FormState = {
   url: string;
   display_order: number;
   is_active: boolean;
+  /** Zestaw czynności (sekcja 03) dla oferty z tym programem jako rekomendowanym. */
+  scope_variant: ScopeVariant;
 };
 
 const EMPTY: FormState = {
@@ -29,6 +37,7 @@ const EMPTY: FormState = {
   url: '',
   display_order: 100,
   is_active: true,
+  scope_variant: 'standard',
 };
 
 export default function AltProgramsManager({ initial }: { initial: AltProgram[] }) {
@@ -53,6 +62,7 @@ export default function AltProgramsManager({ initial }: { initial: AltProgram[] 
       url: p.url ?? '',
       display_order: p.display_order,
       is_active: p.is_active,
+      scope_variant: normalizeScopeVariant(p.scope_variant),
     });
     setEditingId(p.id);
     setError(null);
@@ -79,6 +89,7 @@ export default function AltProgramsManager({ initial }: { initial: AltProgram[] 
           url: form.url.trim() || null,
           display_order: form.display_order,
           is_active: form.is_active,
+          scope_variant: form.scope_variant,
         }),
       });
       const json = await res.json();
@@ -142,6 +153,24 @@ export default function AltProgramsManager({ initial }: { initial: AltProgram[] 
             <textarea style={{ ...input, minHeight: 64, resize: 'vertical' }} value={form.desc} maxLength={2000}
               onChange={(e) => setForm({ ...form, desc: e.target.value })} />
           </Field>
+          {/* Zakres prac deklarowany tutaj, nie zgadywany z nazwy naboru.
+              Nowy nabór Kultury nazwany inaczej dostawał wcześniej po cichu
+              zakres krajowy. */}
+          <Field label="Zakres prac w ofercie (sekcja 03)">
+            <select
+              style={input}
+              value={form.scope_variant}
+              onChange={(e) =>
+                setForm({ ...form, scope_variant: normalizeScopeVariant(e.target.value) })
+              }
+            >
+              {SCOPE_VARIANTS.map((v) => (
+                <option key={v} value={v}>
+                  {SCOPE_VARIANT_LABELS[v]}
+                </option>
+              ))}
+            </select>
+          </Field>
           <div style={grid2}>
             <Field label="Kolejność">
               <input type="number" style={input} value={form.display_order}
@@ -170,6 +199,7 @@ export default function AltProgramsManager({ initial }: { initial: AltProgram[] 
           <tr>
             <th style={th}>Nazwa / Program</th>
             <th style={th}>Nabór</th>
+            <th style={th}>Zakres</th>
             <th style={thCenter}>Kolejność</th>
             <th style={thCenter}>Aktywny</th>
             <th style={th}></th>
@@ -183,6 +213,7 @@ export default function AltProgramsManager({ initial }: { initial: AltProgram[] 
                 <div style={{ color: '#6b7a92', fontSize: 13 }}>{p.program}</div>
               </td>
               <td style={tdMuted}>{p.nabor ?? '—'}</td>
+              <td style={tdMuted}>{SCOPE_VARIANT_LABELS[normalizeScopeVariant(p.scope_variant)]}</td>
               <td style={tdCenter}>{p.display_order}</td>
               <td style={tdCenter}>{p.is_active ? '✓' : '—'}</td>
               <td style={tdRight}>
@@ -192,7 +223,7 @@ export default function AltProgramsManager({ initial }: { initial: AltProgram[] 
             </tr>
           ))}
           {initial.length === 0 && (
-            <tr><td colSpan={5} style={{ ...tdMuted, textAlign: 'center', padding: 24 }}>
+            <tr><td colSpan={6} style={{ ...tdMuted, textAlign: 'center', padding: 24 }}>
               Brak programów. Dodaj pierwszy.
             </td></tr>
           )}

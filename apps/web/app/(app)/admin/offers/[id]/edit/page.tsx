@@ -43,7 +43,7 @@ export default async function EditOfferPage({ params }: { params: { id: string }
       .select('id, name, role, email')
       .eq('is_active', true)
       .order('display_order'),
-    sb.from('alt_programs').select('id, name, program, nabor, desc, url').eq('is_active', true).order('display_order'),
+    sb.from('alt_programs').select('*').eq('is_active', true).order('display_order'),
     // assignedConsultantId select tylko dla admina; consultant nie może zmienić
     // właściciela. Pusta lista pomijana w UI.
     isAdmin

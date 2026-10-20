@@ -6,6 +6,7 @@
  */
 import { z } from 'zod';
 import { offerKindSchema } from './shared';
+import { SCOPE_VARIANTS } from '@/lib/offers/scopeVariant';
 
 // =============================================================================
 // Wspólne helpery
@@ -74,6 +75,8 @@ export const AltProgramInput = z.object({
   url: z.string().url().max(500).optional().nullable().or(z.literal('')),
   display_order: z.coerce.number().int().min(0).max(9999).default(100),
   is_active: z.boolean().default(true),
+  /** Który zestaw czynności (sekcja 03) pokazuje oferta z tym programem. */
+  scope_variant: z.enum(SCOPE_VARIANTS).default('standard'),
 });
 export type AltProgramInput = z.infer<typeof AltProgramInput>;
 

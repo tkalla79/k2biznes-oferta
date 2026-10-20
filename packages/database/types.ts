@@ -49,6 +49,7 @@ export type Database = {
           nabor: string | null
           name: string
           program: string
+          scope_variant: string
           url: string | null
         }
         Insert: {
@@ -60,6 +61,7 @@ export type Database = {
           nabor?: string | null
           name: string
           program: string
+          scope_variant?: string
           url?: string | null
         }
         Update: {
@@ -71,6 +73,7 @@ export type Database = {
           nabor?: string | null
           name?: string
           program?: string
+          scope_variant?: string
           url?: string | null
         }
         Relationships: []

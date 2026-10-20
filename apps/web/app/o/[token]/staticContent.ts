@@ -6,6 +6,7 @@
  * MVP zostają stałe dla całej firmy K2Biznes.
  */
 import { usesDefaultSfBasis } from '@/lib/pricing/loan';
+import type { ScopeVariant } from '@/lib/offers/scopeVariant';
 
 // Uwaga 2026-07: domyślne punkty były zaszłością z oferty pisanej pod
 // konkretnego klienta ("Kredyt Ekologiczny", "Audytor Energetyczny") i
@@ -168,6 +169,25 @@ export const SCOPE_EXEC = [
     d: 'Bieżący kontakt z Instytucją Pośredniczącą/Zarządzającą i obsługa systemu teleinformatycznego.',
   },
 ];
+
+// =============================================================================
+// Rejestr wariantów zakresu — jedno miejsce, w którym wariant łączy się z
+// treścią. Oferta pyta o zestaw TYLKO tutaj, więc nowy wariant nie wymaga
+// szukania warunków rozsianych po `page.tsx`.
+//
+// `hasExecFee`: czy w cenniku pokazujemy kafelek wynagrodzenia za obsługę.
+// W Kulturze warunki obsługi stoją w sekcji 03 (na granatowym tle akordeonu
+// cennika były nieczytelne), więc kafelek byłby powtórzeniem.
+// =============================================================================
+
+export const SCOPE_BY_VARIANT: Record<
+  ScopeVariant,
+  { prep: typeof SCOPE_PREP; exec: typeof SCOPE_EXEC; hasExecFee: boolean }
+> = {
+  standard: { prep: SCOPE_PREP, exec: SCOPE_EXEC, hasExecFee: true },
+  culture: { prep: CULTURE_SCOPE_PREP, exec: CULTURE_SCOPE_EXEC, hasExecFee: false },
+};
+
 
 export const PROCESS = [
   { t: 'Spotkanie z klientem', d: 'Omawiamy możliwości aplikowania, zakres współpracy i szanse projektu.' },

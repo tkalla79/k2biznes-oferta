@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
         url: body.url || null,
         display_order: body.display_order,
         is_active: body.is_active,
+        scope_variant: body.scope_variant,
       })
       .select()
       .single();
