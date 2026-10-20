@@ -35,7 +35,10 @@ export default async function NewOfferPage() {
       .order('display_order'),
     sb
       .from('alt_programs')
-      .select('id, name, program, nabor, desc, url')
+      // `select('*')`: `scope_variant` dochodzi migracją 20261020000001, a brak
+      // kolumny nie może wywalić ekranu tworzenia oferty, gdyby kod pojechał
+      // przed migracją. Tabela jest mała, koszt żaden.
+      .select('*')
       .eq('is_active', true)
       .order('display_order'),
     sb.from('offer_templates').select('id, name').order('created_at', { ascending: false }),

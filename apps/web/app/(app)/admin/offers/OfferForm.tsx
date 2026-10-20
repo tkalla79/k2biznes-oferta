@@ -14,6 +14,12 @@ import { formatApiError } from '@/lib/api/issues';
 import RichTextEditor from '@/components/RichTextEditor';
 import { NEEDS as DEFAULT_NEEDS } from '@/app/o/[token]/staticContent';
 import { usePromptDialog } from '@/components/PromptDialog';
+import {
+  normalizeScopeVariant,
+  legacyScopeVariantFromName,
+  SCOPE_VARIANT_LABELS,
+  type ScopeVariant,
+} from '@/lib/offers/scopeVariant';
 
 /** Świeże kopie domyślnych potrzeb (mutowalne w formularzu — WYSIWYG prefill). */
 function defaultNeeds(): { k: string; v: string }[] {
@@ -81,6 +87,10 @@ type AltProgramUI = {
   url: string;
   // Uwaga pilotaż 2026-07 (#2): dokładnie jedna pozycja rekomendowana (reszta = alternatywne).
   recommended: boolean;
+  // Wariant zakresu prac przeniesiony z biblioteki. Trzymamy snapshot, a nie
+  // odwołanie do `alt_programs`: oferta ma pokazywać to, co klient zobaczył,
+  // nawet jeśli ktoś później poprawi bibliotekę.
+  scopeVariant: ScopeVariant;
 };
 
 // Feature #2: pozycja biblioteki alt-programów (do szybkiego dodania do listy).
@@ -91,6 +101,7 @@ type AltProgramOpt = {
   nabor: string | null;
   desc: string | null;
   url: string | null;
+  scope_variant?: string | null;
 };
 
 // Feature #1: pozycja listy szablonów (lekka — pełne dane przez GET [id]).
@@ -287,6 +298,15 @@ function initialFromOffer(offer: OfferDto): FormState {
           desc: typeof p.desc === 'string' ? p.desc : '',
           url: typeof p.url === 'string' ? p.url : '',
           recommended: p.recommended === true,
+          // Oferta sprzed migracji 20261020000001 nie ma tego pola — wracamy
+          // do reguły po nazwie, tej samej, którą stosuje widok klienta.
+          scopeVariant:
+            typeof p.scopeVariant === 'string'
+              ? normalizeScopeVariant(p.scopeVariant)
+              : legacyScopeVariantFromName(
+                  typeof p.name === 'string' ? p.name : '',
+                  typeof p.program === 'string' ? p.program : '',
+                ),
         }))
     : [];
   const parsedNeeds = Array.isArray(c?.needs)
@@ -549,6 +569,13 @@ export default function OfferForm({
               desc: d.suggestedProgram.desc ?? '',
               url: '',
               recommended: true,
+              // Podpowiedź AI nie pochodzi z biblioteki, więc nie niesie
+              // zadeklarowanego wariantu. Zgadujemy po nazwie i zostawiamy do
+              // sprawdzenia — pole jest widoczne w formularzu.
+              scopeVariant: legacyScopeVariantFromName(
+                d.suggestedProgram.name,
+                d.suggestedProgram.program,
+              ),
             },
           ];
           filledKeys.add('altPrograms');
@@ -1395,6 +1422,7 @@ export default function OfferForm({
                   desc: lib.desc ?? '',
                   url: lib.url ?? '',
                   recommended: false,
+                  scopeVariant: normalizeScopeVariant(lib.scope_variant),
                 },
               ]);
             }}
@@ -1442,6 +1470,16 @@ export default function OfferForm({
                     {p.program}
                     {p.nabor ? ` · nabór: ${p.nabor}` : ''}
                   </div>
+                  {/* Zakres pokazujemy tylko przy pozycji rekomendowanej — to
+                      ona decyduje o sekcji 03. Przy pozostałych byłby szumem. */}
+                  {p.recommended && (
+                    <div style={{ fontSize: 12, color: '#6b7a92', marginTop: 4 }}>
+                      Zakres prac: <strong>{SCOPE_VARIANT_LABELS[p.scopeVariant]}</strong>{' '}
+                      <span style={{ opacity: 0.75 }}>
+                        (z biblioteki programów — zmiana w /admin/alt-programs)
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
                   {/* Dokładnie jedna pozycja rekomendowana. */}
