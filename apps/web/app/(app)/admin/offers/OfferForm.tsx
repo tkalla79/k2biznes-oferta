@@ -13,6 +13,7 @@ import { extractTemplate, applyTemplate } from '@/lib/offers/template';
 import { formatApiError } from '@/lib/api/issues';
 import RichTextEditor from '@/components/RichTextEditor';
 import { NEEDS as DEFAULT_NEEDS } from '@/app/o/[token]/staticContent';
+import { usePromptDialog } from '@/components/PromptDialog';
 
 /** Świeże kopie domyślnych potrzeb (mutowalne w formularzu — WYSIWYG prefill). */
 function defaultNeeds(): { k: string; v: string }[] {
@@ -583,6 +584,7 @@ export default function OfferForm({
   // Feature #1: pre-fill z szablonu (tryb create). Pobiera pełny template_data
   // (lista jest lekka) i nakłada na blank — pola klienta zostają puste.
   const [tplLoading, setTplLoading] = useState(false);
+  const { ask, dialog: promptDialog } = usePromptDialog();
   async function applyTemplateById(id: string) {
     if (!id) return;
     setTplLoading(true);
@@ -609,7 +611,14 @@ export default function OfferForm({
 
   // Feature #1: zapis obecnego formularza jako szablon (bez danych klienta).
   async function saveAsTemplate() {
-    const name = window.prompt('Nazwa szablonu (np. „FENG SMART — produkcja"):');
+    const name = await ask({
+      title: 'Zapisz jako szablon',
+      label: 'Nazwa szablonu',
+      hint: 'Szablon zapisuje strukturę oferty bez danych klienta.',
+      placeholder: 'np. FENG SMART — produkcja',
+      required: true,
+      confirmLabel: 'Zapisz szablon',
+    });
     if (!name || !name.trim()) return;
     setBusy(true);
     setError(null);
@@ -973,6 +982,7 @@ export default function OfferForm({
 
   return (
     <form onSubmit={submit} style={formStyle}>
+      {promptDialog}
       {isEditingSentOffer && (
         <div style={warnBox}>
           <strong>Uwaga:</strong> oferta ma status <code>{offer!.status}</code>. Zmiany finansów
