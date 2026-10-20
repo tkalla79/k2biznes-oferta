@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { requireSuperAdmin } from '@/lib/auth/session';
 import { createAdminClient } from '@/lib/supabase/admin';
 import CompanyStatsForm from './CompanyStatsForm';
+import OfferTokensForm from './OfferTokensForm';
+import { resolveOfferTokens } from '@/lib/offers/tokens';
 import TestEmailForm from './TestEmailForm';
 
 export const dynamic = 'force-dynamic';
@@ -15,11 +17,10 @@ export default async function SettingsPage() {
   const session = await requireSuperAdmin();
 
   const sb = createAdminClient();
-  const { data } = await sb
-    .from('app_settings')
-    .select('value')
-    .eq('key', 'company_stats')
-    .maybeSingle();
+  const [{ data }, { data: tokensRow }] = await Promise.all([
+    sb.from('app_settings').select('value').eq('key', 'company_stats').maybeSingle(),
+    sb.from('app_settings').select('value').eq('key', 'offer_tokens').maybeSingle(),
+  ]);
 
   const cs = (data?.value ?? {}) as { funding?: string; projects?: string; since?: string };
   const initial = {
@@ -39,6 +40,7 @@ export default async function SettingsPage() {
         Zmiana propaguje na wszystkie oferty — to dane firmowe, nie per-klient.
       </p>
       <CompanyStatsForm initial={initial} />
+      <OfferTokensForm initial={resolveOfferTokens(tokensRow?.value)} />
       <TestEmailForm defaultTo={session.email ?? ''} />
     </main>
   );

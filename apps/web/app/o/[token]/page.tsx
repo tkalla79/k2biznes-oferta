@@ -30,6 +30,7 @@ import { sanitizeRichText, sanitizeProse } from '@/lib/richtext';
 import { resolveLoanPricing, usesDefaultSfBasis } from '@/lib/pricing/loan';
 import { resolveExecPricing } from '@/lib/pricing/exec';
 import { normalizeOfferKind } from '@/lib/offers/kind';
+import { applyOfferTokens, resolveOfferTokens } from '@/lib/offers/tokens';
 import type { ExecPricingResult, LoanPricingResult } from '@/lib/pricing';
 import {
   SCOPE_PREP,
@@ -139,7 +140,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
   }
 
   const sb = createAdminClient();
-  const [contactRes, caseRes, gdprRes, faqRes, statsRes] = await Promise.all([
+  const [contactRes, caseRes, gdprRes, faqRes, statsRes, tokensRes] = await Promise.all([
     offer.contact_person_id
       ? sb.from('contact_persons').select('*').eq('id', offer.contact_person_id).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
@@ -158,6 +159,9 @@ export default async function OfferPage({ params, searchParams }: Props) {
       .order('display_order'),
     // Uwaga PDF #1: globalne staty firmowe (edytowalne w /admin/ustawienia).
     sb.from('app_settings').select('value').eq('key', 'company_stats').maybeSingle(),
+    // Wartości podstawiane w treści (`{{de_minimis}}`) — jedno miejsce zamiast
+    // kwoty przepisanej ręcznie do każdego szablonu.
+    sb.from('app_settings').select('value').eq('key', 'offer_tokens').maybeSingle(),
   ]);
 
   // Staty firmowe z settings, fallback do obecnych wartości.
@@ -167,6 +171,8 @@ export default async function OfferPage({ params, searchParams }: Props) {
     projects: cs.projects || '288',
     since: cs.since || 'od 2015',
   };
+
+  const offerTokens = resolveOfferTokens(tokensRes.data?.value);
 
   const dto = toPublicOfferDto(offer, contactRes.data ?? null, caseRes.data ?? null);
   const faqRows = (faqRes.data ?? []) as Array<{
@@ -255,7 +261,9 @@ export default async function OfferPage({ params, searchParams }: Props) {
     : (dto.pricingSnapshot.funding ?? dto.projectValue * dto.fundingRate);
 
   // Treść z offer.content (intro/footer textareas z OfferForm) lub default.
-  const content = (dto.content ?? {}) as {
+  // Podstawienia robimy RAZ, na całym `content`, zanim cokolwiek go czyta —
+  // inaczej każde nowe pole trzeba by pamiętać dopisać do listy.
+  const content = applyOfferTokens(dto.content ?? {}, offerTokens) as {
     intro?: string;
     footer?: string;
     programDescription?: string;
