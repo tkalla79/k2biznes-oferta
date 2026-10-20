@@ -1213,6 +1213,12 @@ export default function OfferForm({
 
       {/* SECTION 01 (reorg 2026-07-15): Wprowadzenie — zdiagnozowane potrzeby i podstawa rekomendacji */}
       <Section title="Wprowadzenie — zdiagnozowane potrzeby i podstawa rekomendacji (sekcja 01)">
+        {/* Podpowiedź przy pierwszym polu tekstowym — wartość tokenu stoi w
+            ustawieniach, więc zmiana przepisu nie wymaga ruszania szablonów. */}
+        <p style={hint}>
+          W polach tekstowych możesz użyć <code>{'{{de_minimis}}'}</code> — oferta podstawi
+          aktualny limit pomocy de minimis z Ustawień firmowych.
+        </p>
         <Field label="Zdiagnozowane potrzeby i podstawa rekomendacji (sekcja 01) — puste = pusta sekcja 01">
           {/* Edytor tekstu zamiast textarea: sekcja 01 potrzebowala akapitow i
               pogrubien (uwagi z pilotazu 2026-08). Stare oferty z czystym
