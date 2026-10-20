@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { usePromptDialog } from '@/components/PromptDialog';
 
 type Props = {
   id: string;
@@ -13,10 +14,19 @@ export default function GdprRequestActions({ id, status, idDisplay }: Props) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { ask, dialog } = usePromptDialog();
 
   async function decide(decision: 'approve' | 'reject' | 'execute') {
     if (decision === 'reject') {
-      const reason = window.prompt('Powód odrzucenia:');
+      // Pusty powód jest dopuszczalny (tak działał natywny prompt), ale
+      // anulowanie musi przerwać odrzucenie — stąd `null`, nie `''`.
+      const reason = await ask({
+        title: `Odrzucenie wniosku ${idDisplay}`,
+        label: 'Powód odrzucenia',
+        hint: 'Trafia do historii wniosku. Można zostawić puste.',
+        multiline: true,
+        confirmLabel: 'Odrzuć wniosek',
+      });
       if (reason === null) return;
       await call(decision, { rejectReason: reason });
     } else if (decision === 'execute') {
@@ -51,6 +61,7 @@ export default function GdprRequestActions({ id, status, idDisplay }: Props) {
 
   return (
     <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {dialog}
       {status === 'requested' && (
         <>
           <button onClick={() => decide('approve')} disabled={!!submitting} style={btnGreen}>

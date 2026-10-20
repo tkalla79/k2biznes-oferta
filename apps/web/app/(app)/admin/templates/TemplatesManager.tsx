@@ -6,6 +6,7 @@
  */
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { usePromptDialog } from '@/components/PromptDialog';
 
 type Item = { id: string; name: string; created_at: string; author: string };
 
@@ -13,9 +14,16 @@ export default function TemplatesManager({ items }: { items: Item[] }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { ask, dialog } = usePromptDialog();
 
   async function rename(id: string, current: string) {
-    const name = window.prompt('Nowa nazwa szablonu:', current);
+    const name = await ask({
+      title: 'Zmiana nazwy szablonu',
+      label: 'Nowa nazwa',
+      defaultValue: current,
+      required: true,
+      confirmLabel: 'Zmień nazwę',
+    });
     if (!name || !name.trim() || name.trim() === current) return;
     setBusy(id);
     setError(null);
@@ -57,6 +65,7 @@ export default function TemplatesManager({ items }: { items: Item[] }) {
 
   return (
     <div>
+      {dialog}
       {error && <div style={errBox}>{error}</div>}
       <table style={table}>
         <thead>
