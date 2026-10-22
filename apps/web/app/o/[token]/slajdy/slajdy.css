@@ -1,0 +1,199 @@
+/* Slajdy 16:9 (prototyp PDF). Layout trasy ładuje globalny styles.css, więc
+   wszystko jest pod .slajdy i .sl, żeby nie ruszać strony oferty. Zmienne
+   (--red, --navy, --serif ...) pochodzą ze styles.css; hexy to zapas. */
+@page { size: 1280px 720px; margin: 0; }
+
+.slajdy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 24px 0;
+  background: #e4e6ec;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.slajdy-note { padding: 48px; font-family: var(--sans, 'Inter', sans-serif); color: #2a324b; }
+
+.sl {
+  position: relative;
+  flex: none;
+  width: 1280px;
+  height: 720px;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 56px 80px 0;
+  background: #fff;
+  color: var(--navy, #2a324b);
+  font-family: var(--sans, 'Inter', sans-serif);
+  font-size: 16px;
+  line-height: 1.5;
+  /* Długi URL lub e-mail z edytora zawija się, zamiast wchodzić na sąsiednią kartę. */
+  overflow-wrap: break-word;
+}
+.sl p { margin: 0; color: #3a4254; }
+.sl h1, .sl h2, .sl h3 { margin: 0; font-family: var(--serif, 'Fraunces', Georgia, serif); font-weight: 400; }
+.sl em { font-style: italic; color: var(--red, #d91e18); }
+
+/* Wspólne: nagłówek i stopka */
+.sl-head { display: flex; flex-direction: column; gap: 14px; }
+.sl-kicker { display: flex; align-items: center; gap: 12px; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; color: var(--red, #d91e18); }
+.sl-rule { flex: none; width: 36px; height: 1px; background: currentColor; }
+.sl-title { font-size: 46px; line-height: 1.1; letter-spacing: -0.01em; }
+.sl-title--xl { font-size: 60px; line-height: 1.05; }
+.sl-label { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: #5b6477; }
+.sl-foot { position: absolute; left: 80px; right: 80px; bottom: 28px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #5b6477; }
+.sl-foot-brand { display: inline-flex; align-items: center; gap: 10px; }
+.sl-foot-brand img { display: block; height: 24px; width: auto; max-width: none; }
+
+/* Okładka */
+.sl-ring-wrap { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.sl-ring { position: absolute; right: -250px; top: -110px; width: 860px; max-width: none; opacity: 0.18; }
+.sl-cover { position: relative; height: 100%; padding-bottom: 56px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; }
+.sl-cover-top { display: flex; align-items: center; justify-content: space-between; }
+.sl-cover-logo { display: block; height: 60px; width: auto; max-width: none; }
+.sl-pill { display: inline-flex; align-items: center; gap: 10px; padding: 10px 18px; border: 1px solid #e4e6ec; border-radius: 999px; background: #fff; font-size: 14px; font-weight: 500; }
+.sl-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red, #d91e18); }
+.sl-cover-title { max-width: 1100px; font-size: 66px; line-height: 1.08; letter-spacing: -0.01em; }
+.sl-for { margin-top: 40px; display: flex; align-items: baseline; gap: 16px; font-size: 18px; color: #5b6477; }
+.sl-for strong { padding-bottom: 6px; border-bottom: 1px solid #cfd3dc; font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 34px; font-weight: 400; color: var(--navy, #2a324b); }
+.sl-chips { display: flex; gap: 16px; }
+.sl-chip { display: inline-flex; align-items: center; gap: 14px; padding: 14px 22px; border-radius: 12px; background: var(--bg-2, #f7f6f4); font-size: 18px; }
+.sl-chip span { font-size: 12px; font-weight: 600; letter-spacing: 0.14em; color: #3a4254; }
+.sl-chip strong { font-weight: 500; }
+
+/* 02: program */
+.sl-cols { display: flex; align-items: flex-start; gap: 64px; }
+.sl-col-left { flex: none; width: 420px; display: flex; flex-direction: column; gap: 22px; }
+.sl-col-right { flex: 1; min-width: 0; }
+.sl-prog { font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 26px; line-height: 1.2; font-style: italic; color: var(--red, #d91e18); }
+.sl-prose { font-size: 15px; line-height: 1.55; color: #3a4254; text-align: justify; hyphens: auto; }
+.sl-prose p + p { margin-top: 10px; }
+.sl-prose ul, .sl-prose ol { margin: 8px 0 0; padding-left: 20px; }
+.sl-card { display: flex; flex-direction: column; gap: 16px; padding: 32px; border-radius: 24px; background: var(--bg-2, #f7f6f4); }
+.sl-card-top { display: flex; align-items: center; gap: 14px; }
+.sl-badge { padding: 6px 14px; border-radius: 999px; background: var(--red, #d91e18); color: #fff; font-size: 12px; font-weight: 600; letter-spacing: 0.12em; }
+.sl-card-prog { font-size: 12px; font-weight: 600; letter-spacing: 0.12em; color: #3a4254; }
+.sl-card h3 { font-size: 34px; line-height: 1.15; }
+.sl-nabor { font-size: 16px; }
+.sl-nabor strong { font-weight: 600; color: var(--navy, #2a324b); }
+.sl-desc { font-size: 15px; line-height: 1.6; text-align: justify; hyphens: auto; }
+
+/* 04: wariant cennika */
+.sl-pricing { display: flex; align-items: flex-start; gap: 48px; }
+.sl-aside { flex: none; width: 300px; display: flex; flex-direction: column; gap: 16px; }
+.sl-aside .sl-title { font-size: 40px; line-height: 1.08; }
+.sl-lead { font-size: 14.5px; line-height: 1.55; }
+.sl-assume { margin-top: 8px; padding-top: 16px; border-top: 1px solid #e4e6ec; display: flex; flex-direction: column; gap: 14px; }
+.sl-assume div div:first-child { font-size: 13px; color: #3a4254; }
+.sl-assume div div:last-child { font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 26px; line-height: 1.2; }
+.sl-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.sl-variants { display: grid; gap: 16px; }
+.sl-variant { box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 20px; border: 1px solid #e4e6ec; border-radius: 20px; background: var(--bg-2, #f7f6f4); }
+.sl-variant--sel { border: 2px solid var(--navy, #2a324b); background: #fff; }
+.sl-vhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.sl-vname { margin-top: 4px; font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 22px; line-height: 1.15; }
+.sl-vsel { flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; background: var(--navy, #2a324b); color: #fff; font-size: 11px; font-weight: 600; }
+.sl-vpct { font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 46px; line-height: 1; color: var(--red, #d91e18); }
+.sl-vpct-note { margin-top: 4px; font-size: 13px; }
+.sl-vrows { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid #d9dce3; }
+.sl-vrows small { display: block; font-size: 13px; color: #3a4254; }
+.sl-vrows b { font-size: 18px; font-weight: 500; }
+.sl-vrows .sl-vtotal { font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 28px; font-weight: 400; line-height: 1.15; }
+.sl-vsched { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid #d9dce3; }
+.sl-vsched div { display: flex; align-items: baseline; gap: 10px; font-size: 13px; line-height: 1.4; color: #3a4254; }
+.sl-vsched strong { flex: none; font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 22px; font-weight: 400; color: var(--navy, #2a324b); }
+.sl-exec { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 10px 20px; border-radius: 14px; background: var(--navy, #2a324b); color: #fff; }
+.sl-exec span { font-size: 15px; }
+.sl-exec strong { font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 22px; font-weight: 400; line-height: 1.2; }
+.sl-vat { font-size: 13px; }
+
+/* 08: zakończenie (jak w PDF strony: bez formularza, sama karta kontaktowa) */
+.sl-closing { display: flex; flex-direction: column; gap: 36px; }
+.sl-contact { display: flex; align-items: center; gap: 32px; padding: 32px 40px; border-radius: 24px; background: var(--bg-2, #f7f6f4); }
+.sl-contact img, .sl-contact-ph { flex: none; width: 120px; height: 120px; border-radius: 50%; object-fit: cover; background: #e4e6ec; display: flex; align-items: center; justify-content: center; font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 48px; }
+.sl-cname { margin-top: 6px; font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 34px; line-height: 1.15; }
+.sl-crole { font-size: 16px; }
+.sl-clinks { margin-top: 12px; display: flex; flex-direction: column; gap: 2px; font-size: 18px; font-weight: 500; }
+.sl-valid { font-size: 18px; }
+.sl-valid strong { font-weight: 600; color: var(--navy, #2a324b); }
+
+/* 03 / 03b: zakres usługi */
+.sl-scope { display: flex; align-items: flex-start; gap: 48px; }
+.sl-scope-aside { flex: none; width: 300px; display: flex; flex-direction: column; gap: 18px; }
+.sl-scope-aside .sl-title { font-size: 40px; line-height: 1.08; }
+.sl-tabs { display: flex; flex-direction: column; gap: 10px; }
+.sl-tab { padding: 14px 16px; border: 2px solid transparent; border-radius: 14px; background: var(--bg-2, #f7f6f4); }
+.sl-tab--on { border-color: var(--navy, #2a324b); background: #fff; }
+.sl-tab-no { margin-right: 10px; font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 22px; color: var(--red, #d91e18); }
+.sl-tab-name { font-size: 15px; font-weight: 600; line-height: 1.3; }
+.sl-tag { margin-top: 8px; display: inline-block; padding: 4px 10px; border: 1px solid #cfd3dc; border-radius: 999px; background: #fff; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; }
+.sl-scope-cols { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; align-items: start; }
+.sl-scope-col { display: flex; flex-direction: column; gap: 20px; }
+.sl-step { display: flex; gap: 14px; }
+.sl-step-no { flex: none; width: 36px; font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 28px; line-height: 1; color: var(--red, #d91e18); }
+.sl-step-t { font-size: 16px; font-weight: 600; line-height: 1.3; }
+.sl .sl-step-d { margin-top: 6px; font-size: 13px; line-height: 1.5; }
+
+/* 05: proces */
+.sl .sl-lead--wide { margin-top: 16px; font-size: 17px; }
+.sl-process { position: relative; margin-top: 56px; }
+.sl-rail { position: absolute; top: 27px; height: 2px; background: #d9dce3; }
+.sl-process ol { position: relative; display: grid; gap: 16px; margin: 0; padding: 0; list-style: none; }
+.sl-process li { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.sl-pnum { width: 56px; height: 56px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 2px solid var(--navy, #2a324b); border-radius: 50%; background: #fff; font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 24px; }
+.sl-process h3 { font-size: 21px; line-height: 1.25; }
+.sl-process li p { font-size: 14px; line-height: 1.5; }
+
+/* 07: FAQ */
+.sl-faq { margin-top: 32px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px; align-items: start; }
+.sl-faq > div { display: flex; flex-direction: column; gap: 22px; }
+.sl-faq-q { font-size: 16px; font-weight: 600; line-height: 1.35; }
+.sl .sl-faq-a { margin-top: 6px; font-size: 14px; line-height: 1.55; text-align: justify; hyphens: auto; }
+
+/* 01: podstawa rekomendacji */
+.sl .sl-prose--lg { font-size: 16px; line-height: 1.6; }
+.sl-prose strong, .sl-prose b { color: var(--navy, #2a324b); font-weight: 600; }
+/* `.sl em` (czerwona kursywa) jest dla tytułów. Kursywa z edytora wygląda jak na stronie oferty
+   (styles.css: em { font-style: normal }), czyli bez koloru i bez pochylenia. */
+.sl-prose em { font-style: normal; color: inherit; }
+.sl-prose pre { white-space: pre-wrap; }
+
+/* 04b: założenia (punktory konsultanta) */
+.sl-bullets { margin-top: 32px; column-gap: 32px; }
+.sl-bullet { display: flex; gap: 12px; margin-bottom: 20px; break-inside: avoid; }
+.sl-bullet > span { flex: none; width: 28px; font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 20px; line-height: 1.2; color: var(--red, #d91e18); }
+.sl .sl-bullet p { font-size: 14px; line-height: 1.5; }
+
+/* 04c: obsługa i uwagi */
+.sl-notes { margin-top: 36px; display: grid; gap: 28px; align-items: stretch; }
+.sl-note-card { padding: 32px; border-radius: 20px; background: var(--bg-2, #f7f6f4); }
+.sl-note-card--navy { background: var(--navy, #2a324b); color: #fff; }
+.sl-note-card--navy .sl-label { color: #c5cadb; }
+.sl .sl-note-card--navy p { color: #fff; }
+.sl-note-fig { margin-top: 12px; display: flex; align-items: baseline; gap: 12px; font-size: 14px; }
+.sl-note-fig strong { font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 52px; font-weight: 400; line-height: 1; color: var(--red, #d91e18); }
+.sl .sl-note-text { margin-top: 16px; font-size: 15px; line-height: 1.55; white-space: pre-line; text-align: justify; hyphens: auto; }
+.sl .sl-note-card--navy .sl-note-text { margin-top: 14px; }
+.sl .sl-note-text--sm { font-size: 14px; line-height: 1.5; }
+.sl .sl-note-text--xs { font-size: 13px; line-height: 1.45; }
+
+/* 06: dlaczego K2 */
+.sl-energies { margin-top: 40px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+.sl-energy { padding: 28px 32px; border-radius: 20px; background: var(--bg-2, #f7f6f4); }
+.sl-energy-name { display: flex; align-items: center; gap: 12px; font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 28px; }
+.sl-energy-dot { width: 12px; height: 12px; border-radius: 50%; }
+.sl .sl-energy p { margin-top: 10px; font-size: 17px; line-height: 1.5; }
+.sl-stats { margin-top: 40px; padding-top: 28px; border-top: 1px solid #e4e6ec; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; }
+.sl-stat-num { font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 52px; line-height: 1.05; color: var(--red, #d91e18); }
+.sl .sl-stat-lbl { margin-top: 8px; font-size: 15px; line-height: 1.4; }
+
+@media print {
+  /* CookieConsent dopisuje body inline padding-bottom: 96px, gdy baner jest
+     widoczny. Styles.css chowa sam baner w druku, ale padding zostaje, a przy
+     stronach po 720 px daje to pustą, dodatkową stronę PDF. */
+  body:has(.slajdy) { padding-bottom: 0 !important; }
+  .slajdy { display: block; gap: 0; padding: 0; background: none; }
+  .slajdy .sl { break-after: page; page-break-after: always; }
+  .slajdy .sl:last-child { break-after: auto; page-break-after: auto; }
+}
