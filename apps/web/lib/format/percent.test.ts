@@ -1,5 +1,29 @@
 import { describe, it, expect } from 'vitest';
-import { formatSfPct } from './percent';
+import { formatPct, formatSfPct } from './percent';
+
+describe('formatPct (intensywność dofinansowania)', () => {
+  it('okrągła stawka bez zbędnych zer: 50% → „50"', () => {
+    expect(formatPct(0.5)).toBe('50');
+    expect(formatPct(0.7)).toBe('70');
+  });
+
+  it('nie zaokrągla do całości: 45,5% → „45,5", nie „46"', () => {
+    // Sedno błędu: Math.round(0.455 * 100) dawało 46, a kwota dofinansowania
+    // liczyła się od 45,5% — klient przeliczający na kartce dostawał inną liczbę.
+    expect(formatPct(0.455)).toBe('45,5');
+    expect(formatPct(0.455)).not.toBe('46');
+  });
+
+  it('zachowuje dwa miejsca po przecinku', () => {
+    expect(formatPct(0.4555)).toBe('45,55');
+  });
+
+  it('jest tą samą funkcją co formatSfPct (wspólna logika)', () => {
+    for (const x of [0.5, 0.455, 0.0906, 0.06]) {
+      expect(formatPct(x)).toBe(formatSfPct(x));
+    }
+  });
+});
 
 describe('formatSfPct', () => {
   it('nie gubi drugiego miejsca po przecinku', () => {
