@@ -24,7 +24,10 @@ import { ApiError } from '@/lib/api/error';
 import { normalizeOfferKind } from '@/lib/offers/kind';
 import { sanitizeRichText, sanitizeProse } from '@/lib/richtext';
 import type { PricingVariant } from '@/lib/pricing';
-import { SCOPE_PREP, CULTURE_SCOPE_PREP, SCOPE_EXEC, CULTURE_SCOPE_EXEC, PROCESS, FAQ_ITEMS } from '../staticContent';
+import { applyOfferTokens, resolveOfferTokens } from '@/lib/offers/tokens';
+import { PROCESS, FAQ_ITEMS } from '../staticContent';
+import { grantFaq, slideScope } from './prepare';
+import type { FaqRow } from './prepare';
 import { CoverSlide, ProgramSlide, PricingSlide, ClosingSlide, statusBadge } from './slides';
 import { ScopeSlide, ProcessSlide, FaqSlide } from './slides-info';
 import { IntroSlide, BulletsSlide, NotesSlide, AboutSlide, resolveNotesExec } from './slides-text';
@@ -61,19 +64,23 @@ export default async function SlidesPage({ params }: Props) {
   });
 
   const sb = createAdminClient();
-  const [contactRes, faqRes, statsRes] = await Promise.all([
+  const [contactRes, faqRes, statsRes, tokensRes] = await Promise.all([
     offer.contact_person_id
       ? sb.from('contact_persons').select('*').eq('id', offer.contact_person_id).maybeSingle()
       : Promise.resolve({ data: null }),
-    // Jak w page.tsx: pytania z bazy (edytowalne w panelu), a bez nich stałe FAQ_ITEMS.
+    // Jak w page.tsx: pytania z bazy (edytowalne w panelu), osobny zestaw dla każdego typu
+    // oferty (`kind`, patrz grantFaq). `select('*')`, bo brak kolumny przed migracją nie
+    // może wywalić renderu.
     sb
       .from('faq_items')
-      .select('id, question, answer')
+      .select('*')
       .is('deleted_at', null)
       .eq('is_active', true)
       .order('display_order'),
     // Statystyki firmowe z ustawień (edytowalne w /admin/ustawienia), jak w page.tsx.
     sb.from('app_settings').select('value').eq('key', 'company_stats').maybeSingle(),
+    // Wartości podstawiane w treści oferty (`{{de_minimis}}`), jak w page.tsx.
+    sb.from('app_settings').select('value').eq('key', 'offer_tokens').maybeSingle(),
   ]);
   const dto = toPublicOfferDto(offer, contactRes.data ?? null, null);
 
@@ -81,17 +88,27 @@ export default async function SlidesPage({ params }: Props) {
     return <div className="slajdy-note">Prototyp slajdów obsługuje tylko oferty dotacyjne.</div>;
   }
 
-  const content = (dto.content ?? {}) as {
+  // Podstawienia tokenów raz, na całym `content`, zanim cokolwiek go czyta (jak w page.tsx).
+  const content = applyOfferTokens(dto.content ?? {}, resolveOfferTokens(tokensRes.data?.value)) as {
     programDescription?: string;
-    altPrograms?: Array<{ name: string; program?: string; nabor?: string; desc?: string; recommended?: boolean }>;
+    altPrograms?: Array<{
+      name: string;
+      program?: string;
+      nabor?: string;
+      desc?: string;
+      recommended?: boolean;
+      // Wariant zakresu zapisany przy programie; brak pola = oferta sprzed migracji.
+      scopeVariant?: string;
+    }>;
     execIncluded?: boolean;
     recommendationBasis?: string;
     calcBullets?: unknown;
     notes?: unknown;
   };
   const reco = (Array.isArray(content.altPrograms) ? content.altPrograms : []).find((p) => p.recommended) ?? null;
-  // Program Kultura (EOG) ukrywa blok opłaty wykonawczej, jak w page.tsx.
-  const isCulture = /\b(EOG|norwesk)/i.test(`${reco?.program ?? ''} ${reco?.name ?? ''}`);
+  // Zakres prac i opłata wykonawcza z wariantu zadeklarowanego przy programie, jak w page.tsx
+  // (program Kultura nie ma kafelka opłaty wykonawczej).
+  const scope = slideScope(reco);
 
   const rawVariants = (dto.pricingSnapshot as { variants?: unknown }).variants;
   const variants = (Array.isArray(rawVariants) ? (rawVariants as PricingVariant[]) : []).filter((v) =>
@@ -108,16 +125,14 @@ export default async function SlidesPage({ params }: Props) {
     : dto.execFee.kicker;
 
   // Zakres: dwa bloki jak w ScopeAccordion (przygotowanie + obsługa i rozliczanie).
-  const prep = isCulture ? CULTURE_SCOPE_PREP : SCOPE_PREP;
-  const exec = isCulture ? CULTURE_SCOPE_EXEC : SCOPE_EXEC;
+  const { prep, exec } = scope;
   const tabs = [
     { no: '01', label: 'Przygotowanie dokumentacji', tag: 'w cenie oferty' },
     ...(exec.length > 0
       ? [{ no: '02', label: 'Obsługa i rozliczanie projektu', tag: execIncluded ? 'w cenie oferty' : 'opcjonalne' }]
       : []),
   ];
-  const faqRows = (faqRes.data ?? []) as Array<{ id: string; question: string; answer: string }>;
-  const faq = faqRows.length > 0 ? faqRows.map((f) => ({ q: f.question, a: f.answer })) : FAQ_ITEMS;
+  const faq = grantFaq((faqRes.data ?? []) as FaqRow[], FAQ_ITEMS);
   // Teksty konsultanta: `content` to jsonb bez gwarancji typów, więc normalizujemy jak page.tsx.
   const recommendationBasisHtml = sanitizeProse(content.recommendationBasis);
   const calcBullets = Array.isArray(content.calcBullets)
@@ -127,7 +142,7 @@ export default async function SlidesPage({ params }: Props) {
   const selected = variants.find((v) => v.id === dto.selectedVariant) ?? variants[0] ?? null;
   const notesData = {
     exec: resolveNotesExec({
-      hidden: isCulture,
+      hidden: !scope.hasExecFee,
       selected,
       execMonthly: dto.execFee.monthly,
       kicker: execKicker,
@@ -205,9 +220,9 @@ export default async function SlidesPage({ params }: Props) {
           projectValue: dto.projectValue,
           fundingRate: dto.fundingRate,
           funding,
-          execFee: isCulture
-            ? null
-            : { label: `${execKicker}: ${dto.execFee.title}`, monthly: dto.execFee.monthly },
+          execFee: scope.hasExecFee
+            ? { label: `${execKicker}: ${dto.execFee.title}`, monthly: dto.execFee.monthly }
+            : null,
         }}
       />
       {calcBullets.length > 0 && <BulletsSlide no="04b" footer={footer} bullets={calcBullets} />}
