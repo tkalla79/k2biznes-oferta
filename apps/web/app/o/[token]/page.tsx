@@ -30,6 +30,7 @@ import { sanitizeRichText, sanitizeProse } from '@/lib/richtext';
 import { resolveLoanPricing, usesDefaultSfBasis } from '@/lib/pricing/loan';
 import { resolveExecPricing } from '@/lib/pricing/exec';
 import { normalizeOfferKind } from '@/lib/offers/kind';
+import { formatPct } from '@/lib/format/percent';
 import { applyOfferTokens, resolveOfferTokens } from '@/lib/offers/tokens';
 import { resolveScopeVariant } from '@/lib/offers/scopeVariant';
 import type { ExecPricingResult, LoanPricingResult } from '@/lib/pricing';
@@ -723,7 +724,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
                 </div>
                 <div className="cr-item">
                   <div className="cr-label">Intensywność dofinansowania</div>
-                  <div className="cr-val">{Math.round(dto.fundingRate * 100)}%</div>
+                  <div className="cr-val">{formatPct(dto.fundingRate)}%</div>
                 </div>
                 <div className="cr-item">
                   <div className="cr-label">Szacowana wartość dofinansowania</div>

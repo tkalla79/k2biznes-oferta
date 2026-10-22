@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { formatPct } from '@/lib/format/percent';
 
 type Variant = 'I' | 'II' | 'III' | 'IV';
 
@@ -180,7 +181,7 @@ export default function AcceptForm({
                 <dd>{fmt(summary.projectValue)}</dd>
               </div>
               <div>
-                <dt>Dofinansowanie ({Math.round(summary.fundingRate * 100)}%)</dt>
+                <dt>Dofinansowanie ({formatPct(summary.fundingRate)}%)</dt>
                 <dd>{fmt(summary.funding)}</dd>
               </div>
               <div>
