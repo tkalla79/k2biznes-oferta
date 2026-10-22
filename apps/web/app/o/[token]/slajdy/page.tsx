@@ -25,7 +25,7 @@ import { normalizeOfferKind } from '@/lib/offers/kind';
 import { sanitizeRichText, sanitizeProse } from '@/lib/richtext';
 import type { PricingVariant } from '@/lib/pricing';
 import { SCOPE_PREP, CULTURE_SCOPE_PREP, SCOPE_EXEC, CULTURE_SCOPE_EXEC, PROCESS, FAQ_ITEMS } from '../staticContent';
-import { CoverSlide, ProgramSlide, PricingSlide, ClosingSlide } from './slides';
+import { CoverSlide, ProgramSlide, PricingSlide, ClosingSlide, statusBadge } from './slides';
 import { ScopeSlide, ProcessSlide, FaqSlide } from './slides-info';
 import { IntroSlide, BulletsSlide, NotesSlide, AboutSlide, resolveNotesExec } from './slides-text';
 import './slajdy.css';
@@ -53,8 +53,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('pl-PL');
 
 export default async function SlidesPage({ params }: Props) {
-  // Draft i wygasła oferta dają 404, tak jak na stronie klienta.
-  const { offer } = await fetchPublicOffer(params.token).catch((e) => {
+  // Draft i wygasła oferta dają 404, tak jak na stronie klienta. Oferta zaakceptowana
+  // lub odrzucona jest zwracana z isActive=false i dostaje oznaczenie na okładce.
+  const { offer, isActive } = await fetchPublicOffer(params.token).catch((e) => {
     if (e instanceof ApiError && (e.status === 404 || e.status === 410)) notFound();
     throw e;
   });
@@ -154,6 +155,7 @@ export default async function SlidesPage({ params }: Props) {
           programLabel: dto.programLabel,
           validUntil,
           execIncluded,
+          status: statusBadge(dto.status, isActive),
         }}
       />
       {recommendationBasisHtml && (

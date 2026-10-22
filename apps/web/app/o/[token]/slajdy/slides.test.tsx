@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { ReactElement } from 'react';
 import type { PricingVariant } from '@/lib/pricing';
-import { CoverSlide, ProgramSlide, PricingSlide, ClosingSlide } from './slides';
+import { CoverSlide, ProgramSlide, PricingSlide, ClosingSlide, statusBadge } from './slides';
 import { ScopeSlide, ProcessSlide, FaqSlide } from './slides-info';
 import { IntroSlide, BulletsSlide, NotesSlide, AboutSlide, resolveNotesExec } from './slides-text';
 
@@ -32,6 +32,28 @@ describe('slajdy oferty', () => {
     expect(joined).toContain('Przykładowa Firma Sp. z o.o.');
     expect(joined).not.toContain('sl-foot');
     expect(html(<CoverSlide d={{ ...d, execIncluded: false }} />)).toContain('dokumentacji projektu');
+  });
+
+  it('okładka: oznaczenie statusu tylko dla oferty nieaktywnej o statusie końcowym', () => {
+    const d = { offerNumber: 'K2/2026/01/001', dateLabel: '01.01.2026', clientName: 'Przykładowa Firma Sp. z o.o.', programLabel: 'Dig.IT', validUntil: null, execIncluded: true };
+    expect(statusBadge('accepted', false)).toBe('accepted');
+    expect(statusBadge('rejected', false)).toBe('rejected');
+    expect(statusBadge('expired', false)).toBe('expired');
+    // aktywna oferta, status roboczy i nazwy z prototypu obiektu nie dostają oznaczenia
+    expect(statusBadge('sent', true)).toBeNull();
+    expect(statusBadge('viewed', true)).toBeNull();
+    expect(statusBadge('accepted', true)).toBeNull();
+    expect(statusBadge('draft', false)).toBeNull();
+    expect(statusBadge('toString', false)).toBeNull();
+    const accepted = html(<CoverSlide d={{ ...d, status: 'accepted' }} />);
+    expect(accepted).toContain('sl-pill--accepted');
+    expect(accepted).toContain('Oferta zaakceptowana');
+    expect(accepted).toContain('K2/2026/01/001 · 01.01.2026');
+    expect(html(<CoverSlide d={{ ...d, status: 'rejected' }} />)).toContain('Oferta odrzucona');
+    expect(html(<CoverSlide d={{ ...d, status: 'expired' }} />)).toContain('Oferta wygasła');
+    for (const status of [null, undefined]) {
+      expect(html(<CoverSlide d={{ ...d, status }} />)).not.toContain('sl-pill--');
+    }
   });
 
   it('cennik: kwoty, procenty, jeden wybrany wariant i trzy kolumny', () => {

@@ -13,6 +13,21 @@ export const fmt = (n: number) =>
 
 type Footer = { no: string; footer: string };
 
+// Oznaczenia jak paski statusu na stronie oferty (page.tsx), w krótszej formie na okładkę.
+const STATUS_BADGES = {
+  accepted: 'Oferta zaakceptowana',
+  rejected: 'Oferta odrzucona',
+  expired: 'Oferta wygasła',
+} as const;
+
+export type OfferStatusBadge = keyof typeof STATUS_BADGES;
+
+/** Jak na stronie: oznaczenie tylko dla oferty nieaktywnej o statusie końcowym. */
+export function statusBadge(status: string, isActive: boolean): OfferStatusBadge | null {
+  if (isActive) return null;
+  return (Object.keys(STATUS_BADGES) as OfferStatusBadge[]).find((k) => k === status) ?? null;
+}
+
 export type CoverData = {
   offerNumber: string;
   dateLabel: string;
@@ -21,6 +36,8 @@ export type CoverData = {
   validUntil: string | null;
   /** Oferta łączona: przygotowanie wniosku oraz obsługa i rozliczanie w cenie. */
   execIncluded: boolean;
+  /** Status końcowy oferty (zaakceptowana, odrzucona, wygasła); null lub brak = oferta aktywna. */
+  status?: OfferStatusBadge | null;
 };
 
 export function CoverSlide({ d }: { d: CoverData }) {
@@ -34,9 +51,12 @@ export function CoverSlide({ d }: { d: CoverData }) {
         <div className="sl-cover-top">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className="sl-cover-logo" src="/branding-v2/k2-logo.png" alt="K2 Biznes" />
-          <div className="sl-pill">
-            <span className="sl-dot" />
-            {d.offerNumber} · {d.dateLabel}
+          <div className="sl-cover-meta">
+            {d.status && <div className={`sl-pill sl-pill--${d.status}`}>{STATUS_BADGES[d.status]}</div>}
+            <div className="sl-pill">
+              <span className="sl-dot" />
+              {d.offerNumber} · {d.dateLabel}
+            </div>
           </div>
         </div>
         <div>
