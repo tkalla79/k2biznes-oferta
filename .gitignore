@@ -36,3 +36,6 @@ coverage/
 *.log
 .vercel
 .env*
+
+# PDF z lokalnych skryptów (np. scripts/render-slides-pdf.mjs): zawierają dane handlowe klienta
+*.pdf

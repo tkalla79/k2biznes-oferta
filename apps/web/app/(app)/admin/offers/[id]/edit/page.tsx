@@ -120,6 +120,19 @@ export default async function EditOfferPage({ params }: { params: { id: string }
           >
             {offer.status === 'draft' ? 'Podgląd (draft) ↗' : 'Podgląd klienta ↗'}
           </a>
+          {/* PDF slajdów 16:9: tylko oferty dotacyjne, i dopiero po wysłaniu (trasa slajdów
+              nie ma podglądu wersji roboczej). Link względny z tego samego powodu co wyżej.
+              Gdy treść nie mieści się na slajdzie, endpoint zwraca błąd 422 zamiast PDF. */}
+          {offer.status !== 'draft' && normalizeOfferKind(offer.offer_kind) === 'grant' && (
+            <a
+              href={`/api/public/offers/${offer.client_token}/pdf?format=slides&src=panel`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={linkPreview}
+            >
+              Pobierz PDF (slajdy) ↗
+            </a>
+          )}
           <Link href="/admin/offers" style={linkBack}>
             ← Lista
           </Link>
