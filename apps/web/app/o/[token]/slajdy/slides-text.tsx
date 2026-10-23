@@ -29,17 +29,27 @@ export function IntroSlide({ no, footer, clientName, html }: Footer & { clientNa
 }
 
 /**
+ * Rozmiar punktorów wg łącznej długości: dłuższe założenia dostają mniejszą czcionkę i
+ * mniejsze odstępy (pomiar na 11 ofertach: do ok. 3300 znaków mieści się, 4000 jeszcze nie).
+ */
+export const bulletsSize = (bullets: string[]) => {
+  const n = bullets.reduce((sum, b) => sum + b.length, 0);
+  return n > 2700 ? 'xs' : n > 2000 ? 'sm' : 'md';
+};
+
+/**
  * 04b: założenia oferty, czyli punktory konsultanta (content.calcBullets).
  * Kolumny balansuje przeglądarka (CSS columns), bo punkty mają bardzo różną
  * długość i podział po liczbie wpychał najdłuższe do jednej kolumny.
  */
 export function BulletsSlide({ no, footer, bullets }: Footer & { bullets: string[] }) {
+  const size = bulletsSize(bullets);
   return (
     <Slide no={no} footerLabel={footer}>
       <SlideHead kicker="04 · MODEL WYNAGRODZENIA">
         Założenia <em>do wyceny</em>
       </SlideHead>
-      <div className="sl-bullets" style={{ columnCount: Math.min(Math.max(bullets.length, 1), 3) }}>
+      <div className={`sl-bullets sl-bullets--${size}`} style={{ columnCount: Math.min(Math.max(bullets.length, 1), 3) }}>
         {bullets.map((b, i) => (
           <div key={i} className="sl-bullet">
             <span>{String(i + 1).padStart(2, '0')}</span>
@@ -75,7 +85,7 @@ export function resolveNotesExec(a: {
 }
 
 /** Rozmiar tekstu wg długości: dłuższe uwagi dostają mniejszą czcionkę, żeby zmieścić się na slajdzie. */
-const sizeFor = (s: string) => (s.length > 1200 ? 'xs' : s.length > 700 ? 'sm' : 'md');
+export const sizeFor = (s: string) => (s.length > 1500 ? 'xxs' : s.length > 1200 ? 'xs' : s.length > 700 ? 'sm' : 'md');
 
 /** 04c: opis obsługi i rozliczania oraz uwagi do oferty. Slajd ma sens, gdy jest choć jedno z dwojga. */
 export function NotesSlide({ no, footer, d }: Footer & { d: NotesData }) {

@@ -174,10 +174,15 @@
 .sl-bullet { display: flex; gap: 12px; margin-bottom: 20px; break-inside: avoid; }
 .sl-bullet > span { flex: none; width: 28px; font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 20px; line-height: 1.2; color: var(--red, #d91e18); }
 .sl .sl-bullet p { font-size: 14px; line-height: 1.5; }
+.sl .sl-bullets--sm .sl-bullet { margin-bottom: 14px; }
+.sl .sl-bullets--sm .sl-bullet p { font-size: 13px; line-height: 1.45; }
+.sl .sl-bullets--xs { margin-top: 24px; }
+.sl .sl-bullets--xs .sl-bullet { margin-bottom: 10px; }
+.sl .sl-bullets--xs .sl-bullet p { font-size: 12px; line-height: 1.4; }
 
 /* 04c: obsługa i uwagi */
 .sl-notes { margin-top: 36px; display: grid; gap: 28px; align-items: stretch; }
-.sl-note-card { padding: 32px; border-radius: 20px; background: var(--bg-2, #f7f6f4); }
+.sl-note-card { padding: 28px; border-radius: 20px; background: var(--bg-2, #f7f6f4); }
 .sl-note-card--navy { background: var(--navy, #2a324b); color: #fff; }
 .sl-note-card--navy .sl-label { color: #c5cadb; }
 .sl .sl-note-card--navy p { color: #fff; }
@@ -187,6 +192,7 @@
 .sl .sl-note-card--navy .sl-note-text { margin-top: 14px; }
 .sl .sl-note-text--sm { font-size: 14px; line-height: 1.5; }
 .sl .sl-note-text--xs { font-size: 13px; line-height: 1.45; }
+.sl .sl-note-text--xxs { font-size: 12px; line-height: 1.4; }
 
 /* 06: dlaczego K2 */
 .sl-energies { margin-top: 40px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }

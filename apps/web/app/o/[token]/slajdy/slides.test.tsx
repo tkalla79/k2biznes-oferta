@@ -4,7 +4,7 @@ import type { ReactElement } from 'react';
 import type { PricingVariant } from '@/lib/pricing';
 import { CoverSlide, ProgramSlide, PricingSlide, ClosingSlide, statusBadge } from './slides';
 import { ScopeSlide, ProcessSlide, FaqSlide } from './slides-info';
-import { IntroSlide, BulletsSlide, NotesSlide, AboutSlide, resolveNotesExec } from './slides-text';
+import { IntroSlide, BulletsSlide, NotesSlide, AboutSlide, resolveNotesExec, bulletsSize, sizeFor } from './slides-text';
 
 // Dane przykładowe oferty dotacyjnej (wartość projektu 1 000 000 zł, 50%). Klient i numer oferty są fikcyjne.
 const variants: PricingVariant[] = [
@@ -136,6 +136,17 @@ describe('slajdy z tekstem konsultanta i ustawieniami firmowymi', () => {
     expect(out).toContain('&lt;i&gt;');
     expect(html(<BulletsSlide no="04b" footer="x" bullets={['a', 'b']} />)).toContain('column-count:2');
     expect(html(<BulletsSlide no="04b" footer="x" bullets={['a']} />)).toContain('column-count:1');
+  });
+
+  it('04b i 04c: rozmiar tekstu rośnie z długością (progi z pomiaru na prawdziwych ofertach)', () => {
+    expect(bulletsSize(['x'.repeat(2000)])).toBe('md');
+    expect(bulletsSize(['x'.repeat(2001)])).toBe('sm');
+    expect(bulletsSize(['x'.repeat(2701)])).toBe('xs');
+    expect(html(<BulletsSlide no="04b" footer="x" bullets={['x'.repeat(2701)]} />)).toContain('sl-bullets sl-bullets--xs');
+    expect(sizeFor('x'.repeat(700))).toBe('md');
+    expect(sizeFor('x'.repeat(1200))).toBe('sm');
+    expect(sizeFor('x'.repeat(1500))).toBe('xs');
+    expect(sizeFor('x'.repeat(1501))).toBe('xxs');
   });
 
   it('04c: tytuł i liczba kart zależą od tego, co oferta ma', () => {
