@@ -18,7 +18,12 @@ let cachedBrowser: Browser | null = null;
 
 async function getBrowser(): Promise<Browser> {
   if (cachedBrowser?.connected) return cachedBrowser;
+  cachedBrowser = await launchBrowser();
+  return cachedBrowser;
+}
 
+/** Nowa przeglądarka, bez cache. `getBrowser` ją cache'uje, `renderSlidesPdf` zamyka po użyciu. */
+async function launchBrowser(): Promise<Browser> {
   const puppeteer = await import('puppeteer-core');
 
   // Production (Vercel/AWS Lambda) — sparticuz/chromium
@@ -42,13 +47,12 @@ async function getBrowser(): Promise<Browser> {
       );
     }
     // sparticuz v148+ wymaga chromium.headless ('shell'), nie literal true.
-    cachedBrowser = await puppeteer.launch({
+    return await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath(),
       headless: chromium.headless,
     });
-    return cachedBrowser;
   }
 
   // Dev — local Chrome
@@ -58,12 +62,11 @@ async function getBrowser(): Promise<Browser> {
       'PDF_NOT_CONFIGURED_DEV: ustaw LOCAL_CHROME_PATH w .env.local (np. /Applications/Google Chrome.app/Contents/MacOS/Google Chrome).',
     );
   }
-  cachedBrowser = await puppeteer.launch({
+  return await puppeteer.launch({
     executablePath: localPath,
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
   });
-  return cachedBrowser;
 }
 
 export type RenderOptions = {
@@ -116,11 +119,14 @@ export type SlidesRender = {
  * czy PDF można wysłać, decyduje `checkSlides` w wywołującym.
  */
 export async function renderSlidesPdf(opts: RenderOptions): Promise<SlidesRender> {
-  const browser = await getBrowser();
-  // Izolowany context per render, tak jak w renderOfferPdf (patrz komentarz wyżej).
-  const ctx = await browser.createBrowserContext();
-  const page = await ctx.newPage();
+  // Własna przeglądarka na jeden render, zamykana na końcu, zamiast `createBrowserContext`:
+  // Chromium z @sparticuz/chromium (`--single-process`) zamyka się przy `Target.createTarget`
+  // z nowym kontekstem ("Target closed", README pakietu, issue Sparticuz/chromium#298), a na
+  // Vercelu 2026-10-23 padały tak oba pobrania. Izolację (bez wspólnych cookies i
+  // localStorage między klientami) daje tu proces, nie kontekst. `renderOfferPdf` (A4) bez zmian.
+  const browser = await launchBrowser();
   try {
+    const page = await browser.newPage();
     await page.setViewport({ width: 1280, height: 720 });
     await page.goto(opts.url, {
       waitUntil: 'networkidle0',
@@ -136,8 +142,7 @@ export async function renderSlidesPdf(opts: RenderOptions): Promise<SlidesRender
     );
     return { bytes, slides, pages: countPdfPages(bytes) };
   } finally {
-    await page.close().catch(() => {});
-    await ctx.close().catch(() => {});
+    await browser.close().catch(() => {});
   }
 }
 
