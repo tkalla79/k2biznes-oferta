@@ -179,6 +179,16 @@
 .sl .sl-bullets--xs { margin-top: 24px; }
 .sl .sl-bullets--xs .sl-bullet { margin-bottom: 10px; }
 .sl .sl-bullets--xs .sl-bullet p { font-size: 12px; line-height: 1.4; }
+.sl .sl-bullets--xxs { margin-top: 20px; }
+.sl .sl-bullets--xxs .sl-bullet { margin-bottom: 8px; }
+.sl .sl-bullets--xxs .sl-bullet p { font-size: 11.5px; line-height: 1.35; }
+/* 01 (kolumna szeroka) i 02 (kolumna lewa): mniejszy tekst dla dłuższej prozy, patrz proseTier */
+.sl .sl-prose--lg.t1 { font-size: 14.5px; line-height: 1.5; }
+.sl .sl-prose--lg.t2 { font-size: 13.5px; line-height: 1.45; }
+.sl .sl-prose--lg.t3 { font-size: 12.5px; line-height: 1.4; }
+.sl .sl-col-left .sl-prose.t1 { font-size: 13.5px; line-height: 1.5; }
+.sl .sl-col-left .sl-prose.t2 { font-size: 12.5px; line-height: 1.45; }
+.sl .sl-col-left .sl-prose.t3 { font-size: 11.5px; line-height: 1.4; }
 
 /* 04c: obsługa i uwagi */
 .sl-notes { margin-top: 36px; display: grid; gap: 28px; align-items: stretch; }

@@ -29,3 +29,15 @@ export function grantFaq(rows: FaqRow[], fallback: FaqItem[]): FaqItem[] {
 export function slideScope(recommended: { scopeVariant?: unknown; name?: unknown; program?: unknown } | null) {
   return SCOPE_BY_VARIANT[resolveScopeVariant(recommended)];
 }
+
+/**
+ * Stopień zmniejszenia tekstu na slajdach z prozą (01 i 02) wg długości samego tekstu bez
+ * znaczników HTML. Slajd ma stały rozmiar, a nie dzieli treści, więc dłuższy tekst dostaje
+ * mniejszą czcionkę. Progi z pomiaru na 11 prawdziwych ofertach; `wide` = szeroka kolumna (01).
+ * Poniżej ok. 11,5 px tekst jest już nieczytelny, więc dalej zostaje błąd 422.
+ */
+export function proseTier(html: string, wide: boolean): 't0' | 't1' | 't2' | 't3' {
+  const n = html.replace(/<[^>]*>/g, '').length;
+  const [a, b, c] = wide ? [1100, 1400, 1700] : [850, 1050, 1300];
+  return n > c ? 't3' : n > b ? 't2' : n > a ? 't1' : 't0';
+}

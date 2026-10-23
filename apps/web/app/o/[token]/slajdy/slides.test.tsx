@@ -142,6 +142,7 @@ describe('slajdy z tekstem konsultanta i ustawieniami firmowymi', () => {
     expect(bulletsSize(['x'.repeat(2000)])).toBe('md');
     expect(bulletsSize(['x'.repeat(2001)])).toBe('sm');
     expect(bulletsSize(['x'.repeat(2701)])).toBe('xs');
+    expect(bulletsSize(['x'.repeat(3601)])).toBe('xxs');
     expect(html(<BulletsSlide no="04b" footer="x" bullets={['x'.repeat(2701)]} />)).toContain('sl-bullets sl-bullets--xs');
     expect(sizeFor('x'.repeat(700))).toBe('md');
     expect(sizeFor('x'.repeat(1200))).toBe('sm');

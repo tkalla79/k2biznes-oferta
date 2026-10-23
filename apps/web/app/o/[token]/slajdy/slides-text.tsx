@@ -1,5 +1,6 @@
 import Slide, { SlideHead } from './Slide';
 import { fmt } from './slides';
+import { proseTier } from './prepare';
 
 type Footer = { no: string; footer: string };
 
@@ -21,7 +22,7 @@ export function IntroSlide({ no, footer, clientName, html }: Footer & { clientNa
           </SlideHead>
         </div>
         <div className="sl-col-right">
-          <div className="sl-prose sl-prose--lg" dangerouslySetInnerHTML={{ __html: html }} />
+          <div className={`sl-prose sl-prose--lg ${proseTier(html, true)}`} dangerouslySetInnerHTML={{ __html: html }} />
         </div>
       </div>
     </Slide>
@@ -34,7 +35,7 @@ export function IntroSlide({ no, footer, clientName, html }: Footer & { clientNa
  */
 export const bulletsSize = (bullets: string[]) => {
   const n = bullets.reduce((sum, b) => sum + b.length, 0);
-  return n > 2700 ? 'xs' : n > 2000 ? 'sm' : 'md';
+  return n > 3600 ? 'xxs' : n > 2700 ? 'xs' : n > 2000 ? 'sm' : 'md';
 };
 
 /**

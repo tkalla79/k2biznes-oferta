@@ -1,5 +1,6 @@
 import Slide, { SlideHead } from './Slide';
 import { formatSfPct } from '@/lib/format/percent';
+import { proseTier } from './prepare';
 import type { PricingVariant } from '@/lib/pricing';
 
 // Ten sam format co w PricingVariants.tsx (kwoty z grupowaniem tysięcy zawsze).
@@ -118,7 +119,7 @@ export function ProgramSlide({ no, footer, d }: Footer & { d: ProgramData }) {
           </SlideHead>
           <div className="sl-prog">{d.programLabel}</div>
           {d.descriptionHtml && (
-            <div className="sl-prose" dangerouslySetInnerHTML={{ __html: d.descriptionHtml }} />
+            <div className={`sl-prose ${proseTier(d.descriptionHtml, false)}`} dangerouslySetInnerHTML={{ __html: d.descriptionHtml }} />
           )}
         </div>
         <div className="sl-col-right">

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CULTURE_SCOPE_EXEC, CULTURE_SCOPE_PREP, FAQ_ITEMS, SCOPE_EXEC, SCOPE_PREP } from '../staticContent';
-import { grantFaq, slideScope } from './prepare';
+import { grantFaq, proseTier, slideScope } from './prepare';
 
 const row = (question: string, kind?: string | null) => ({ question, answer: `Odpowiedź: ${question}`, kind });
 
@@ -48,5 +48,18 @@ describe('slideScope', () => {
     expect(s.prep).toBe(SCOPE_PREP);
     expect(s.exec).toBe(SCOPE_EXEC);
     expect(s.hasExecFee).toBe(true);
+  });
+});
+
+describe('proseTier', () => {
+  it('liczy sam tekst bez znaczników i dobiera stopień wg progów kolumny', () => {
+    const p = (n: number) => `<p>${'x'.repeat(n)}</p>`;
+    expect(proseTier(p(850), false)).toBe('t0');
+    expect(proseTier(p(851), false)).toBe('t1');
+    expect(proseTier(p(1051), false)).toBe('t2');
+    expect(proseTier(p(1301), false)).toBe('t3');
+    expect(proseTier(p(1100), true)).toBe('t0');
+    expect(proseTier(p(1701), true)).toBe('t3');
+    expect(proseTier('<p><b>' + 'x'.repeat(840) + '</b></p>', false)).toBe('t0');
   });
 });
