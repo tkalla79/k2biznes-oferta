@@ -194,7 +194,8 @@
 .sl-energy-name { display: flex; align-items: center; gap: 12px; font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 28px; }
 .sl-energy-dot { width: 12px; height: 12px; border-radius: 50%; }
 .sl .sl-energy p { margin-top: 10px; font-size: 17px; line-height: 1.5; }
-.sl-stats { margin-top: 40px; padding-top: 28px; border-top: 1px solid #e4e6ec; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; }
+/* Pierwsza kolumna szersza: „ponad 500 mln zł” przy 52 px ma ok. 395 px, a równa kolumna ok. 355 px zawijała je do dwóch linii. */
+.sl-stats { margin-top: 40px; padding-top: 28px; border-top: 1px solid #e4e6ec; display: grid; grid-template-columns: minmax(0, 1.35fr) repeat(2, minmax(0, 1fr)); gap: 28px; }
 .sl-stat-num { font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 52px; line-height: 1.05; color: var(--red, #d91e18); }
 .sl .sl-stat-lbl { margin-top: 8px; font-size: 15px; line-height: 1.4; }
 
