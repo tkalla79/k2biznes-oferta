@@ -41,6 +41,10 @@
 .sl-rule { flex: none; width: 36px; height: 1px; background: currentColor; }
 .sl-title { font-size: 46px; line-height: 1.1; letter-spacing: -0.01em; }
 .sl-title--xl { font-size: 60px; line-height: 1.05; }
+/* Slajd 02: „Rekomendujemy” przy 60 px ma ok. 444 px, a kolumna 420 px, więc overflow-wrap odrywał ostatnie „y”
+   do drugiej linii. Przy 52 px słowo ma ok. 385 px; nowrap sprawia, że przy szerszym kroju pisma wystaje w odstęp
+   między kolumnami, zamiast się dzielić. */
+.sl-col-left .sl-title--xl { font-size: 52px; white-space: nowrap; }
 .sl-label { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: #5b6477; }
 .sl-foot { position: absolute; left: 80px; right: 80px; bottom: 28px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #5b6477; }
 .sl-foot-brand { display: inline-flex; align-items: center; gap: 10px; }
@@ -94,10 +98,12 @@
 .sl-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 .sl-variants { display: grid; gap: 16px; }
 .sl-variant { box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 20px; border: 1px solid #e4e6ec; border-radius: 20px; background: var(--bg-2, #f7f6f4); }
-.sl-variant--sel { border: 2px solid var(--navy, #2a324b); background: #fff; }
+.sl-variant--sel { position: relative; border: 2px solid var(--navy, #2a324b); background: #fff; }
 .sl-vhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .sl-vname { margin-top: 4px; font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 22px; line-height: 1.15; }
-.sl-vsel { flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; background: var(--navy, #2a324b); color: #fff; font-size: 11px; font-weight: 600; }
+/* Znacznik „Rekomendowany” wisi na górnej krawędzi karty, żeby nie zabierał miejsca nazwie wariantu ani nie
+   przesuwał treści tylko w jednej z trzech kart. */
+.sl-vsel { position: absolute; top: -13px; right: 16px; display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; background: var(--navy, #2a324b); color: #fff; font-size: 11px; font-weight: 600; }
 .sl-vpct { font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 46px; line-height: 1; color: var(--red, #d91e18); }
 .sl-vpct-note { margin-top: 4px; font-size: 13px; }
 .sl-vrows { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid #d9dce3; }

@@ -205,7 +205,7 @@ export function PricingSlide({ no, footer, d }: Footer & { d: PricingData }) {
                         <svg aria-hidden width="11" height="11" viewBox="0 0 12 12" fill="none">
                           <path d="M2 6.5l2.5 2.5L10 3.5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
-                        Wybrany
+                        Rekomendowany
                       </span>
                     )}
                   </div>

@@ -150,11 +150,12 @@ export default async function SlidesPage({ params }: Props) {
     }),
     notes,
   };
-  // Staty firmowe: te same wartości zapasowe co w page.tsx.
+  // Staty firmowe z ustawień. Wartości zapasowe (gdy ustawień brak) to aktualne dane firmy: 500 mln zł, 254 projekty.
+  // Zapasowe w page.tsx (475 mln zł, 288) są starsze; w produkcji rządzą ustawienia, więc tam nie wychodzą.
   const cs = (statsRes.data?.value ?? {}) as { funding?: string; projects?: string; since?: string };
   const companyStats = {
-    funding: cs.funding || '475 mln zł',
-    projects: cs.projects || '288',
+    funding: cs.funding || '500 mln zł',
+    projects: cs.projects || '254',
     since: cs.since || 'od 2015',
   };
   const footer = `Oferta ${dto.offerNumber} · ${dto.clientName}`;

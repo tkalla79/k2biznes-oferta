@@ -56,12 +56,13 @@ describe('slajdy oferty', () => {
     }
   });
 
-  it('cennik: kwoty, procenty, jeden wybrany wariant i trzy kolumny', () => {
+  it('cennik: kwoty, procenty, jeden rekomendowany wariant i trzy kolumny', () => {
     const out = pricing({ label: 'Obsługa i rozliczanie projektu: Wynagrodzenie miesięczne', monthly: null });
     for (const t of ['28 000 zł', '40 500 zł', '47 000 zł', '6,5%', '7,8%', '500 000 zł', '1 000 zł netto / miesiąc']) {
       expect(out).toContain(t);
     }
-    expect(out.match(/Wybrany/g)).toHaveLength(1);
+    expect(out.match(/Rekomendowany/g)).toHaveLength(1);
+    expect(out).not.toContain('Wybrany');
     expect(out).toContain('repeat(3, minmax(0, 1fr))');
   });
 
