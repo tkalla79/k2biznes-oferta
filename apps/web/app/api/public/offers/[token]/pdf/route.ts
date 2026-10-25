@@ -170,7 +170,8 @@ async function slidesPdf(req: NextRequest, token: string, offer: OfferRow): Prom
     );
   }
 
-  void logPdfEvent(req, offer.id, {
+  // Z await: bez niego zapis ginął po wysłaniu odpowiedzi na Vercelu (licznik pobrań zostawał 0).
+  await logPdfEvent(req, offer.id, {
     cacheHit: false,
     bytes: rendered.bytes.byteLength,
     format: 'slides',
