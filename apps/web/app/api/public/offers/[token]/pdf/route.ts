@@ -10,13 +10,22 @@
  *
  * Event `pdf_downloaded` logujemy zawsze (cache hit/miss) — analytics ile razy
  * klient pobierał PDF.
+ *
+ * `?format=slides` (tylko oferty dotacyjne): PDF 16:9 z trasy `/o/[token]/slajdy`,
+ * jedna strona na slajd. Bez cache w buckecie: slajdy zależą od ustawień, FAQ,
+ * kontaktu i nadpisań cennika, których klucz powyżej nie obejmuje, a nieaktualny
+ * dokument handlowy jest niedopuszczalny. Treść niemieszcząca się na slajdzie
+ * kończy się błędem 422, bez wysyłania PDF (patrz `lib/pdf/slides-check.ts`).
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { handleError, ApiError } from '@/lib/api/error';
 import { fetchPublicOffer } from '@/lib/offers/public';
 import { pricingSnapshotHash, pdfStorageKey } from '@/lib/pdf/hash';
 import { getCachedPdf, putCachedPdf } from '@/lib/pdf/storage';
-import { renderOfferPdf } from '@/lib/pdf/render';
+import { renderOfferPdf, renderSlidesPdf } from '@/lib/pdf/render';
+import { checkSlides } from '@/lib/pdf/slides-check';
+import { normalizeOfferKind } from '@/lib/offers/kind';
+import type { OfferRow } from '@/lib/offers/mapper';
 import { signPdfBypass } from '@/lib/pdf-bypass';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { hashIp, getClientIp } from '@/lib/ip-hash';
@@ -34,6 +43,10 @@ export const maxDuration = 30;
 export async function GET(req: NextRequest, { params }: { params: { token: string } }) {
   try {
     const { offer } = await fetchPublicOffer(params.token);
+
+    if (req.nextUrl.searchParams.get('format') === 'slides') {
+      return await slidesPdf(req, params.token, offer);
+    }
 
     const hash = pricingSnapshotHash(offer.pricing_snapshot, offer.content);
     const key = pdfStorageKey(offer.offer_number, hash);
@@ -107,10 +120,81 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
   }
 }
 
+/**
+ * Adres, pod którym Chromium otwiera stronę do renderu. Na podglądzie (preview)
+ * NEXT_PUBLIC_APP_URL wskazuje domenę produkcyjną, a tam trasy `/slajdy` nie ma
+ * do czasu wdrożenia na produkcję (ten sam kłopot opisano w panelu w edit/page.tsx),
+ * więc na podglądzie renderujemy z adresu samego wdrożenia.
+ */
+function slidesBaseUrl(): string {
+  if (process.env.VERCEL_ENV === 'preview' && process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+}
+
+async function slidesPdf(req: NextRequest, token: string, offer: OfferRow): Promise<NextResponse> {
+  if (normalizeOfferKind(offer.offer_kind) !== 'grant') {
+    throw new ApiError('PDF_SLIDES_UNSUPPORTED', 'PDF slajdów jest dostępny tylko dla ofert dotacyjnych.', 422);
+  }
+  const { sig, ts } = await signPdfBypass(token);
+  const slidesUrl =
+    `${slidesBaseUrl()}/o/${encodeURIComponent(token)}/slajdy` +
+    `?__pdfBypass=${encodeURIComponent(sig)}&__pdfTs=${ts}`;
+
+  let rendered: Awaited<ReturnType<typeof renderSlidesPdf>>;
+  try {
+    rendered = await renderSlidesPdf({ url: slidesUrl });
+  } catch (e) {
+    const msg = (e as Error).message;
+    console.error('[pdf] slides render failed:', msg);
+    const isControlled = msg.startsWith('PDF_NOT_CONFIGURED');
+    throw new ApiError(
+      'INTERNAL_ERROR',
+      'Generowanie PDF jest tymczasowo niedostępne.',
+      503,
+      isControlled ? { reason: msg } : {},
+    );
+  }
+
+  const check = checkSlides(rendered.slides, rendered.pages);
+  if (!check.ok) {
+    console.error('[pdf] slides check failed:', check.reason, check.details.join('; '));
+    throw new ApiError(
+      'PDF_SLIDES_NOT_SENDABLE',
+      check.reason === 'OVERFLOW'
+        ? 'Treść nie mieści się na części slajdów. PDF nie został wygenerowany.'
+        : 'Nie udało się poprawnie złożyć slajdów w PDF.',
+      422,
+      { reason: check.reason, slides: check.details },
+    );
+  }
+
+  // Z await: bez niego zapis ginął po wysłaniu odpowiedzi na Vercelu (licznik pobrań zostawał 0).
+  await logPdfEvent(req, offer.id, {
+    cacheHit: false,
+    bytes: rendered.bytes.byteLength,
+    format: 'slides',
+    source: req.nextUrl.searchParams.get('src') === 'panel' ? 'panel' : 'link',
+  });
+
+  const buf = Buffer.from(rendered.bytes.buffer as ArrayBuffer, rendered.bytes.byteOffset, rendered.bytes.byteLength);
+  return new NextResponse(buf, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/pdf',
+      'Content-Length': String(buf.byteLength),
+      'Content-Disposition': `inline; filename="${offer.offer_number.replace(/[/\\?#]/g, '_')}_slajdy.pdf"`,
+      'Cache-Control': 'no-store, max-age=0',
+      'X-Pdf-Format': 'slides',
+    },
+  });
+}
+
 async function logPdfEvent(
   req: NextRequest,
   offerId: string,
-  payload: { cacheHit: boolean; bytes: number },
+  payload: { cacheHit: boolean; bytes: number; format?: 'slides'; source?: 'panel' | 'link' },
 ): Promise<void> {
   try {
     const sb = createAdminClient();

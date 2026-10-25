@@ -12,12 +12,18 @@
  * Auth: Edge → render route bypass przez HMAC `__pdfBypass` (sekcja 9.1.1, lib/pdf-bypass.ts).
  */
 import type { Browser } from 'puppeteer-core';
+import { collectSlideMetrics, countPdfPages, type SlideMetric } from './slides-check';
 
 let cachedBrowser: Browser | null = null;
 
 async function getBrowser(): Promise<Browser> {
   if (cachedBrowser?.connected) return cachedBrowser;
+  cachedBrowser = await launchBrowser();
+  return cachedBrowser;
+}
 
+/** Nowa przeglądarka, bez cache. `getBrowser` ją cache'uje, `renderSlidesPdf` zamyka po użyciu. */
+async function launchBrowser(): Promise<Browser> {
   const puppeteer = await import('puppeteer-core');
 
   // Production (Vercel/AWS Lambda) — sparticuz/chromium
@@ -41,13 +47,12 @@ async function getBrowser(): Promise<Browser> {
       );
     }
     // sparticuz v148+ wymaga chromium.headless ('shell'), nie literal true.
-    cachedBrowser = await puppeteer.launch({
+    return await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath(),
       headless: chromium.headless,
     });
-    return cachedBrowser;
   }
 
   // Dev — local Chrome
@@ -57,12 +62,11 @@ async function getBrowser(): Promise<Browser> {
       'PDF_NOT_CONFIGURED_DEV: ustaw LOCAL_CHROME_PATH w .env.local (np. /Applications/Google Chrome.app/Contents/MacOS/Google Chrome).',
     );
   }
-  cachedBrowser = await puppeteer.launch({
+  return await puppeteer.launch({
     executablePath: localPath,
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
   });
-  return cachedBrowser;
 }
 
 export type RenderOptions = {
@@ -97,6 +101,48 @@ export async function renderOfferPdf(opts: RenderOptions): Promise<Uint8Array> {
   } finally {
     await page.close().catch(() => {});
     await ctx.close().catch(() => {});
+  }
+}
+
+export type SlidesRender = {
+  /** PDF 16:9, jedna strona na slajd; pusty, gdy trasa nie zwróciła żadnego slajdu. */
+  bytes: Uint8Array;
+  /** Pomiar każdego slajdu w trybie druku (patrz slides-check.ts). */
+  slides: SlideMetric[];
+  /** Liczba stron w wygenerowanym PDF. */
+  pages: number;
+};
+
+/**
+ * PDF slajdów z trasy `/o/[token]/slajdy` (1280x720, rozmiar strony z CSS `@page`).
+ * Osobna funkcja, bez zmian w `renderOfferPdf` (PDF A4). Nie ocenia wyniku: o tym,
+ * czy PDF można wysłać, decyduje `checkSlides` w wywołującym.
+ */
+export async function renderSlidesPdf(opts: RenderOptions): Promise<SlidesRender> {
+  // Własna przeglądarka na jeden render, zamykana na końcu, zamiast `createBrowserContext`:
+  // Chromium z @sparticuz/chromium (`--single-process`) zamyka się przy `Target.createTarget`
+  // z nowym kontekstem ("Target closed", README pakietu, issue Sparticuz/chromium#298), a na
+  // Vercelu 2026-10-23 padały tak oba pobrania. Izolację (bez wspólnych cookies i
+  // localStorage między klientami) daje tu proces, nie kontekst. `renderOfferPdf` (A4) bez zmian.
+  const browser = await launchBrowser();
+  try {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1280, height: 720 });
+    await page.goto(opts.url, {
+      waitUntil: 'networkidle0',
+      timeout: opts.timeoutMs ?? 20_000,
+    });
+    await page.evaluate(() => document.fonts.ready);
+    // PDF powstaje w trybie druku, więc w nim też mierzymy.
+    await page.emulateMediaType('print');
+    const slides = await page.evaluate(collectSlideMetrics);
+    if (slides.length === 0) return { bytes: new Uint8Array(0), slides, pages: 0 };
+    const bytes = new Uint8Array(
+      await page.pdf({ width: '1280px', height: '720px', printBackground: true, preferCSSPageSize: true }),
+    );
+    return { bytes, slides, pages: countPdfPages(bytes) };
+  } finally {
+    await browser.close().catch(() => {});
   }
 }
 
