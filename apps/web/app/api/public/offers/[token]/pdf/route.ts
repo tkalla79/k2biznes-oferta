@@ -91,8 +91,9 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
       }
     }
 
-    // Event log (best-effort) — wzbogacony o cacheHit/byteSize
-    void logPdfEvent(req, offer.id, { cacheHit, bytes: (bytes as ArrayBuffer).byteLength });
+    // Event log (best-effort, błąd zapisu jest łapany w logPdfEvent) — wzbogacony o cacheHit/byteSize.
+    // Z await: bez niego zapis ginął po wysłaniu odpowiedzi na Vercelu (licznik pobrań zostawał 0).
+    await logPdfEvent(req, offer.id, { cacheHit, bytes: (bytes as ArrayBuffer).byteLength });
 
     const buf =
       bytes instanceof Uint8Array
