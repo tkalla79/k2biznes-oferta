@@ -14,15 +14,12 @@
 import type { Browser } from 'puppeteer-core';
 import { collectSlideMetrics, countPdfPages, type SlideMetric } from './slides-check';
 
-let cachedBrowser: Browser | null = null;
-
-async function getBrowser(): Promise<Browser> {
-  if (cachedBrowser?.connected) return cachedBrowser;
-  cachedBrowser = await launchBrowser();
-  return cachedBrowser;
-}
-
-/** Nowa przeglądarka, bez cache. `getBrowser` ją cache'uje, `renderSlidesPdf` zamyka po użyciu. */
+/**
+ * Nowa przeglądarka na jeden render; wywołujący zamyka ją po użyciu. Bez cache i bez
+ * `createBrowserContext`: Chromium z @sparticuz/chromium (`--single-process`) zamyka się przy
+ * `Target.createTarget` z nowym kontekstem ("Target closed", README pakietu, issue
+ * Sparticuz/chromium#298). Izolację między klientami (cookies, localStorage) daje proces.
+ */
 async function launchBrowser(): Promise<Browser> {
   const puppeteer = await import('puppeteer-core');
 
@@ -77,14 +74,9 @@ export type RenderOptions = {
 };
 
 export async function renderOfferPdf(opts: RenderOptions): Promise<Uint8Array> {
-  const browser = await getBrowser();
-  // Code review PR #4: per-request browser context. `cachedBrowser` jest
-  // re-używany między invocations Lambda — domyślny context sharuje
-  // cookies/localStorage między stronami, co stwarza ryzyko cross-customer
-  // leak. Tworzymy izolowany context per render i zamykamy go w `finally`.
-  const ctx = await browser.createBrowserContext();
-  const page = await ctx.newPage();
+  const browser = await launchBrowser();
   try {
+    const page = await browser.newPage();
     await page.goto(opts.url, {
       waitUntil: 'networkidle0',
       timeout: opts.timeoutMs ?? 20_000,
@@ -99,8 +91,7 @@ export async function renderOfferPdf(opts: RenderOptions): Promise<Uint8Array> {
     });
     return new Uint8Array(bytes);
   } finally {
-    await page.close().catch(() => {});
-    await ctx.close().catch(() => {});
+    await browser.close().catch(() => {});
   }
 }
 
@@ -115,15 +106,11 @@ export type SlidesRender = {
 
 /**
  * PDF slajdów z trasy `/o/[token]/slajdy` (1280x720, rozmiar strony z CSS `@page`).
- * Osobna funkcja, bez zmian w `renderOfferPdf` (PDF A4). Nie ocenia wyniku: o tym,
+ * Osobna funkcja obok `renderOfferPdf` (PDF A4). Nie ocenia wyniku: o tym,
  * czy PDF można wysłać, decyduje `checkSlides` w wywołującym.
  */
 export async function renderSlidesPdf(opts: RenderOptions): Promise<SlidesRender> {
-  // Własna przeglądarka na jeden render, zamykana na końcu, zamiast `createBrowserContext`:
-  // Chromium z @sparticuz/chromium (`--single-process`) zamyka się przy `Target.createTarget`
-  // z nowym kontekstem ("Target closed", README pakietu, issue Sparticuz/chromium#298), a na
-  // Vercelu 2026-10-23 padały tak oba pobrania. Izolację (bez wspólnych cookies i
-  // localStorage między klientami) daje tu proces, nie kontekst. `renderOfferPdf` (A4) bez zmian.
+  // Własna przeglądarka na jeden render, jak w `renderOfferPdf` (patrz `launchBrowser`).
   const browser = await launchBrowser();
   try {
     const page = await browser.newPage();
@@ -144,15 +131,4 @@ export async function renderSlidesPdf(opts: RenderOptions): Promise<SlidesRender
   } finally {
     await browser.close().catch(() => {});
   }
-}
-
-/**
- * Used by tests / shutdown hooks. W normalnym run cache'owany browser zostaje
- * (Lambda re-use) — przy reload modułu Next dev usuwa go automatycznie.
- */
-export async function closeBrowser(): Promise<void> {
-  if (cachedBrowser?.connected) {
-    await cachedBrowser.close();
-  }
-  cachedBrowser = null;
 }
