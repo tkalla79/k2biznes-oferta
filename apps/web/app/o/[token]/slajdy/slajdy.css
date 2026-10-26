@@ -121,7 +121,8 @@
 /* 08: zakończenie (jak w PDF strony: bez formularza, sama karta kontaktowa) */
 .sl-closing { display: flex; flex-direction: column; gap: 36px; }
 .sl-contact { display: flex; align-items: center; gap: 32px; padding: 32px 40px; border-radius: 24px; background: var(--bg-2, #f7f6f4); }
-.sl-contact img, .sl-contact-ph { flex: none; width: 120px; height: 120px; border-radius: 50%; object-fit: cover; background: #e4e6ec; display: flex; align-items: center; justify-content: center; font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 48px; }
+/* Zdjęcia kontaktów są pionowe (682x1024); kadr 50% 10% (strona oferty ma 15%, styles.css .contact-portrait; na slajdzie 15% zostawiało jeszcze za mało nad głową), bo środek obcina czubek głowy. */
+.sl-contact img, .sl-contact-ph { flex: none; width: 120px; height: 120px; border-radius: 50%; object-fit: cover; object-position: 50% 10%; background: #e4e6ec; display: flex; align-items: center; justify-content: center; font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 48px; }
 .sl-cname { margin-top: 6px; font-family: var(--serif, 'Fraunces', Georgia, serif); font-size: 34px; line-height: 1.15; }
 .sl-crole { font-size: 16px; }
 .sl-clinks { margin-top: 12px; display: flex; flex-direction: column; gap: 2px; font-size: 18px; font-weight: 500; }
