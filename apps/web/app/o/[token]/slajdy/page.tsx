@@ -27,6 +27,7 @@ import type { PricingVariant } from '@/lib/pricing';
 import { applyOfferTokens, resolveOfferTokens } from '@/lib/offers/tokens';
 import { PROCESS, FAQ_ITEMS } from '../staticContent';
 import { grantFaq, slideScope } from './prepare';
+import { splitBullets } from './paginate';
 import type { FaqRow } from './prepare';
 import { CoverSlide, ProgramSlide, PricingSlide, ClosingSlide, statusBadge } from './slides';
 import { ScopeSlide, ProcessSlide, FaqSlide } from './slides-info';
@@ -226,7 +227,17 @@ export default async function SlidesPage({ params }: Props) {
             : null,
         }}
       />
-      {calcBullets.length > 0 && <BulletsSlide no="04b" footer={footer} bullets={calcBullets} />}
+      {calcBullets.length > 0 &&
+        splitBullets(calcBullets).map((p, i) => (
+          <BulletsSlide
+            key={i}
+            no={i === 0 ? '04b' : '04b cd.'}
+            footer={footer}
+            bullets={p.bullets}
+            offset={p.offset}
+            cont={i > 0}
+          />
+        ))}
       {(notesData.exec || notesData.notes) && <NotesSlide no="04c" footer={footer} d={notesData} />}
       <ProcessSlide no="05" footer={footer} steps={PROCESS} />
       <AboutSlide no="06" footer={footer} stats={companyStats} />
