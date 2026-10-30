@@ -138,6 +138,14 @@ describe('slajdy z tekstem konsultanta i ustawieniami firmowymi', () => {
     expect(html(<BulletsSlide no="04b" footer="x" bullets={['a']} />)).toContain('column-count:1');
   });
 
+  it('04b cd.: numeracja punktów idzie dalej, a tytuł ma oznaczenie kontynuacji', () => {
+    const out = html(<BulletsSlide no="04b cd." footer="x" bullets={['a', 'b']} offset={12} cont />);
+    expect(out).toContain('<span>13</span><p>a');
+    expect(out).toContain('<span>14</span><p>b');
+    expect(out).toContain('(cd.)');
+    expect(html(<BulletsSlide no="04b" footer="x" bullets={['a']} />)).not.toContain('(cd.)');
+  });
+
   it('04b i 04c: rozmiar tekstu rośnie z długością (progi z pomiaru na prawdziwych ofertach)', () => {
     expect(bulletsSize(['x'.repeat(2000)])).toBe('md');
     expect(bulletsSize(['x'.repeat(2001)])).toBe('sm');

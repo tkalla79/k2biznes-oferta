@@ -43,17 +43,24 @@ export const bulletsSize = (bullets: string[]) => {
  * Kolumny balansuje przeglądarka (CSS columns), bo punkty mają bardzo różną
  * długość i podział po liczbie wpychał najdłuższe do jednej kolumny.
  */
-export function BulletsSlide({ no, footer, bullets }: Footer & { bullets: string[] }) {
+export function BulletsSlide({
+  no,
+  footer,
+  bullets,
+  offset = 0,
+  cont = false,
+}: Footer & { bullets: string[]; offset?: number; cont?: boolean }) {
   const size = bulletsSize(bullets);
   return (
     <Slide no={no} footerLabel={footer}>
       <SlideHead kicker="04 · MODEL WYNAGRODZENIA">
         Założenia <em>do wyceny</em>
+        {cont ? ' (cd.)' : ''}
       </SlideHead>
       <div className={`sl-bullets sl-bullets--${size}`} style={{ columnCount: Math.min(Math.max(bullets.length, 1), 3) }}>
         {bullets.map((b, i) => (
           <div key={i} className="sl-bullet">
-            <span>{String(i + 1).padStart(2, '0')}</span>
+            <span>{String(offset + i + 1).padStart(2, '0')}</span>
             <p>{b}</p>
           </div>
         ))}
