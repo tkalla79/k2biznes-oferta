@@ -28,12 +28,11 @@ import { normalizeOfferKind, hasVariants } from '@/lib/offers/kind';
 import { isLoanPricing } from '@/lib/pricing/loan';
 import { isExecPricing } from '@/lib/pricing/exec';
 import type { Json } from '@k2/database/types';
-import type {
-  ExecPricingResult,
-  LoanPricingResult,
-  PricingResult,
-  PricingVariant,
-} from '@/lib/pricing';
+import type { OfferPricingResult } from '@/lib/pricing';
+import {
+  resolveAcceptedBreakdown,
+  AcceptedVariantMissingError,
+} from '@/lib/pricing/accepted';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -115,45 +114,47 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     // ---------------------------------------------------------------- akceptacja
-    const snapshot = offer.pricing_snapshot as unknown as
-      | PricingResult
-      | LoanPricingResult
-      | ExecPricingResult;
+    const snapshot = offer.pricing_snapshot as unknown as OfferPricingResult;
+    const withoutVariants = isLoanPricing(snapshot) || isExecPricing(snapshot);
 
-    let acceptedFee: number;
-    let variant: 'I' | 'II' | 'III' | 'IV' | null = null;
-
-    if (isLoanPricing(snapshot) || isExecPricing(snapshot)) {
-      // Pożyczka i sam zakres 2 nie mają z czego wybierać — całość wynagrodzenia.
-      acceptedFee = snapshot.total;
-    } else if (hasVariants(kind)) {
-      if (!body.variant) {
-        throw new ApiError(
-          'VALIDATION_ERROR',
-          'Oferta dotacyjna wymaga wskazania wariantu, który klient wybrał.',
-          422,
-        );
-      }
-      if (!offer.offered_variants.includes(body.variant)) {
-        throw Errors.variantNotOffered();
-      }
-      const v = snapshot.variants?.find((x: PricingVariant) => x.id === body.variant);
-      if (!v) {
-        throw new ApiError(
-          'INTERNAL_ERROR',
-          `Wariant ${body.variant} nie istnieje w pricing_snapshot.`,
-          500,
-        );
-      }
-      acceptedFee = v.sfAmount;
-      variant = body.variant;
-    } else {
+    if (!withoutVariants && !hasVariants(kind)) {
       // offer_kind mówi loan/exec, a snapshot ma kształt dotacyjny — niespójność
       // z czasów przełączania typu oferty. Lepiej 409 niż kwota z sufitu.
       throw Errors.conflictStatus(
         'Cennik oferty nie pasuje do jej typu. Przelicz pricing przed zapisaniem decyzji.',
       );
     }
+    if (!withoutVariants && !body.variant) {
+      throw new ApiError(
+        'VALIDATION_ERROR',
+        'Oferta dotacyjna wymaga wskazania wariantu, który klient wybrał.',
+        422,
+      );
+    }
+    if (!withoutVariants && body.variant && !offer.offered_variants.includes(body.variant)) {
+      throw Errors.variantNotOffered();
+    }
+
+    // Ta sama funkcja co w formularzu klienta — kwota decyzji bierze się z
+    // tego, co klient widział (snapshot + `pricing_override`). Liczenie tego
+    // osobno w każdej ścieżce było źródłem błędu z 2026-11-05.
+    let breakdown;
+    try {
+      breakdown = resolveAcceptedBreakdown({
+        snapshot: offer.pricing_snapshot,
+        override: offer.pricing_override,
+        variantId: withoutVariants ? null : body.variant ?? null,
+      });
+    } catch (e) {
+      if (e instanceof AcceptedVariantMissingError) {
+        throw new ApiError('INTERNAL_ERROR', e.message, 500);
+      }
+      throw e;
+    }
+    const acceptedFee = breakdown.fee;
+    const variant: 'I' | 'II' | 'III' | 'IV' | null = withoutVariants
+      ? null
+      : body.variant ?? null;
 
     const { data: updated, error } = await sb
       .from('offers')

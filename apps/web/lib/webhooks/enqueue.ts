@@ -17,6 +17,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import type { OfferRow } from '@/lib/offers/mapper';
 import type { PricingResult } from '@/lib/pricing';
 import { normalizeOfferKind } from '@/lib/offers/kind';
+import { resolveAcceptedBreakdown } from '@/lib/pricing/accepted';
 import type { WebhookEvent, WebhookOfferPayload, WebhookTarget } from './types';
 import type { Json } from '@k2/database/types';
 
@@ -85,6 +86,36 @@ function tokenEnvFor(target: WebhookTarget): string | undefined {
  * Buduje payload z OfferRow + opcjonalnym `consultant`. Best-effort — pobiera
  * email konsultanta z `profiles` (jeden round-trip do DB).
  */
+/**
+ * Skladniki zaakceptowanego wariantu dla CRM. Liczone ta sama funkcja co kwota
+ * zapisywana w `accepted_fee`, zeby payload nie mogl sie z nia rozejsc.
+ *
+ * Best-effort: niespojny snapshot nie moze zablokowac webhooka, wiec wtedy
+ * wysylamy `null` zamiast zgadywac liczby.
+ */
+function acceptedBreakdown(offer: OfferRow): WebhookOfferPayload['offer']['acceptedBreakdown'] {
+  if (!offer.accepted_at || !offer.accepted_variant) return null;
+  try {
+    const b = resolveAcceptedBreakdown({
+      snapshot: offer.pricing_snapshot,
+      override: offer.pricing_override,
+      variantId: offer.accepted_variant as 'I' | 'II' | 'III' | 'IV',
+    });
+    return b.variant
+      ? {
+          variant: b.variant.id,
+          base: b.variant.base,
+          sfPct: b.variant.sfPct,
+          sfAmount: b.variant.sfAmount,
+          monthly: b.variant.monthly,
+          total: b.variant.total,
+        }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 async function buildPayload(args: {
   event: WebhookEvent;
   offer: OfferRow;
@@ -127,6 +158,7 @@ async function buildPayload(args: {
       selectedVariant: offer.selected_variant,
       acceptedVariant: offer.accepted_variant,
       acceptedFee: offer.accepted_fee == null ? null : Number(offer.accepted_fee),
+      acceptedBreakdown: acceptedBreakdown(offer),
     },
     consultant: {
       id: consultantId,

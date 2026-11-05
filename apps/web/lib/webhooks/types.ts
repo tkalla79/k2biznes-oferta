@@ -38,6 +38,26 @@ export type WebhookOfferPayload = {
     selectedVariant: string;
     acceptedVariant: string | null;
     acceptedFee: number | null;
+    /**
+     * Skladniki zaakceptowanego wariantu — z tego, co klient widzial (snapshot
+     * z nalozonym recznym cennikiem). CRM ma z czego zlozyc produkty deala;
+     * sama `acceptedFee` to tylko wynagrodzenie wynikowe, bez oplaty wstepnej
+     * i czesci miesiecznej. `null` dla pozyczki i zakresu 2 (brak wariantow)
+     * oraz dopoki oferta nie zostala zaakceptowana.
+     */
+    acceptedBreakdown: {
+      variant: string;
+      /** Oplata wstepna. */
+      base: number;
+      /** Ulamek, nie procent: 0.06 = 6%. */
+      sfPct: number;
+      /** Wynagrodzenie wynikowe — ta sama liczba co `acceptedFee`. */
+      sfAmount: number;
+      /** Stawka miesieczna za obsluge i rozliczanie. */
+      monthly: number;
+      /** base + sfAmount, bez czesci miesiecznej. */
+      total: number;
+    } | null;
   };
   client?: {
     name: string;

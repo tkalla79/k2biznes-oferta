@@ -25,6 +25,18 @@ export type OfferAcceptedConsultantProps = {
    */
   offerKind?: 'grant' | 'loan' | 'exec';
   acceptedFee: string;
+  /**
+   * Składniki wynagrodzenia z zaakceptowanego wariantu (tylko dotacja).
+   * Sama kwota success fee nie wystarczała: przy cenniku ręcznym nie dało się
+   * z maila zobaczyć, czy zgadza się z ofertą — a właśnie tam rozjechała się
+   * z tabelą wariantu (błąd z 2026-11-05).
+   */
+  breakdown?: {
+    base: string;
+    sfPct: string;
+    monthly: string;
+    total: string;
+  } | null;
   clientName: string;
   /** PR #3 review: nullable — guard renderowania linii email gdy klient nie podał. */
   clientEmail: string | null;
@@ -61,7 +73,20 @@ export default function OfferAcceptedConsultant(p: OfferAcceptedConsultantProps)
             {(p.offerKind ?? 'grant') === 'grant' && (
               <Row label="Wybrany wariant" value={p.acceptedVariant} />
             )}
-            <Row label="Success fee" value={p.acceptedFee} bold />
+            {p.breakdown ? (
+              <>
+                <Row label="Opłata wstępna" value={p.breakdown.base} />
+                <Row
+                  label={`Wynagrodzenie wynikowe (${p.breakdown.sfPct}%)`}
+                  value={p.acceptedFee}
+                  bold
+                />
+                <Row label="Razem (bez części miesięcznej)" value={p.breakdown.total} bold />
+                <Row label="Stawka miesięczna" value={p.breakdown.monthly} />
+              </>
+            ) : (
+              <Row label="Wynagrodzenie" value={p.acceptedFee} bold />
+            )}
             <Row
               label="Akceptujący"
               value={p.clientEmail ? `${p.clientName} <${p.clientEmail}>` : p.clientName}

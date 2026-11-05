@@ -13,6 +13,7 @@ import { toOfferDto } from '@/lib/offers/mapper';
 import OfferForm from '../../OfferForm';
 import OfferActions from '../../OfferActions';
 import { normalizeOfferKind } from '@/lib/offers/kind';
+import { resolveAcceptedBreakdown } from '@/lib/pricing/accepted';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -95,6 +96,26 @@ export default async function EditOfferPage({ params }: { params: { id: string }
       }
     : null;
 
+  // Czy migawka decyzji zgadza się z dzisiejszym cennikiem oferty?
+  // Liczymy tą samą funkcją co zapis decyzji, więc różnica oznacza realny
+  // rozjazd, a nie inny sposób liczenia.
+  const acceptedMismatch = (() => {
+    if (offer.status !== 'accepted' || offer.accepted_fee == null) return null;
+    try {
+      const b = resolveAcceptedBreakdown({
+        snapshot: offer.pricing_snapshot,
+        override: offer.pricing_override,
+        variantId: (offer.accepted_variant ?? offer.selected_variant) as 'I' | 'II' | 'III' | 'IV',
+      });
+      const stored = Number(offer.accepted_fee);
+      return b.fee === stored
+        ? null
+        : { stored, current: b.fee, variant: offer.accepted_variant ?? offer.selected_variant };
+    } catch {
+      return null;
+    }
+  })();
+
   return (
     <main style={main}>
       <header style={topbar}>
@@ -138,6 +159,23 @@ export default async function EditOfferPage({ params }: { params: { id: string }
           </Link>
         </div>
       </header>
+
+      {/* Migawka decyzji jest zamrożona w chwili akceptacji, a cennik oferty
+          można później edytować (PATCH po wysyłce kasuje tylko zatwierdzenie).
+          Gdy obie liczby się rozjadą, to, co widać w tabeli poniżej, NIE jest
+          tym, na co zgodził się klient — i to ta kwota idzie do umowy.
+          Rozjazd oznacza też ofertę zaakceptowaną przed poprawką z 2026-11-05,
+          gdy kwota decyzji liczyła się z siatki segmentów zamiast z ręcznego
+          cennika. */}
+      {acceptedMismatch && (
+        <div style={mismatchBox}>
+          <strong>Zapisana kwota akceptacji różni się od obecnego cennika.</strong>{' '}
+          Klient zaakceptował <strong>{fmtPLN(acceptedMismatch.stored)}</strong>, a z dzisiejszej
+          tabeli wariantu {acceptedMismatch.variant} wychodzi{' '}
+          <strong>{fmtPLN(acceptedMismatch.current)}</strong>. Do umowy i do CRM bierz kwotę
+          z akceptacji; jeśli to ona jest błędna, popraw ją świadomie i odnotuj powód.
+        </div>
+      )}
 
       <OfferActions
         offerId={offer.id}
@@ -192,4 +230,22 @@ const linkPreview: React.CSSProperties = {
   color: '#c92b3a',
   textDecoration: 'none',
   fontWeight: 500,
+};
+
+const fmtPLN = (n: number) =>
+  new Intl.NumberFormat('pl-PL', {
+    style: 'currency',
+    currency: 'PLN',
+    maximumFractionDigits: 0,
+  }).format(Math.round(n));
+
+const mismatchBox: React.CSSProperties = {
+  background: '#fff8e6',
+  border: '1px solid #f0d08a',
+  color: '#7a5a12',
+  borderRadius: 8,
+  padding: '12px 16px',
+  marginBottom: 16,
+  fontSize: 13,
+  lineHeight: 1.6,
 };

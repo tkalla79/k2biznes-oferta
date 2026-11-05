@@ -79,6 +79,15 @@ type ExecFeeUI = {
   monthly: string; // '' = use selectedVariant.monthly
 };
 
+/**
+ * Założenia symulatora EV. Były wpisane dwa razy — w wywołaniu
+ * `/api/simulator/pricing` i nigdzie indziej, bo kolumna EV brała gotową
+ * liczbę z odpowiedzi. Odkąd liczymy EV także dla cennika ręcznego, muszą być
+ * nazwane w jednym miejscu, inaczej obie wartości rozjechałyby się po cichu.
+ */
+const SIM_PROBABILITY = 0.5;
+const SIM_MONTHS_EXEC = 18;
+
 type AltProgramUI = {
   name: string;
   program: string;
@@ -695,10 +704,10 @@ export default function OfferForm({
         body: JSON.stringify({
           projectValue: form.projectValue,
           fundingRate: form.fundingRate,
-          probability: 0.5,
+          probability: SIM_PROBABILITY,
           returningClient: form.returningClient,
           projectCount: form.projectCount,
-          monthsExec: 18,
+          monthsExec: SIM_MONTHS_EXEC,
         }),
       });
       const json = await res.json();
@@ -1747,7 +1756,12 @@ export default function OfferForm({
                   <th style={thRight}>Wynagrodzenie wynikowe</th>
                   <th style={thRight}>Razem</th>
                   <th style={thRight}>Mies. (exec)</th>
-                  <th style={thRight} title="Wartość oczekiwana — total × prawdopodobieństwo akceptacji">EV ⓘ</th>
+                  <th
+                    style={thRight}
+                    title={`Wartość oczekiwana z wartości w tym wierszu: opłata wstępna + wynagrodzenie wynikowe × P + stawka miesięczna × ${SIM_MONTHS_EXEC} mies. × P, przy P = ${SIM_PROBABILITY * 100}%`}
+                  >
+                    EV ⓘ
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -1837,7 +1851,17 @@ export default function OfferForm({
                           fmtPLN(v.monthly)
                         )}
                       </td>
-                      <td style={{ ...tdRight, fontWeight: 600 }}>{fmtPLN(v.expectedValue)}</td>
+                      {/* EV z liczb TEGO wiersza. Wcześniej brało `v.expectedValue`
+                          prosto z symulatora, więc w trybie ręcznym kolumna
+                          przeczyła sąsiednim komórkom: pokazywała wartość
+                          oczekiwaną z siatki segmentów obok ręcznych kwot. */}
+                      <td style={{ ...tdRight, fontWeight: 600 }}>
+                        {fmtPLN(
+                          baseNum +
+                            sfAmount * SIM_PROBABILITY +
+                            monthlyNum * SIM_MONTHS_EXEC * SIM_PROBABILITY,
+                        )}
+                      </td>
                     </tr>
                   );
                 })}

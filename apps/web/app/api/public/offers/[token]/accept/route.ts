@@ -29,14 +29,10 @@ import { logAudit } from '@/lib/audit';
 import { notifyConsultantOfferAccepted } from '@/lib/email/notifications';
 import { enqueueOfferWebhook } from '@/lib/webhooks/enqueue';
 import type { Json } from '@k2/database/types';
-import type {
-  ExecPricingResult,
-  LoanPricingResult,
-  PricingResult,
-  PricingVariant,
-} from '@/lib/pricing';
-import { isLoanPricing } from '@/lib/pricing/loan';
-import { isExecPricing } from '@/lib/pricing/exec';
+import {
+  resolveAcceptedBreakdown,
+  AcceptedVariantMissingError,
+} from '@/lib/pricing/accepted';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -75,30 +71,24 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
       );
     }
 
-    // Wylicz acceptedFee z pricing_snapshot (zamrożona kalkulacja z momentu utworzenia oferty).
-    // Pożyczka (offer_kind='loan') i sam zakres 2 (offer_kind='exec') nie mają
-    // wariantów — fee to całość wynagrodzenia z ich snapshotu (przy zakresie 2:
-    // stawka miesięczna × zadeklarowany okres).
-    const rawSnapshot = offer.pricing_snapshot as unknown as
-      | PricingResult
-      | LoanPricingResult
-      | ExecPricingResult;
-    let acceptedFee: number;
-    if (isLoanPricing(rawSnapshot) || isExecPricing(rawSnapshot)) {
-      acceptedFee = rawSnapshot.total;
-    } else {
-      const variant = rawSnapshot.variants.find(
-        (v: PricingVariant) => v.id === body.selectedVariant,
-      );
-      if (!variant) {
-        throw new ApiError(
-          'INTERNAL_ERROR',
-          `Wariant ${body.selectedVariant} nie istnieje w pricing_snapshot.`,
-          500,
-        );
+    // Kwota decyzji z tego, co klient WIDZIAŁ: snapshot z nałożonym
+    // `pricing_override`. Wcześniej liczyliśmy z surowego snapshotu, więc przy
+    // cenniku ręcznym `accepted_fee` było kwotą z siatki segmentów, a nie z
+    // oferty (błąd z 2026-11-05, oferta K2/2026/10/017).
+    let breakdown;
+    try {
+      breakdown = resolveAcceptedBreakdown({
+        snapshot: offer.pricing_snapshot,
+        override: offer.pricing_override,
+        variantId: body.selectedVariant,
+      });
+    } catch (e) {
+      if (e instanceof AcceptedVariantMissingError) {
+        throw new ApiError('INTERNAL_ERROR', e.message, 500);
       }
-      acceptedFee = variant.sfAmount;
+      throw e;
     }
+    const acceptedFee = breakdown.fee;
 
     // IP hash + UA dla audytu
     const { hash: ipHash, version: saltVersion } = await hashIp(getClientIp(req.headers));

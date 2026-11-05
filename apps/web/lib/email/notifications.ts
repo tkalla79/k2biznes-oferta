@@ -19,6 +19,8 @@ import { buildOfferSummary } from './summary';
 import { resolveOfferCc } from './cc';
 import { resolveOfferSubject } from './subject';
 import { normalizeOfferKind } from '../offers/kind';
+import { resolveAcceptedBreakdown } from '@/lib/pricing/accepted';
+import { formatSfPct } from '@/lib/format/percent';
 import type { Json } from '@k2/database/types';
 
 const fmtPLN = (n: number) =>
@@ -183,6 +185,36 @@ export async function notifyClientOfferSent(args: {
   return { ...result, cc };
 }
 
+/**
+ * Składniki wynagrodzenia do maila o akceptacji — z tego, co klient widział.
+ *
+ * Liczymy tu ponownie zamiast przekazywać z endpointu, bo powiadomienie
+ * wysyłają dwie ścieżki (formularz klienta i wpis decyzji z panelu). Gdyby
+ * każda budowała to po swojemu, wróciłaby ta sama klasa błędu, która kazała
+ * napisać `resolveAcceptedBreakdown`.
+ *
+ * Mail jest best-effort: gdy snapshot jest niespójny, wysyłamy go bez
+ * rozbicia, zamiast nie wysyłać wcale.
+ */
+function acceptedBreakdown(offer: OfferRow) {
+  try {
+    const b = resolveAcceptedBreakdown({
+      snapshot: offer.pricing_snapshot,
+      override: offer.pricing_override,
+      variantId: (offer.accepted_variant ?? offer.selected_variant) as 'I' | 'II' | 'III' | 'IV',
+    });
+    if (!b.variant) return null;
+    return {
+      base: fmtPLN(b.variant.base),
+      sfPct: formatSfPct(b.variant.sfPct),
+      monthly: fmtPLN(b.variant.monthly),
+      total: fmtPLN(b.variant.total),
+    };
+  } catch {
+    return null;
+  }
+}
+
 // =============================================================================
 // 2. System → konsultant po akceptacji
 // =============================================================================
@@ -209,6 +241,7 @@ export async function notifyConsultantOfferAccepted(offer: OfferRow): Promise<vo
     offerKind: normalizeOfferKind(offer.offer_kind),
     acceptedVariant: offer.accepted_variant ?? offer.selected_variant,
     acceptedFee: fmtPLN(Number(offer.accepted_fee ?? 0)),
+    breakdown: acceptedBreakdown(offer),
     clientName: offer.accepted_by_name ?? '—',
     // PR #3 review: nullable email — template guarduje renderowanie linii email.
     clientEmail: offer.accepted_by_email,
