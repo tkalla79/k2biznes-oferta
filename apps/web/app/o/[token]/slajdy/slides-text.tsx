@@ -92,8 +92,13 @@ export function resolveNotesExec(a: {
   return { kicker: a.kicker, monthly: a.execMonthly ?? a.selected.monthly, desc: a.desc };
 }
 
-/** Rozmiar tekstu wg długości: dłuższe uwagi dostają mniejszą czcionkę, żeby zmieścić się na slajdzie. */
-export const sizeFor = (s: string) => (s.length > 1500 ? 'xxs' : s.length > 1200 ? 'xs' : s.length > 700 ? 'sm' : 'md');
+/**
+ * Rozmiar tekstu wg długości: dłuższe uwagi dostają mniejszą czcionkę, żeby zmieścić się na slajdzie.
+ * Stopień `xxxs` z pomiaru: uwagi o długości 1952 znaków w `xxs` (12 px) nachodziły na stopkę
+ * o 30 px, a w 11 px mieszczą się z zapasem 21 px.
+ */
+export const sizeFor = (s: string) =>
+  s.length > 1800 ? 'xxxs' : s.length > 1500 ? 'xxs' : s.length > 1200 ? 'xs' : s.length > 700 ? 'sm' : 'md';
 
 /** 04c: opis obsługi i rozliczania oraz uwagi do oferty. Slajd ma sens, gdy jest choć jedno z dwojga. */
 export function NotesSlide({ no, footer, d }: Footer & { d: NotesData }) {

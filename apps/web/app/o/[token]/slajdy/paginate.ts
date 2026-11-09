@@ -5,8 +5,14 @@
  * punktu w połowie; jeden bardzo długi punkt nadal może przekroczyć slajd (wtedy 422).
  */
 
-/** Najwięcej znaków, które mieszczą się na jednym slajdzie (pomiar: 4024 znaki, zapas 15 px). */
-export const BULLETS_SINGLE_MAX = 4100;
+/**
+ * Najwięcej „wagi" (znaki plus koszt punktu), która mieści się na jednym slajdzie.
+ * Pomiar na wyrenderowanych slajdach 16:9 (limit treści 668 px): waga 4654 mieści się
+ * z zapasem, 5430 nachodzi na stopkę o 2 px, a 6059 o 1 px. Liczymy w wadze, nie w
+ * samych znakach, bo przy tej samej liczbie znaków slajd z większą liczbą punktów jest
+ * wyższy, a przy podziale po znakach wychodził o jeden slajd za mało.
+ */
+export const BULLETS_SINGLE_MAX = 4600;
 /** Koszt miejsca jednego punktu poza jego tekstem (odstęp, numer); wyrównuje slajdy po wysokości, nie po znakach. */
 const BULLET_OVERHEAD = 150;
 
@@ -18,11 +24,13 @@ export type BulletsPage = {
 
 export function splitBullets(bullets: string[], singleMax: number = BULLETS_SINGLE_MAX): BulletsPage[] {
   const total = bullets.reduce((sum, b) => sum + b.length, 0);
-  const pageCount = Math.max(1, Math.ceil(total / singleMax));
+  // Ta sama miara decyduje o liczbie slajdów i o ich wyrównaniu. Wcześniej liczba slajdów
+  // szła z samych znaków, a wyrównanie z wagi, więc 13 krótkich punktów zajmowało więcej
+  // miejsca niż 9 długich o tej samej liczbie znaków i slajd nachodził na stopkę.
+  const totalWeight = total + bullets.length * BULLET_OVERHEAD;
+  const pageCount = Math.max(1, Math.ceil(totalWeight / singleMax));
   if (pageCount === 1) return [{ bullets, offset: 0 }];
-  // Równa „wysokość" slajdów (znaki plus koszt punktu), bo 13 krótkich punktów zajmuje więcej
-  // miejsca niż 9 długich o tej samej liczbie znaków (pomiar: 2632 znaki w 13 punktach nie mieściły się).
-  const target = (total + bullets.length * BULLET_OVERHEAD) / pageCount;
+  const target = totalWeight / pageCount;
   const pages: BulletsPage[] = [];
   let current: string[] = [];
   let weight = 0;

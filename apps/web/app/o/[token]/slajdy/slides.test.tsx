@@ -156,6 +156,8 @@ describe('slajdy z tekstem konsultanta i ustawieniami firmowymi', () => {
     expect(sizeFor('x'.repeat(1200))).toBe('sm');
     expect(sizeFor('x'.repeat(1500))).toBe('xs');
     expect(sizeFor('x'.repeat(1501))).toBe('xxs');
+    expect(sizeFor('x'.repeat(1800))).toBe('xxs');
+    expect(sizeFor('x'.repeat(1801))).toBe('xxxs');
   });
 
   it('04c: tytuł i liczba kart zależą od tego, co oferta ma', () => {
