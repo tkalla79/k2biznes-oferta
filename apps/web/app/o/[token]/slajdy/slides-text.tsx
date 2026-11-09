@@ -1,6 +1,7 @@
 import Slide, { SlideHead } from './Slide';
 import { fmt } from './slides';
 import { proseTier } from './prepare';
+import { BULLET_OVERHEAD } from './paginate';
 
 type Footer = { no: string; footer: string };
 
@@ -30,12 +31,21 @@ export function IntroSlide({ no, footer, clientName, html }: Footer & { clientNa
 }
 
 /**
- * Rozmiar punktorów wg łącznej długości: dłuższe założenia dostają mniejszą czcionkę i
- * mniejsze odstępy (pomiar na 11 ofertach: do ok. 3300 znaków mieści się, 4000 jeszcze nie).
+ * Rozmiar punktorów wg wagi, czyli znaków powiększonych o stały koszt punktu (odstęp,
+ * numer) — tej samej miary, którą slajdy dzieli `splitBullets`.
+ *
+ * Sama liczba znaków nie wystarcza: slajd z większą liczbą krótszych punktów jest wyższy,
+ * więc przy progach po znakach dostawał WIĘKSZĄ czcionkę i nachodził na stopkę. Slajd
+ * 04b cd. oferty K2/2026/11/003 (3480 znaków w 13 punktach) lądował w `xs` i wychodził
+ * o 2 px, a w `xxs` miał 82 px zapasu.
+ *
+ * Progi dobrane na pomiarach wyrenderowanych slajdów tak, żeby żadna ze stron nie dostała
+ * czcionki większej niż dotychczas — stopień może wyłącznie zmaleć, więc zmiana nie jest
+ * w stanie wywołać nowego przepełnienia.
  */
 export const bulletsSize = (bullets: string[]) => {
-  const n = bullets.reduce((sum, b) => sum + b.length, 0);
-  return n > 3600 ? 'xxs' : n > 2700 ? 'xs' : n > 2000 ? 'sm' : 'md';
+  const weight = bullets.reduce((sum, b) => sum + b.length, 0) + bullets.length * BULLET_OVERHEAD;
+  return weight > 5000 ? 'xxs' : weight > 3600 ? 'xs' : weight > 2800 ? 'sm' : 'md';
 };
 
 /**

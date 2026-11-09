@@ -14,7 +14,7 @@
  */
 export const BULLETS_SINGLE_MAX = 4600;
 /** Koszt miejsca jednego punktu poza jego tekstem (odstęp, numer); wyrównuje slajdy po wysokości, nie po znakach. */
-const BULLET_OVERHEAD = 150;
+export const BULLET_OVERHEAD = 150;
 
 export type BulletsPage = {
   bullets: string[];
