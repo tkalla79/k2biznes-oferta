@@ -63,7 +63,8 @@ export type AuditAction =
   // wlasnym kanalem konsultanta.
   | 'offer.publish'
   | 'offer.approve'
-  | 'offer.approval_revoked';
+  | 'offer.approval_revoked'
+  | 'offer.status_change';
 
 export type AuditEntry = {
   action: AuditAction;

@@ -14,6 +14,7 @@ import { fetchPublicOffer } from '@/lib/offers/public';
 import { PublicEventInput } from '@/lib/validation/public-offers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { hashIp, getClientIp } from '@/lib/ip-hash';
+import { isTeamViewer } from '@/lib/auth/session';
 import type { Json } from '@k2/database/types';
 
 export const dynamic = 'force-dynamic';
@@ -22,6 +23,16 @@ export const runtime = 'nodejs';
 export async function POST(req: NextRequest, { params }: { params: { token: string } }) {
   try {
     const body = PublicEventInput.parse(await req.json());
+
+    // Ktoś z zespołu otworzył link klienta (podgląd z panelu). Jego otwarcie,
+    // doczytanie sekcji czy najechanie na wariant nie jest aktywnością klienta
+    // i nie może przestawić oferty na „obejrzana". Druga linia obrony obok
+    // strony, która dla zespołu w ogóle nie montuje trackerów — tu łapiemy
+    // m.in. karty otwarte przed wdrożeniem.
+    if (await isTeamViewer()) {
+      return NextResponse.json({ data: { ok: true, ignored: 'team' } });
+    }
+
     const { offer } = await fetchPublicOffer(params.token);
 
     const ip = getClientIp(req.headers);

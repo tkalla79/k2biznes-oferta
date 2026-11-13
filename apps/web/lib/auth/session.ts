@@ -51,6 +51,36 @@ export async function requireSession(): Promise<Session> {
   };
 }
 
+/**
+ * Czy stronę publiczną (link klienta) otwiera ktoś z zespołu K2?
+ *
+ * Klienci nie mają kont — zalogowana sesja Supabase oznacza zawsze kogoś z
+ * panelu. Dlatego wystarczy samo `getUser()`, bez roli z `profiles`: także
+ * konsultant z wyłączonym profilem nie jest klientem.
+ *
+ * Powód: link klienta otwierany z panelu („Podgląd klienta", „Pobierz PDF")
+ * zapisywał zdarzenia jako `actor_type='client'` — otwarcie, doczytanie
+ * sekcji, pobranie PDF — a pierwsze otwarcie przestawiało ofertę na
+ * „obejrzana". Zespół czytał w aktywności, że klient oglądał ofertę, choć
+ * oglądał ją konsultant.
+ *
+ * Nie rzuca: błąd odczytu sesji na stronie klienta nie może jej wywrócić.
+ * W razie wątpliwości zwracamy `false` — gorzej policzyć jedno otwarcie za
+ * dużo niż pokazać klientowi błąd zamiast oferty.
+ */
+export async function isTeamViewer(): Promise<boolean> {
+  try {
+    const supabase = createServerSupabase();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    return !!user;
+  } catch (e) {
+    console.error('[auth.session] isTeamViewer failed:', (e as Error).message);
+    return false;
+  }
+}
+
 export async function requireAdmin(): Promise<Session> {
   const s = await requireSession();
   if (s.role !== 'admin' && s.role !== 'super_admin') {

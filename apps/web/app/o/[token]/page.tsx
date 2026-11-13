@@ -30,6 +30,7 @@ import { sanitizeRichText, sanitizeProse } from '@/lib/richtext';
 import { resolveLoanPricing, usesDefaultSfBasis } from '@/lib/pricing/loan';
 import { resolveExecPricing } from '@/lib/pricing/exec';
 import { normalizeOfferKind } from '@/lib/offers/kind';
+import { isTeamViewer } from '@/lib/auth/session';
 import { formatPct } from '@/lib/format/percent';
 import { applyOfferTokens, resolveOfferTokens } from '@/lib/offers/tokens';
 import { resolveScopeVariant } from '@/lib/offers/scopeVariant';
@@ -139,6 +140,14 @@ export default async function OfferPage({ params, searchParams }: Props) {
     if (e instanceof ApiError && (e.status === 404 || e.status === 410)) notFound();
     throw e;
   }
+
+  // Link klienta otwarty przez kogoś z zespołu (np. „Podgląd klienta" z panelu).
+  // Wcześniej takie otwarcie liczyło się jako aktywność klienta: zdarzenia
+  // `viewed` / `scroll_depth` z `actor_type='client'`, a pierwsze otwarcie
+  // przestawiało ofertę na „obejrzana". Dla zespołu nie montujemy trackerów,
+  // a formularz akceptacji jest tylko podglądem. Druk (puppeteer PDF) nie ma
+  // sesji, więc tam nie pytamy.
+  const isTeamView = !isPreview && searchParams.print !== 'true' && (await isTeamViewer());
 
   const sb = createAdminClient();
   const [contactRes, caseRes, gdprRes, faqRes, statsRes, tokensRes] = await Promise.all([
@@ -378,10 +387,20 @@ export default async function OfferPage({ params, searchParams }: Props) {
   // N1/N2 (2026-07-15): sekcja 01 to teraz „podstawa rekomendacji" (bez punktów),
   // sekcja 02 bez „Dlaczego ten nabór" — `needs`/`hasNeeds`/`programReason` usunięte.
 
+  // Zdarzenia aktywności zapisujemy tylko dla klienta oglądającego aktywną
+  // ofertę — nie dla druku, podglądu draftu ani zespołu (patrz `isTeamView`).
+  const tracking = !isPrint && !isPreview && !isTeamView && isActive;
+
   // Status / preview banners
   const previewBanner = isPreview ? (
     <div className="fixed-banner banner-preview">
       Podgląd wersji roboczej — klient nie widzi tej oferty dopóki nie zostanie wysłana.
+    </div>
+  ) : null;
+  const teamBanner = isTeamView ? (
+    <div className="fixed-banner banner-preview">
+      Oglądasz jako zespół K2 — to otwarcie nie trafia do aktywności klienta i nie zmienia
+      statusu oferty.
     </div>
   ) : null;
   const statusBanner =
@@ -396,11 +415,12 @@ export default async function OfferPage({ params, searchParams }: Props) {
 
   return (
     <>
-      {!isPrint && !isPreview && isActive && <ViewTracker token={params.token} />}
+      {tracking && <ViewTracker token={params.token} />}
       {/* Audyt 2026-07 pkt 6: scroll_depth per sekcja → dashboard aktywności. */}
-      {!isPrint && !isPreview && isActive && <EngagementTracker token={params.token} />}
+      {tracking && <EngagementTracker token={params.token} />}
       {!isPrint && <RevealOnScroll />}
       {previewBanner}
+      {!isPrint && teamBanner}
       {statusBanner}
 
       {/* ==================== TOP NAV ==================== */}
@@ -768,7 +788,7 @@ export default async function OfferPage({ params, searchParams }: Props) {
                       monthly: dto.execFee.monthly ?? null,
                     }
               }
-              trackToken={!isPrint && !isPreview && isActive ? params.token : undefined}
+              trackToken={tracking ? params.token : undefined}
             />
           )}
 
@@ -955,7 +975,9 @@ export default async function OfferPage({ params, searchParams }: Props) {
                 Gotowi, by <em>zacząć</em>?
               </h2>
               <p className="section-lead">
-                {isActive
+                {isActive && isTeamView
+                  ? 'Podgląd zespołu: formularz jest wyłączony. Decyzję klienta zgłoszoną mailem lub telefonicznie zapisz w panelu oferty („Zmień status").'
+                  : isActive
                   ? 'Wybierz wariant i potwierdź. Skontaktujemy się w ciągu 1 dnia roboczego.'
                   : isPreview
                     ? 'Podsumowanie wybranego wariantu. W trybie klienta będzie tu formularz akceptacji.'
@@ -1001,7 +1023,12 @@ export default async function OfferPage({ params, searchParams }: Props) {
                   }}
                   gdprClauseVersion={gdprRes.data.version}
                   gdprText={gdprRes.data.text}
-                  previewOnly={!isActive && isPreview}
+                  previewOnly={(!isActive && isPreview) || isTeamView}
+                  previewMessage={
+                    isTeamView
+                      ? 'Jesteś zalogowany jako zespół K2 — formularz klienta jest wyłączony. Decyzję klienta zapisz w panelu oferty („Zmień status").'
+                      : undefined
+                  }
                 />
               ) : (
                 <div className="accept-card">

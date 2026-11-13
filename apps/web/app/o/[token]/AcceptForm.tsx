@@ -32,6 +32,8 @@ type Props = {
   gdprText: string;
   /** Disabled-mode: pokazujemy formularz w trybie podglądu (preview konsultanta). */
   previewOnly?: boolean;
+  /** Komunikat przy próbie wysłania w trybie podglądu (np. dla zespołu K2). */
+  previewMessage?: string;
   /**
    * Oferta pożyczkowa (offer_kind='loan'): brak wariantów i dofinansowania —
    * podsumowanie mówi o kwocie pożyczki, a nie o wartości projektu i intensywności.
@@ -66,6 +68,7 @@ export default function AcceptForm({
   gdprClauseVersion,
   gdprText,
   previewOnly = false,
+  previewMessage,
   isLoan = false,
   execSummary = null,
   hideVariants = false,
@@ -89,7 +92,10 @@ export default function AcceptForm({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (previewOnly) {
-      alert('Tryb podglądu — akceptacja niedostępna. Wyślij ofertę klientowi linkiem.');
+      alert(
+        previewMessage ??
+          'Tryb podglądu — akceptacja niedostępna. Wyślij ofertę klientowi linkiem.',
+      );
       return;
     }
     if (!gdpr) return;

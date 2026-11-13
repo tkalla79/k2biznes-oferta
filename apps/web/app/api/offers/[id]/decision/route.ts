@@ -28,12 +28,11 @@ import { normalizeOfferKind, hasVariants } from '@/lib/offers/kind';
 import { isLoanPricing } from '@/lib/pricing/loan';
 import { isExecPricing } from '@/lib/pricing/exec';
 import type { Json } from '@k2/database/types';
-import type {
-  ExecPricingResult,
-  LoanPricingResult,
-  PricingResult,
-  PricingVariant,
-} from '@/lib/pricing';
+import type { OfferPricingResult } from '@/lib/pricing';
+import {
+  resolveAcceptedBreakdown,
+  AcceptedVariantMissingError,
+} from '@/lib/pricing/accepted';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -115,45 +114,47 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     // ---------------------------------------------------------------- akceptacja
-    const snapshot = offer.pricing_snapshot as unknown as
-      | PricingResult
-      | LoanPricingResult
-      | ExecPricingResult;
+    const snapshot = offer.pricing_snapshot as unknown as OfferPricingResult;
+    const withoutVariants = isLoanPricing(snapshot) || isExecPricing(snapshot);
 
-    let acceptedFee: number;
-    let variant: 'I' | 'II' | 'III' | 'IV' | null = null;
-
-    if (isLoanPricing(snapshot) || isExecPricing(snapshot)) {
-      // Pożyczka i sam zakres 2 nie mają z czego wybierać — całość wynagrodzenia.
-      acceptedFee = snapshot.total;
-    } else if (hasVariants(kind)) {
-      if (!body.variant) {
-        throw new ApiError(
-          'VALIDATION_ERROR',
-          'Oferta dotacyjna wymaga wskazania wariantu, który klient wybrał.',
-          422,
-        );
-      }
-      if (!offer.offered_variants.includes(body.variant)) {
-        throw Errors.variantNotOffered();
-      }
-      const v = snapshot.variants?.find((x: PricingVariant) => x.id === body.variant);
-      if (!v) {
-        throw new ApiError(
-          'INTERNAL_ERROR',
-          `Wariant ${body.variant} nie istnieje w pricing_snapshot.`,
-          500,
-        );
-      }
-      acceptedFee = v.sfAmount;
-      variant = body.variant;
-    } else {
+    if (!withoutVariants && !hasVariants(kind)) {
       // offer_kind mówi loan/exec, a snapshot ma kształt dotacyjny — niespójność
       // z czasów przełączania typu oferty. Lepiej 409 niż kwota z sufitu.
       throw Errors.conflictStatus(
         'Cennik oferty nie pasuje do jej typu. Przelicz pricing przed zapisaniem decyzji.',
       );
     }
+    if (!withoutVariants && !body.variant) {
+      throw new ApiError(
+        'VALIDATION_ERROR',
+        'Oferta dotacyjna wymaga wskazania wariantu, który klient wybrał.',
+        422,
+      );
+    }
+    if (!withoutVariants && body.variant && !offer.offered_variants.includes(body.variant)) {
+      throw Errors.variantNotOffered();
+    }
+
+    // Ta sama funkcja co w formularzu klienta — kwota decyzji bierze się z
+    // tego, co klient widział (snapshot + `pricing_override`). Liczenie tego
+    // osobno w każdej ścieżce było źródłem błędu z 2026-11-05.
+    let breakdown;
+    try {
+      breakdown = resolveAcceptedBreakdown({
+        snapshot: offer.pricing_snapshot,
+        override: offer.pricing_override,
+        variantId: withoutVariants ? null : body.variant ?? null,
+      });
+    } catch (e) {
+      if (e instanceof AcceptedVariantMissingError) {
+        throw new ApiError('INTERNAL_ERROR', e.message, 500);
+      }
+      throw e;
+    }
+    const acceptedFee = breakdown.fee;
+    const variant: 'I' | 'II' | 'III' | 'IV' | null = withoutVariants
+      ? null
+      : body.variant ?? null;
 
     const { data: updated, error } = await sb
       .from('offers')
@@ -209,108 +210,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({
       data: { success: true, status: 'accepted', variant, acceptedFee, at: now },
     });
-  } catch (e) {
-    return handleError(e);
-  }
-}
-
-/**
- * DELETE /api/offers/[id]/decision — cofnięcie decyzji wpisanej z panelu.
- *
- * `accepted`/`rejected` to stany terminalne: blokują wysyłkę i zamykają
- * klientowi możliwość akceptacji pod tym samym linkiem. Skoro POST pozwala
- * wejść w nie jednym kliknięciem, musi istnieć wyjście — inaczej pomyłka w
- * wyborze „Odrzucona" trwale odcina klientowi możliwość przyjęcia oferty.
- *
- * Cofamy WYŁĄCZNIE decyzję wpisaną przez nas (zdarzenie z `actor_type='admin'`
- * i `offline: true`). Decyzji podjętej przez klienta w formularzu panel nie
- * kasuje: to jego oświadczenie woli, nie nasz wpis.
- */
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  try {
-    if (!UUID_RE.test(params.id)) {
-      throw new ApiError('VALIDATION_ERROR', 'Niepoprawny format id (UUID).', 422);
-    }
-    const session = await requireAdmin();
-
-    const sb = createAdminClient();
-    const { data: offer, error: loadErr } = await sb
-      .from('offers')
-      .select('*')
-      .eq('id', params.id)
-      .maybeSingle();
-    if (loadErr) throw new ApiError('INTERNAL_ERROR', loadErr.message, 500);
-    if (!offer || offer.deleted_at) throw Errors.offerNotFound();
-
-    if (offer.status !== 'accepted' && offer.status !== 'rejected') {
-      throw Errors.conflictStatus(`Oferta ma status "${offer.status}" — nie ma czego cofać.`);
-    }
-
-    const { data: last } = await sb
-      .from('offer_events')
-      .select('actor_type, payload')
-      .eq('offer_id', offer.id)
-      .in('type', ['accepted', 'rejected'])
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const wasOffline =
-      last?.actor_type === 'admin' &&
-      (last.payload as { offline?: boolean } | null)?.offline === true;
-    if (!wasOffline) {
-      throw Errors.conflictStatus(
-        'Tę decyzję podjął klient w formularzu oferty — nie cofamy jej z panelu.',
-      );
-    }
-
-    // Wracamy tam, gdzie oferta była przed decyzją: `viewed`, jeśli klient ją
-    // otworzył, inaczej `sent`. Osobnej kolumny na poprzedni status nie ma, a
-    // te dwa stany różni dokładnie `view_count`.
-    const back = offer.view_count > 0 ? 'viewed' : 'sent';
-
-    const { data: updated, error } = await sb
-      .from('offers')
-      .update({
-        status: back,
-        accepted_variant: null,
-        accepted_fee: null,
-        accepted_by_name: null,
-        accepted_by_email: null,
-        accepted_at: null,
-        client_comment: null,
-        rejected_by_name: null,
-        rejected_by_email: null,
-        reject_reason: null,
-        rejected_at: null,
-      })
-      .eq('id', offer.id)
-      .eq('status', offer.status)
-      .select()
-      .maybeSingle();
-    if (error) throw new ApiError('INTERNAL_ERROR', error.message, 500);
-    if (!updated) throw Errors.conflictStatus('Status oferty zmienił się podczas operacji.');
-
-    await Promise.allSettled([
-      sb.from('offer_events').insert({
-        offer_id: offer.id,
-        type: 'updated',
-        payload: { decisionReverted: offer.status, back } as Json,
-        actor_id: session.userId,
-        actor_type: 'admin',
-      }),
-      logAudit({
-        action: 'offer.update',
-        resourceType: 'offer',
-        resourceId: offer.id,
-        actorId: session.userId,
-        actorEmail: session.email,
-        before: { status: offer.status },
-        after: { status: back, decisionReverted: true },
-      }),
-    ]);
-
-    return NextResponse.json({ data: { success: true, status: back } });
   } catch (e) {
     return handleError(e);
   }
