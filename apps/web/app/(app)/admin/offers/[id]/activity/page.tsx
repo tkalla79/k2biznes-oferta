@@ -223,7 +223,16 @@ export default async function OfferActivityPage({ params }: { params: { id: stri
                 variant?: string;
                 channel?: string;
                 offline?: boolean;
+                statusChange?: { from?: string; to?: string };
+                reason?: string;
               };
+              // Ręczna zmiana statusu z panelu — bez tego w historii widać
+              // tylko „edycja", a nie co zmieniono i dlaczego.
+              const statusDetail = p.statusChange
+                ? `status: ${p.statusChange.from ?? '?'} → ${p.statusChange.to ?? '?'}${
+                    p.reason ? ` · ${p.reason}` : ''
+                  }`
+                : null;
               // Decyzja wpisana przez nas (mail, telefon) wygląda w bazie tak
               // samo jak kliknięcie klienta — bez kanału w timeline nie dałoby
               // się ich odróżnić, a to różnica w wartości dowodowej.
@@ -233,6 +242,7 @@ export default async function OfferActivityPage({ params }: { params: { id: stri
                   }`
                 : null;
               const detail =
+                statusDetail ??
                 offlineDetail ??
                 (p.section
                   ? SECTIONS.find((s) => s.id === p.section)?.label ?? p.section

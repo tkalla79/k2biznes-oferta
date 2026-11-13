@@ -4,6 +4,12 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Database } from '@k2/database/types';
 import { defaultOfferSubject } from '@/lib/email/subject';
+import {
+  allTargetsFrom,
+  planStatusChange,
+  type DecisionTarget,
+  type ManualStatusTarget,
+} from '@/lib/offers/statusChange';
 
 type OfferStatus = Database['public']['Enums']['offer_status'];
 
@@ -35,6 +41,8 @@ type Props = {
   offerKind: 'grant' | 'loan' | 'exec';
   /** Warianty zaproponowane klientowi — z nich wybiera decyzja. */
   offeredVariants: Array<'I' | 'II' | 'III' | 'IV'>;
+  /** Termin ważności — przy wznawianiu wygasłej oferty dialog mówi, co się z nim stanie. */
+  expiresAt: string | null;
 };
 
 /**
@@ -57,14 +65,13 @@ export default function OfferActions({
   canApprove,
   offerKind,
   offeredVariants,
+  expiresAt,
 }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [sendOpen, setSendOpen] = useState(false);
-  const [decisionOpen, setDecisionOpen] = useState(false);
-  const [busy, setBusy] = useState<null | 'recalc' | 'delete' | 'approve' | 'publish' | 'revert'>(
-    null,
-  );
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [busy, setBusy] = useState<null | 'recalc' | 'delete' | 'approve' | 'publish'>(null);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
   const isTerminal = status === 'accepted' || status === 'rejected' || status === 'expired';
@@ -140,36 +147,6 @@ export default function OfferActions({
           ? 'Oferta zatwierdzona do wysyłki.'
           : 'Zatwierdzenie cofnięte — wysyłka zablokowana.',
       });
-      startTransition(() => router.refresh());
-    } catch (e) {
-      setMsg({ kind: 'err', text: (e as Error).message });
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  /**
-   * Cofnięcie decyzji wpisanej z panelu. Serwer odmówi, jeśli decyzję podjął
-   * klient w formularzu — stąd przycisk widoczny zawsze przy statusie
-   * terminalnym, a rozstrzygnięcie po stronie API (jedno źródło prawdy).
-   */
-  async function revertDecision() {
-    if (
-      !confirm(
-        'Cofnąć zapisaną decyzję i wrócić do statusu sprzed niej?\n\n' +
-          'Działa tylko dla decyzji wpisanej z panelu. Kwota, wariant i notatka ' +
-          'zostaną wyczyszczone.',
-      )
-    ) {
-      return;
-    }
-    setBusy('revert');
-    setMsg(null);
-    try {
-      const res = await fetch(`/api/offers/${offerId}/decision`, { method: 'DELETE' });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error?.message ?? 'Cofnięcie nie powiodło się.');
-      setMsg({ kind: 'ok', text: `Decyzja cofnięta — status: ${json?.data?.status ?? '—'}.` });
       startTransition(() => router.refresh());
     } catch (e) {
       setMsg({ kind: 'err', text: (e as Error).message });
@@ -314,18 +291,19 @@ export default function OfferActions({
           Skopiuj link
         </button>
 
-        {/* Klienci częściej potwierdzają wybór mailem albo telefonicznie niż
-            formularzem na ofercie. Bez tego taka oferta zostawała na zawsze
-            jako „wysłana", a `accepted_fee` nie powstawał w ogóle. */}
-        {(status === 'sent' || status === 'viewed') && (
+        {/* Ręczna zmiana statusu (admin+): decyzja klienta zgłoszona mailem
+            lub telefonicznie, cofnięcie decyzji, zamknięcie albo wznowienie
+            oferty, przywrócenie „wysłana" po otwarciu linku przez zespół.
+            Przejścia i ich skutki: lib/offers/statusChange.ts. */}
+        {canApprove && allTargetsFrom(status).length > 0 && (
           <button
             type="button"
-            onClick={() => setDecisionOpen(true)}
+            onClick={() => setStatusOpen(true)}
             style={btnSecondary}
             disabled={busy !== null}
-            title="Klient potwierdził decyzję mailem, telefonicznie lub na spotkaniu"
+            title="Decyzja klienta zgłoszona poza ofertą, cofnięcie decyzji, zamknięcie lub wznowienie oferty"
           >
-            Zapisz decyzję klienta
+            Zmień status
           </button>
         )}
 
@@ -343,18 +321,6 @@ export default function OfferActions({
             }
           >
             {busy === 'publish' ? 'Otwieram…' : 'Otwórz link bez maila'}
-          </button>
-        )}
-
-        {(status === 'accepted' || status === 'rejected') && (
-          <button
-            type="button"
-            onClick={revertDecision}
-            style={btnSecondary}
-            disabled={busy !== null}
-            title="Cofa decyzję wpisaną z panelu (nie cofa decyzji klienta z formularza)"
-          >
-            {busy === 'revert' ? 'Cofam…' : 'Cofnij decyzję'}
           </button>
         )}
 
@@ -376,16 +342,18 @@ export default function OfferActions({
         </div>
       )}
 
-      {decisionOpen && (
-        <DecisionDialog
+      {statusOpen && (
+        <StatusDialog
           offerId={offerId}
           offerNumber={offerNumber}
           clientName={clientName}
+          status={status}
+          expiresAt={expiresAt}
           offerKind={offerKind}
           offeredVariants={offeredVariants}
-          onClose={() => setDecisionOpen(false)}
+          onClose={() => setStatusOpen(false)}
           onSaved={(text) => {
-            setDecisionOpen(false);
+            setStatusOpen(false);
             setMsg({ kind: 'ok', text });
             startTransition(() => router.refresh());
           }}
@@ -427,7 +395,7 @@ export default function OfferActions({
 }
 
 // -----------------------------------------------------------------------------
-// DecisionDialog — decyzja klienta przekazana poza systemem
+// StatusDialog — ręczna zmiana statusu (w tym decyzja klienta spoza systemu)
 // -----------------------------------------------------------------------------
 
 const CHANNELS = [
@@ -437,10 +405,22 @@ const CHANNELS = [
   { v: 'other', label: 'Inny' },
 ] as const;
 
-function DecisionDialog({
+const STATUS_LABELS: Record<ManualStatusTarget | DecisionTarget, string> = {
+  accepted: 'Zaakceptowana — klient potwierdził poza ofertą',
+  rejected: 'Odrzucona — klient odmówił poza ofertą',
+  sent: 'Wysłana — klient jeszcze nie otworzył',
+  viewed: 'Obejrzana — otwarta, bez decyzji',
+  expired: 'Wygasła — zamknij ofertę',
+};
+
+const isDecision = (t: string): t is DecisionTarget => t === 'accepted' || t === 'rejected';
+
+function StatusDialog({
   offerId,
   offerNumber,
   clientName,
+  status,
+  expiresAt,
   offerKind,
   offeredVariants,
   onClose,
@@ -449,13 +429,16 @@ function DecisionDialog({
   offerId: string;
   offerNumber: string;
   clientName: string;
+  status: OfferStatus;
+  expiresAt: string | null;
   offerKind: 'grant' | 'loan' | 'exec';
   offeredVariants: Array<'I' | 'II' | 'III' | 'IV'>;
   onClose: () => void;
   onSaved: (text: string) => void;
 }) {
+  const targets = allTargetsFrom(status);
+  const [target, setTarget] = useState<ManualStatusTarget | DecisionTarget>(targets[0]);
   const needsVariant = offerKind === 'grant';
-  const [decision, setDecision] = useState<'accepted' | 'rejected'>('accepted');
   const [channel, setChannel] = useState<(typeof CHANNELS)[number]['v']>('email');
   const [confirmedBy, setConfirmedBy] = useState(clientName);
   const [variant, setVariant] = useState<'I' | 'II' | 'III' | 'IV' | ''>(
@@ -465,40 +448,59 @@ function DecisionDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Skutki przejścia liczone tą samą funkcją co na serwerze — dialog pokazuje
+  // dokładnie to, co się stanie, zanim admin kliknie.
+  const plan = isDecision(target)
+    ? null
+    : planStatusChange({ from: status, to: target, expiresAt });
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!confirmedBy.trim()) {
-      setError('Podaj, kto po stronie klienta przekazał decyzję.');
+
+    if (isDecision(target)) {
+      if (!confirmedBy.trim()) {
+        setError('Podaj, kto po stronie klienta przekazał decyzję.');
+        return;
+      }
+      if (target === 'accepted' && needsVariant && !variant) {
+        setError('Wskaż wariant, który klient wybrał.');
+        return;
+      }
+    } else if (note.trim().length < 3) {
+      setError('Podaj powód zmiany statusu — to jedyny ślad, dlaczego status jest ręczny.');
       return;
     }
-    if (decision === 'accepted' && needsVariant && !variant) {
-      setError('Wskaż wariant, który klient wybrał.');
-      return;
-    }
+
     setBusy(true);
     try {
-      const body: Record<string, unknown> = {
-        decision,
-        channel,
-        confirmedBy: confirmedBy.trim(),
-      };
-      if (decision === 'accepted' && needsVariant) body.variant = variant;
-      if (note.trim()) body.note = note.trim();
-
-      const res = await fetch(`/api/offers/${offerId}/decision`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+      const res = isDecision(target)
+        ? await fetch(`/api/offers/${offerId}/decision`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              decision: target,
+              channel,
+              confirmedBy: confirmedBy.trim(),
+              ...(target === 'accepted' && needsVariant ? { variant } : {}),
+              ...(note.trim() ? { note: note.trim() } : {}),
+            }),
+          })
+        : await fetch(`/api/offers/${offerId}/status`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to: target, reason: note.trim() }),
+          });
       const json = await res.json();
-      if (!res.ok) throw new Error(json?.error?.message ?? 'Zapis decyzji nie powiódł się.');
+      if (!res.ok) throw new Error(json?.error?.message ?? 'Zmiana statusu nie powiodła się.');
       onSaved(
-        decision === 'accepted'
+        target === 'accepted'
           ? `Oferta ${offerNumber} oznaczona jako zaakceptowana${
               json?.data?.variant ? ` (wariant ${json.data.variant})` : ''
             }.`
-          : `Oferta ${offerNumber} oznaczona jako odrzucona.`,
+          : target === 'rejected'
+            ? `Oferta ${offerNumber} oznaczona jako odrzucona.`
+            : `Status oferty ${offerNumber}: ${STATUS_LABELS[target].split(' — ')[0].toLowerCase()}.`,
       );
     } catch (err) {
       setError((err as Error).message);
@@ -511,87 +513,120 @@ function DecisionDialog({
     <div style={overlay} onClick={onClose}>
       <div style={modal} onClick={(e) => e.stopPropagation()}>
         <header style={modalHeader}>
-          <h3 style={{ margin: 0, fontSize: 18 }}>Decyzja klienta — {offerNumber}</h3>
+          <h3 style={{ margin: 0, fontSize: 18 }}>Zmiana statusu — {offerNumber}</h3>
           <button type="button" onClick={onClose} style={closeBtn} aria-label="Zamknij">
             ×
           </button>
         </header>
 
         <form onSubmit={submit} style={{ display: 'grid', gap: 12 }}>
-          <p style={{ fontSize: 13, color: '#6b7a92', margin: 0 }}>
-            Dla decyzji przekazanej poza ofertą — mailem, telefonicznie albo na spotkaniu.
-            Zapis ustawia status, wariant i kwotę wynagrodzenia dokładnie tak, jak zrobiłby to
-            formularz klienta.
-          </p>
-
-          <Field label="Decyzja">
+          <Field label="Nowy status">
             <select
-              value={decision}
-              onChange={(e) => setDecision(e.target.value as 'accepted' | 'rejected')}
+              value={target}
+              onChange={(e) => setTarget(e.target.value as ManualStatusTarget | DecisionTarget)}
               style={input}
             >
-              <option value="accepted">Zaakceptowana</option>
-              <option value="rejected">Odrzucona</option>
-            </select>
-          </Field>
-
-          {decision === 'accepted' && needsVariant && (
-            <Field label="Wybrany wariant *">
-              <select
-                value={variant}
-                onChange={(e) => setVariant(e.target.value as typeof variant)}
-                style={input}
-              >
-                <option value="">— wybierz —</option>
-                {offeredVariants.map((v) => (
-                  <option key={v} value={v}>
-                    Wariant {v}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          )}
-
-          <Field label="Kanał">
-            <select
-              value={channel}
-              onChange={(e) => setChannel(e.target.value as typeof channel)}
-              style={input}
-            >
-              {CHANNELS.map((c) => (
-                <option key={c.v} value={c.v}>
-                  {c.label}
+              {targets.map((t) => (
+                <option key={t} value={t}>
+                  {STATUS_LABELS[t]}
                 </option>
               ))}
             </select>
           </Field>
 
-          <Field label="Kto przekazał decyzję *">
-            <input
-              type="text"
-              maxLength={200}
-              value={confirmedBy}
-              onChange={(e) => setConfirmedBy(e.target.value)}
-              placeholder="Imię i nazwisko albo rola osoby po stronie klienta"
-              style={input}
-            />
-          </Field>
+          {isDecision(target) ? (
+            <>
+              <p style={{ fontSize: 13, color: '#6b7a92', margin: 0 }}>
+                Dla decyzji przekazanej poza ofertą — mailem, telefonicznie albo na spotkaniu.
+                Zapis ustawia status, wariant i kwotę wynagrodzenia dokładnie tak, jak zrobiłby to
+                formularz klienta.
+              </p>
 
-          <Field label={decision === 'accepted' ? 'Notatka' : 'Powód odmowy'}>
-            <textarea
-              maxLength={2000}
-              rows={3}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="np. cytat z maila, data i godzina rozmowy"
-              style={{ ...input, lineHeight: 1.5, resize: 'vertical' }}
-            />
-          </Field>
+              {target === 'accepted' && needsVariant && (
+                <Field label="Wybrany wariant *">
+                  <select
+                    value={variant}
+                    onChange={(e) => setVariant(e.target.value as typeof variant)}
+                    style={input}
+                  >
+                    <option value="">— wybierz —</option>
+                    {offeredVariants.map((v) => (
+                      <option key={v} value={v}>
+                        Wariant {v}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
 
-          <p style={{ fontSize: 12, color: '#8a6d1f', background: '#fff8e6', border: '1px solid #f0e0b0', borderRadius: 6, padding: '8px 10px', margin: 0, lineHeight: 1.5 }}>
-            Zgoda RODO zostaje pusta — klient nie zaakceptował klauzuli w systemie i nie wpisujemy
-            jej za niego. Jeśli zgoda jest potrzebna, zbierz ją osobno.
-          </p>
+              <Field label="Kanał">
+                <select
+                  value={channel}
+                  onChange={(e) => setChannel(e.target.value as typeof channel)}
+                  style={input}
+                >
+                  {CHANNELS.map((c) => (
+                    <option key={c.v} value={c.v}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Kto przekazał decyzję *">
+                <input
+                  type="text"
+                  maxLength={200}
+                  value={confirmedBy}
+                  onChange={(e) => setConfirmedBy(e.target.value)}
+                  placeholder="Imię i nazwisko albo rola osoby po stronie klienta"
+                  style={input}
+                />
+              </Field>
+
+              <Field label={target === 'accepted' ? 'Notatka' : 'Powód odmowy'}>
+                <textarea
+                  maxLength={2000}
+                  rows={3}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="np. cytat z maila, data i godzina rozmowy"
+                  style={{ ...input, lineHeight: 1.5, resize: 'vertical' }}
+                />
+              </Field>
+
+              <p style={noticeBox}>
+                Zgoda RODO zostaje pusta — klient nie zaakceptował klauzuli w systemie i nie
+                wpisujemy jej za niego. Jeśli zgoda jest potrzebna, zbierz ją osobno.
+              </p>
+            </>
+          ) : (
+            <>
+              {plan && plan.effects.length > 0 && (
+                <ul style={{ ...noticeBox, paddingLeft: 26 }}>
+                  {plan.effects.map((e) => (
+                    <li key={e}>{e}</li>
+                  ))}
+                </ul>
+              )}
+              {(status === 'accepted' || status === 'rejected') && (
+                <p style={noticeBox}>
+                  CRM nie dostaje informacji o cofnięciu decyzji — jeśli deal był już oznaczony,
+                  popraw go tam ręcznie.
+                </p>
+              )}
+              <Field label="Powód zmiany *">
+                <textarea
+                  maxLength={1000}
+                  rows={3}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="np. ofertę otworzył ktoś z zespołu, nie klient"
+                  style={{ ...input, lineHeight: 1.5, resize: 'vertical' }}
+                />
+              </Field>
+            </>
+          )}
 
           {error && <div style={errBox}>{error}</div>}
 
@@ -600,7 +635,7 @@ function DecisionDialog({
               Anuluj
             </button>
             <button type="submit" style={btnPrimary} disabled={busy}>
-              {busy ? 'Zapisuję…' : 'Zapisz decyzję'}
+              {busy ? 'Zapisuję…' : 'Zmień status'}
             </button>
           </div>
         </form>
@@ -608,6 +643,17 @@ function DecisionDialog({
     </div>
   );
 }
+
+const noticeBox: React.CSSProperties = {
+  fontSize: 12,
+  color: '#8a6d1f',
+  background: '#fff8e6',
+  border: '1px solid #f0e0b0',
+  borderRadius: 6,
+  padding: '8px 10px',
+  margin: 0,
+  lineHeight: 1.5,
+};
 
 // -----------------------------------------------------------------------------
 // SendDialog — modal z formularzem

@@ -190,6 +190,7 @@ export default async function EditOfferPage({ params }: { params: { id: string }
         canApprove={isAdmin}
         offerKind={normalizeOfferKind(offer.offer_kind)}
         offeredVariants={offer.offered_variants}
+        expiresAt={offer.expires_at}
       />
 
       <OfferForm

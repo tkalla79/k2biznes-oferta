@@ -25,6 +25,7 @@ import { fetchActiveOffer } from '@/lib/offers/public';
 import { AcceptOfferInput } from '@/lib/validation/public-offers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { hashIp, getClientIp } from '@/lib/ip-hash';
+import { isTeamViewer } from '@/lib/auth/session';
 import { logAudit } from '@/lib/audit';
 import { notifyConsultantOfferAccepted } from '@/lib/email/notifications';
 import { enqueueOfferWebhook } from '@/lib/webhooks/enqueue';
@@ -39,6 +40,15 @@ export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest, { params }: { params: { token: string } }) {
   try {
+    // Zespół nie składa oświadczeń woli w imieniu klienta przez jego formularz:
+    // zapisałaby się zgoda RODO, której klient nie dał. Decyzję zgłoszoną
+    // mailem lub telefonicznie wpisuje się w panelu („Zmień status").
+    if (await isTeamViewer()) {
+      throw Errors.forbidden(
+        'Jesteś zalogowany jako zespół K2 — decyzję klienta zapisz w panelu oferty („Zmień status").',
+      );
+    }
+
     const body = AcceptOfferInput.parse(await req.json());
     const offer = await fetchActiveOffer(params.token);
 

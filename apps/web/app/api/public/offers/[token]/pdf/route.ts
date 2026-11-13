@@ -29,6 +29,7 @@ import type { OfferRow } from '@/lib/offers/mapper';
 import { signPdfBypass } from '@/lib/pdf-bypass';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { hashIp, getClientIp } from '@/lib/ip-hash';
+import { isTeamViewer } from '@/lib/auth/session';
 import type { Json } from '@k2/database/types';
 
 export const dynamic = 'force-dynamic';
@@ -198,6 +199,12 @@ async function logPdfEvent(
   payload: { cacheHit: boolean; bytes: number; format?: 'slides'; source?: 'panel' | 'link' },
 ): Promise<void> {
   try {
+    // PDF pobrany przez zespół (przycisk w panelu albo z podglądu linku) nie
+    // jest aktywnością klienta. Wcześniej zapisywał się jako `actor_type =
+    // 'client'` także z `src=panel` — w aktywności wyglądało to tak, jakby
+    // klient pobierał ofertę.
+    if (await isTeamViewer()) return;
+
     const sb = createAdminClient();
     const { hash, version } = await hashIp(getClientIp(req.headers));
     await sb.from('offer_events').insert({
