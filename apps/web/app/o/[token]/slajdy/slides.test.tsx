@@ -138,6 +138,15 @@ describe('slajdy z tekstem konsultanta i ustawieniami firmowymi', () => {
     expect(html(<BulletsSlide no="04b" footer="x" bullets={['a']} />)).toContain('column-count:1');
   });
 
+  // Regresja: slajd 04b cd. oferty K2/2026/11/003 (3480 znaków w 13 punktach) przy progach
+  // po samych znakach dostawał xs i nachodził na stopkę o 2 px. Po wadze dostaje xxs.
+  it('wiele krótkich punktów dostaje mniejszą czcionkę niż te same znaki w kilku długich', () => {
+    const krotkie = Array.from({ length: 13 }, () => 'x'.repeat(268)); // 3484 znaki, waga 5434
+    const dlugie = [...Array.from({ length: 3 }, () => 'x'.repeat(1161))]; // 3483 znaki, waga 3933
+    expect(bulletsSize(krotkie)).toBe('xxs');
+    expect(bulletsSize(dlugie)).toBe('xs');
+  });
+
   it('04b cd.: numeracja punktów idzie dalej, a tytuł ma oznaczenie kontynuacji', () => {
     const out = html(<BulletsSlide no="04b cd." footer="x" bullets={['a', 'b']} offset={12} cont />);
     expect(out).toContain('<span>13</span><p>a');
@@ -147,15 +156,18 @@ describe('slajdy z tekstem konsultanta i ustawieniami firmowymi', () => {
   });
 
   it('04b i 04c: rozmiar tekstu rośnie z długością (progi z pomiaru na prawdziwych ofertach)', () => {
-    expect(bulletsSize(['x'.repeat(2000)])).toBe('md');
-    expect(bulletsSize(['x'.repeat(2001)])).toBe('sm');
-    expect(bulletsSize(['x'.repeat(2701)])).toBe('xs');
-    expect(bulletsSize(['x'.repeat(3601)])).toBe('xxs');
-    expect(html(<BulletsSlide no="04b" footer="x" bullets={['x'.repeat(2701)]} />)).toContain('sl-bullets sl-bullets--xs');
+    // Progi są na wadze: znaki + 150 za każdy punkt. Dla jednego punktu to znaki + 150.
+    expect(bulletsSize(['x'.repeat(2650)])).toBe('md');
+    expect(bulletsSize(['x'.repeat(2651)])).toBe('sm');
+    expect(bulletsSize(['x'.repeat(3451)])).toBe('xs');
+    expect(bulletsSize(['x'.repeat(4851)])).toBe('xxs');
+    expect(html(<BulletsSlide no="04b" footer="x" bullets={['x'.repeat(3451)]} />)).toContain('sl-bullets sl-bullets--xs');
     expect(sizeFor('x'.repeat(700))).toBe('md');
     expect(sizeFor('x'.repeat(1200))).toBe('sm');
     expect(sizeFor('x'.repeat(1500))).toBe('xs');
     expect(sizeFor('x'.repeat(1501))).toBe('xxs');
+    expect(sizeFor('x'.repeat(1800))).toBe('xxs');
+    expect(sizeFor('x'.repeat(1801))).toBe('xxxs');
   });
 
   it('04c: tytuł i liczba kart zależą od tego, co oferta ma', () => {
