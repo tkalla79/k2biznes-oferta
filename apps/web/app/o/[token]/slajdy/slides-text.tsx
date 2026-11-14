@@ -42,10 +42,14 @@ export function IntroSlide({ no, footer, clientName, html }: Footer & { clientNa
  * Progi dobrane na pomiarach wyrenderowanych slajdów tak, żeby żadna ze stron nie dostała
  * czcionki większej niż dotychczas — stopień może wyłącznie zmaleć, więc zmiana nie jest
  * w stanie wywołać nowego przepełnienia.
+ *
+ * Próg `sm` -> `xs` obniżony z 3600 na 3400: slajd 04b cd. oferty K2/2026/11/007 (waga 3562,
+ * pięć punktów, w tym jeden 929-znakowy) w `sm` nachodził na stopkę o 25 px, a w `xs` ma
+ * 75 px zapasu.
  */
 export const bulletsSize = (bullets: string[]) => {
   const weight = bullets.reduce((sum, b) => sum + b.length, 0) + bullets.length * BULLET_OVERHEAD;
-  return weight > 5000 ? 'xxs' : weight > 3600 ? 'xs' : weight > 2800 ? 'sm' : 'md';
+  return weight > 5000 ? 'xxs' : weight > 3400 ? 'xs' : weight > 2800 ? 'sm' : 'md';
 };
 
 /**
@@ -111,7 +115,7 @@ export const sizeFor = (s: string) =>
   s.length > 1800 ? 'xxxs' : s.length > 1500 ? 'xxs' : s.length > 1200 ? 'xs' : s.length > 700 ? 'sm' : 'md';
 
 /** 04c: opis obsługi i rozliczania oraz uwagi do oferty. Slajd ma sens, gdy jest choć jedno z dwojga. */
-export function NotesSlide({ no, footer, d }: Footer & { d: NotesData }) {
+export function NotesSlide({ no, footer, d, cont = false }: Footer & { d: NotesData; cont?: boolean }) {
   const both = d.exec !== null && d.notes !== '';
   return (
     <Slide no={no} footerLabel={footer}>
@@ -127,6 +131,7 @@ export function NotesSlide({ no, footer, d }: Footer & { d: NotesData }) {
         ) : (
           <>
             Uwagi <em>do oferty</em>
+            {cont ? ' (cd.)' : ''}
           </>
         )}
       </SlideHead>
