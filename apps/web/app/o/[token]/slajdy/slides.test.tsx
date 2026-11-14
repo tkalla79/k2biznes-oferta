@@ -159,6 +159,8 @@ describe('slajdy z tekstem konsultanta i ustawieniami firmowymi', () => {
     // Progi są na wadze: znaki + 150 za każdy punkt. Dla jednego punktu to znaki + 150.
     expect(bulletsSize(['x'.repeat(2650)])).toBe('md');
     expect(bulletsSize(['x'.repeat(2651)])).toBe('sm');
+    expect(bulletsSize(['x'.repeat(3250)])).toBe('sm'); // waga 3400, granica: powyżej 3400
+    expect(bulletsSize(['x'.repeat(3251)])).toBe('xs');
     expect(bulletsSize(['x'.repeat(3451)])).toBe('xs');
     expect(bulletsSize(['x'.repeat(4851)])).toBe('xxs');
     expect(html(<BulletsSlide no="04b" footer="x" bullets={['x'.repeat(3451)]} />)).toContain('sl-bullets sl-bullets--xs');
@@ -168,6 +170,23 @@ describe('slajdy z tekstem konsultanta i ustawieniami firmowymi', () => {
     expect(sizeFor('x'.repeat(1501))).toBe('xxs');
     expect(sizeFor('x'.repeat(1800))).toBe('xxs');
     expect(sizeFor('x'.repeat(1801))).toBe('xxxs');
+  });
+
+  // Regresja: slajd 04b cd. oferty K2/2026/11/007 (pięć punktów, waga 3562) w `sm` nachodził na
+  // stopkę o 25 px; w `xs` ma 75 px zapasu.
+  it('04b cd.: pięć punktów o wadze 3562 dostaje xs, nie sm', () => {
+    const bullets = [627, 519, 436, 301, 929].map((n) => 'x'.repeat(n));
+    expect(bulletsSize(bullets)).toBe('xs');
+    expect(html(<BulletsSlide no="04b cd." footer="x" bullets={bullets} offset={5} cont />)).toContain('sl-bullets--xs');
+  });
+
+  it('04c cd.: kontynuacja uwag ma oznaczenie i nie ma karty opłaty, uwagi dostają całą szerokość', () => {
+    const out = html(<NotesSlide no="04c cd." footer="x" d={{ exec: null, notes: 'Dalsza część uwag' }} cont />);
+    expect(out).toContain('Uwagi <em>do oferty</em> (cd.)');
+    expect(out).not.toContain('netto / miesiąc');
+    expect(out).toContain('minmax(0, 1fr)');
+    expect(out).toContain('Dalsza część uwag');
+    expect(html(<NotesSlide no="04c" footer="x" d={{ exec: null, notes: 'x' }} />)).not.toContain('(cd.)');
   });
 
   it('04c: tytuł i liczba kart zależą od tego, co oferta ma', () => {
